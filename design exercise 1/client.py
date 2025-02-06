@@ -33,7 +33,7 @@ def receive_messages(sock):
         except Exception as e:
             print(f"Failed to close the socket properly: {e}")
 
-def send_messages(sock):
+def send_messages(sock, username):
     """Sends messages along the socket to the server. If an empty message is typed, the user has the power to 
     terminate the connection when prompted. Different error handling mechanisms are at the bottom of the function. 
 
@@ -50,6 +50,7 @@ def send_messages(sock):
                 confirm = input("No message entered. Would you like to end the connection? (yes/no) ").strip().lower()
                 if confirm == 'yes':
                     print("Ending connection...")
+                    #sock.send(f"{username}: {message}".encode('utf-8'))
                     break
                 elif confirm == 'no':
                     continue
@@ -78,10 +79,21 @@ def start_client():
 
     """
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(('localhost', 12345)) #we should not hardcode this, i have to change this every time and waldo will fail us 
+    try:
+        client_socket.connect(('localhost', 12345)) #we should not hardcode this, i have to change this every time and waldo will fail us 
+        print("Connected to the server.")
 
-    threading.Thread(target=receive_messages, args=(client_socket,)).start()
-    send_messages(client_socket)
+        username = input("Please enter your username: ")
+        client_socket.send(username.encode('utf-8')) #the username gets send to the server as the first message ALWAYS. this is a prototype for login
+
+        threading.Thread(target=receive_messages, args=(client_socket,)).start()
+        send_messages(client_socket, username)
+    
+    except Exception as e: 
+        print(f"Unable to connect to the server :{e}")
+    
+    finally: 
+        client_socket.close()
 
 if __name__ == "__main__":
     #currently, i broadcast messages to everybody except the source client. i want to make this so that i can specify by username who to send a message to. that requires knowing usernames

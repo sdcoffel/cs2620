@@ -5,10 +5,10 @@
 import socket
 import threading
 
-clients = []  #list of all clients currently online
+active_clients = {}  #map of all active client usernames to their sockets 
 
-def broadcast_message(message, sender_socket): 
-    """This function broadcasts a client's message to everyone else by forwarding via the server. We need to tweak this by username eventually.
+def send_message(recipient, sender, message): 
+    """This function will send a message to a specific client. users must format their messages as [intended username] : [message] in order for it to go through
 
     Args: 
         message: The incoming message from the client. 
@@ -17,13 +17,16 @@ def broadcast_message(message, sender_socket):
         If the server cannot get a message through, throw an error but do not terminate the connection with the client
 
     """
-    for client in clients:
-        if client != sender_socket:
-            try:
-                client.send(message)
-            except Exception as e: 
-                print(f"Error sending message to {client.getpeername()}: {e}")
-                continue
+    if recipient in active_clients:
+        try:
+            full_message = f"From {sender}: {message}".encode('utf-8') #this adds the sender's username to the message that gets recieved
+            active_clients[recipient].send(full_message)
+            print(f"Message from {sender} to {recipient} delivered.")
+        except Exception as e:
+            print(f"Failed to send message from {sender} to {recipient}: {e}")
+    else:
+        print(f"{recipient} not found. Message from {sender} not delivered.")
+
 
 
 def client_handler(connection, address):
@@ -34,15 +37,34 @@ def client_handler(connection, address):
         address: IP address and port number of the client
 
     """
-    print(f"Connected with {address}")
-    clients.append(connection)  
-    
-    while True:
-        message = connection.recv(1024)
-        if not message:
-            break
-        broadcast_message(message, connection) #all clients except the sender recieve a broadcast - an area to fix 
-        #instead of broadcast_message, i should tweak something here that will allow me to send to only one client. this requires knowing the accounts that are registered
+
+    try:
+        print(f"Connected with {address}")
+        #the first message that the server gets is the username, so it knows which socket to assign the client to
+        username = connection.recv(1024).decode().strip()  #decode
+        active_clients[username] = connection
+        print(f"{username} has connected.")
+
+        while True:
+            raw_message = connection.recv(1024)
+            if not raw_message:
+                break
+
+            #more decoding
+            decoded_message = raw_message.decode('utf-8')  
+            recipient, msg = decoded_message.split(':', 1)  #split the message into recipient and message
+            send_message(recipient, username, msg)
+
+    except Exception as e:
+        print(f"Error with {username}: {e}")
+
+    finally:
+        connection.close()
+        if username in active_clients:
+            active_clients.pop(username)  #client gets removed from the active active_clients dict
+        print(f"{username} has disconnected")
+
+
 
 def start_server():
     """Responsible for booting up the server. 
