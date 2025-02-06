@@ -3,8 +3,7 @@ import bcrypt
 import uuid
 from operations import * 
 
-FILE_PATH = "accounts.txt" #this is likely causing issues in the testing suite, if we hardcode it. i do think this is the right approach, our testing suite just sucks 
-#also, do we want this to be a .txt file? up to you, idrc, as long as we can save it on persistant storage
+FILE_PATH = "accounts.txt" 
 
 def load_accounts():
     """Load the accounts dictionary from a text file. The password must be the already hashed password.
@@ -131,9 +130,9 @@ def list_accounts():
     return "\n".join(map(str, accounts.values()))
 
 
-if __name__ == '__main__':
-    username = "fillinhere"
-    password = "fillinhere"
-    my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to 
-    test = list_accounts()
-    print(test)
+# if __name__ == '__main__':
+#     username = "fillinhere"
+#     password = "fillinhere"
+#     my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to 
+#     test = list_accounts()
+#     print(test)

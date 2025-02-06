@@ -4,26 +4,31 @@
 import socket
 import threading
 
-active_clients = {}  #map of all active client usernames to their sockets 
+active_clients = {}  #map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
 
 def send_message(recipient, sender, message): 
-    """This function will send a message to a specific client. users must format their messages as [intended username] : [message] in order for it to go through
+    """This function will send a message to a specific client. We still have a synchronization bug, so the first message may not go through. Other than that, this is ok
 
     Args: 
         message: The incoming message from the client. 
-        sender_socket: The socket that belongs to the sender.
+        sender: The socket that belongs to the sender.
+        recipient: The socket that belongs to the recipient. This is where message is being rerouted to
 
-        If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client
+    If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client
 
     """
+    
     if recipient in active_clients and 'socket' in active_clients[recipient]:
-        client_socket = active_clients[recipient]['socket'] #assign to the corresponding client socket
+        client_socket = active_clients[recipient]['socket'] #assign the desired recipient to a socket and save it in the active_clients dict
+
         try:
-            full_message = f"From {sender}: {message}".encode('utf-8') #this adds the sender's username to the message that gets recieved
+            full_message = f"from {sender}: {message}".encode('utf-8') 
             client_socket.send(full_message)
             print(f"Message from {sender} to {recipient} delivered.")
+
         except Exception as e:
             print(f"Failed to send message from {sender} to {recipient}: {e}")
+
     else:
         print(f"{recipient} not found. Message from {sender} not delivered.")
 
@@ -40,31 +45,24 @@ def client_handler(connection, address):
 
     try:
         print(f"Connected with {address}")
-        #the first message that the server gets is the username, so it knows which socket to assign the client to
-        username = connection.recv(1024).decode().strip()  #decode
-        connection.send("Username registered. Proceed.".encode('utf-8'))
-
+        username = connection.recv(1024).decode().strip() #the first message that the server gets is the username, so it knows which socket to assign the client to in active_clients
+        connection.send("Username registered. Proceed.".encode('utf-8')) #verification for the client that they are online
         recipient = connection.recv(1024).decode().strip()
 
         if not username:
             raise ValueError("Username not provided")
         
-
-        #server stores all associated details of the client
+        #server stores all associated details of the client in active_clients
         active_clients[username] = {
             "socket": connection,
-            "recipient": recipient #this gets updated by the client
+            "recipient": recipient
         }
-
         print(f"{username} has connected and messaging {recipient}.")
-
-
 
         #update recipient dict only after client is registered
         recipient = connection.recv(1024).decode().strip()
         active_clients[username]["recipient"] = recipient
         print(f"{username} is messaging {recipient}.")
-
 
         while True:
             raw_message = connection.recv(1024)
