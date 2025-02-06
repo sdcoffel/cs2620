@@ -86,6 +86,11 @@ class TestAccountManager(unittest.TestCase):
 
 
 class CustomTestRunner(unittest.TextTestRunner):
+    """This is the package's custom test runner class. You can customize the output of the test results 
+    however you want. Increasing the verbosity gives you more information about the tests that were run.
+
+    """
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
