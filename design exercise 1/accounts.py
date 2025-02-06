@@ -1,31 +1,40 @@
 import os
-import pickle
+import bcrypt
 import uuid
+from operations import * 
 
-FILE_PATH = "accounts.pkl"
-
+FILE_PATH = "accounts.txt" #this is likely causing issues in the testing suite, if we hardcode it. i do think this is the right approach, our testing suite just sucks 
+#also, do we want this to be a .txt file? up to you, idrc, as long as we can save it on persistant storage
 
 def load_accounts():
-    """Load the accounts dictionary from the `accounts.pkl` file.
+    """Load the accounts dictionary from a text file. The password must be the already hashed password.
 
     Returns:
-        dict: A dictionary of accounts loaded from the `accounts.pkl` file.
+        dict: A dictionary of accounts loaded from the txtfile.
               If the file does not exist, returns an empty dictionary.
     """
-    if os.path.exists(FILE_PATH):
-        with open(FILE_PATH, "rb") as f:
-            return pickle.load(f)
-    return {}
+    accounts = {}
+    try: 
+        with open(FILE_PATH, "r") as f: 
+            for line in f: 
+                account = deserialize_account(line)
+                accounts[account['uuid']] = account
+    except FileNotFoundError: 
+        print("No accounts file found, starting with an empty dictionary")
+    return accounts 
+
 
 
 def save_accounts(accounts):
-    """Save the given dictionary of accounts to the `accounts.pkl` file.
+    """Save the given dictionary of accounts to a serialized form.
 
     Args:
         accounts (dict): The dictionary of account objects to be saved.
     """
-    with open(FILE_PATH, "wb") as f:
-        pickle.dump(accounts, f)
+    with open(FILE_PATH, "w") as f:
+        for account in accounts.values(): 
+            f.write(serialize_account(account))
+        
 
 
 def is_valid_account(account):
@@ -47,8 +56,8 @@ def is_valid_account(account):
     return set(account.keys()) == required_keys
 
 
-def create_account(username, hashed_password):
-    """Create a new account and save it to the `accounts.pkl` file.
+def create_account(username, password):
+    """Create a new account and save it to the txt file.
 
     This function loads existing accounts from the file, checks for duplicate
     usernames, generates a new UUID for the account, and validates the new
@@ -56,7 +65,8 @@ def create_account(username, hashed_password):
 
     Args:
         username (str): The username of the new account.
-        hashed_password (str): The hashed password of the new account.
+        password (str): The user-supplied password of the new account. 
+        When we create the account, we use bcrypt to hash the password. 
 
     Returns:
         dict: The newly created account object.
@@ -71,7 +81,10 @@ def create_account(username, hashed_password):
         if existing_account["username"] == username:
             raise ValueError(f"Username '{username}' already exists.")
 
+
     # Generate a new UUID and create the account
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    
     new_uuid = str(uuid.uuid4())
     account_object = {
         "uuid": new_uuid,
@@ -91,7 +104,7 @@ def create_account(username, hashed_password):
 
 
 def delete_account(account_uuid):
-    """Delete an account by UUID and save the update to the `accounts.pkl` file.
+    """Delete an account by UUID and save the update to the txt file.
 
     Args:
         account_uuid (str): The UUID of the account to delete.
@@ -109,10 +122,18 @@ def delete_account(account_uuid):
 
 
 def list_accounts():
-    """List all accounts currently stored in `accounts.pkl`.
+    """List all accounts currently stored.
 
     Returns:
-        list: A list of all account objects.
+        list: A list of all account objects. I modified this so that every entry is on a new line, for readability
     """
     accounts = load_accounts()
-    return list(accounts.values())
+    return "\n".join(map(str, accounts.values()))
+
+
+if __name__ == '__main__':
+    username = "fillinhere"
+    password = "fillinhere"
+    my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to 
+    test = list_accounts()
+    print(test)

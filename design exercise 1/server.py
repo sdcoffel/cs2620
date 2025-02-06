@@ -1,3 +1,7 @@
+#TODO:
+# - figure out if pending messages are going to be stored here or not
+# - only send message to a specific client, not broadcasting the entire thing
+
 import socket
 import threading
 
@@ -38,7 +42,7 @@ def client_handler(connection, address):
         if not message:
             break
         broadcast_message(message, connection) #all clients except the sender recieve a broadcast - an area to fix 
-
+        #instead of broadcast_message, i should tweak something here that will allow me to send to only one client. this requires knowing the accounts that are registered
 
 def start_server():
     """Responsible for booting up the server. 

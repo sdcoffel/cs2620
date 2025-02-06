@@ -1,13 +1,20 @@
+#TODO: 
+# - if i start the client before the server, the connection is refused. i should have a mechanism that continuously polls the server until it's online
+# when i end the chat, i get [Errno 9] Bad file descriptor. this just means that its no longer connected to the server. i should have a way of exiting gracefully so i don't get that scary message
+
+
 import socket
 import threading
 
 def receive_messages(sock):
     """ This function is in charge of recieving messages that have been forwarded from the server. 
 
-    Args: The socket that the client is currently connected to the server with. 
+    Args: 
+        sock (socket.socket()): Socket that the client is currently connected to the server with. 
 
-    Returns: Will return with an exception if the connection between the server and the client goes down. Else will continue until either the client or server
-    terminates the connection.
+    Returns: 
+        Will return with an exception if the connection between the server and the client goes down. Else will continue until either the client or server
+        terminates the connection.
 
     """
     try:
@@ -23,7 +30,6 @@ def receive_messages(sock):
     finally:
         try:
             sock.close()
-            print("Socket has been closed.")
         except Exception as e:
             print(f"Failed to close the socket properly: {e}")
 

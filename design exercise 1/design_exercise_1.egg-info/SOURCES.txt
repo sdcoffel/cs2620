@@ -1,0 +1,6 @@
+setup.py
+design_exercise_1.egg-info/PKG-INFO
+design_exercise_1.egg-info/SOURCES.txt
+design_exercise_1.egg-info/dependency_links.txt
+design_exercise_1.egg-info/requires.txt
+design_exercise_1.egg-info/top_level.txt
