@@ -43,33 +43,36 @@ def send_messages(sock, username):
     Continues until the connection is terminated, handles exceptions if the message cannot be sent.
     
     """
+
+    recipient = input("Enter the recipient's username: ")
+    print(f"Now messaging {recipient}. Type 'quit' to end the session or 'change' to select another recipient.")
+    
     try:
         while True:
             message = input("You: ")
-            if not message:
-                confirm = input("No message entered. Would you like to end the connection? (yes/no) ").strip().lower()
-                if confirm == 'yes':
-                    print("Ending connection...")
-                    #sock.send(f"{username}: {message}".encode('utf-8'))
-                    break
-                elif confirm == 'no':
-                    continue
-                else:
-                    print("Please type 'yes' or 'no'.")
-                    continue
+            if message.lower() == 'quit':
+                print("Ending connection...")
+                break
+            elif message.lower() == 'change':
+                recipient = input("Enter the recipient's username: ")
+                print(f"Now messaging {recipient}. Type 'quit' to end the session.")
+                continue
 
-            sock.send(message.encode('utf-8'))
+            full_message = f"{recipient}:{message}"
+            sock.send(full_message.encode('utf-8'))
+
 
     except socket.error as e:
         print(f"Error sending message: {e}")
-    except KeyboardInterrupt:
-        print("You have exited the chat.")
+
     except Exception as e:
         print(f"Some unexpected error {e} has occurred: Please contact system administrators Savanna and Ian")
+    
     finally:
         try:
             sock.close()
-            print("Socket closed.")
+            print("You have exited the chat.")
+            
         except Exception as e:
             print(f"Failed to close the socket properly: {e}")
 
@@ -84,7 +87,14 @@ def start_client():
         print("Connected to the server.")
 
         username = input("Please enter your username: ")
-        client_socket.send(username.encode('utf-8')) #the username gets send to the server as the first message ALWAYS. this is a prototype for login
+        client_socket.send(username.encode('utf-8'))
+
+        #server confirms the client
+        confirmation = client_socket.recv(1024).decode('utf-8')
+        print(confirmation)  
+
+        recipient = input("Who do you want to message? ")
+        client_socket.send(recipient.encode('utf-8'))
 
         threading.Thread(target=receive_messages, args=(client_socket,)).start()
         send_messages(client_socket, username)
@@ -96,5 +106,4 @@ def start_client():
         client_socket.close()
 
 if __name__ == "__main__":
-    #currently, i broadcast messages to everybody except the source client. i want to make this so that i can specify by username who to send a message to. that requires knowing usernames
     start_client()

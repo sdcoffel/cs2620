@@ -1,6 +1,5 @@
 #TODO:
 # - figure out if pending messages are going to be stored here or not
-# - only send message to a specific client, not broadcasting the entire thing
 
 import socket
 import threading
@@ -14,13 +13,14 @@ def send_message(recipient, sender, message):
         message: The incoming message from the client. 
         sender_socket: The socket that belongs to the sender.
 
-        If the server cannot get a message through, throw an error but do not terminate the connection with the client
+        If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client
 
     """
-    if recipient in active_clients:
+    if recipient in active_clients and 'socket' in active_clients[recipient]:
+        client_socket = active_clients[recipient]['socket'] #assign to the corresponding client socket
         try:
             full_message = f"From {sender}: {message}".encode('utf-8') #this adds the sender's username to the message that gets recieved
-            active_clients[recipient].send(full_message)
+            client_socket.send(full_message)
             print(f"Message from {sender} to {recipient} delivered.")
         except Exception as e:
             print(f"Failed to send message from {sender} to {recipient}: {e}")
@@ -42,8 +42,29 @@ def client_handler(connection, address):
         print(f"Connected with {address}")
         #the first message that the server gets is the username, so it knows which socket to assign the client to
         username = connection.recv(1024).decode().strip()  #decode
-        active_clients[username] = connection
-        print(f"{username} has connected.")
+        connection.send("Username registered. Proceed.".encode('utf-8'))
+
+        recipient = connection.recv(1024).decode().strip()
+
+        if not username:
+            raise ValueError("Username not provided")
+        
+
+        #server stores all associated details of the client
+        active_clients[username] = {
+            "socket": connection,
+            "recipient": recipient #this gets updated by the client
+        }
+
+        print(f"{username} has connected and messaging {recipient}.")
+
+
+
+        #update recipient dict only after client is registered
+        recipient = connection.recv(1024).decode().strip()
+        active_clients[username]["recipient"] = recipient
+        print(f"{username} is messaging {recipient}.")
+
 
         while True:
             raw_message = connection.recv(1024)
@@ -56,12 +77,12 @@ def client_handler(connection, address):
             send_message(recipient, username, msg)
 
     except Exception as e:
-        print(f"Error with {username}: {e}")
+        print(f"Errors with {username}: {e}")
 
     finally:
         connection.close()
         if username in active_clients:
-            active_clients.pop(username)  #client gets removed from the active active_clients dict
+            del active_clients[username]  #client gets removed from the active active_clients dict
         print(f"{username} has disconnected")
 
 
