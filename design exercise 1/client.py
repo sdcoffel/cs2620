@@ -86,14 +86,44 @@ def start_client():
         #client_socket.connect((server_ip, server_port)) #we should not hardcode this, i have to change this every time and waldo will fail us 
         print("Connected to the server.")
 
-        username = input("Please enter your username: ")
-        client_socket.send(username.encode('utf-8'))
+        # username = input("Please enter your username: ")
+        # client_socket.send(username.encode('utf-8'))
 
 
-        #server confirms the client
-        confirmation = client_socket.recv(1024).decode('utf-8')
-        print(confirmation)  
-        
+        #login logic 
+        response = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
+        #client_socket.send(response.encode('utf-8'))
+
+        if response == 'no':
+            username = input("Please enter a username: ")
+            client_socket.send(username.encode('utf-8'))
+            
+            password = input("Please enter a password: ")
+            client_socket.send(password.encode('utf-8'))
+            
+            confirmation = client_socket.recv(1024).decode('utf-8')
+            print(confirmation)
+
+        elif response == 'yes':
+            username = input("Please enter your username: ")
+            client_socket.send(username.encode('utf-8'))
+
+            password = input("Please enter your password: ")
+            client_socket.send(password.encode('utf-8'))
+
+            confirmation = client_socket.recv(1024).decode('utf-8')
+            print(confirmation)
+            # if "Invalid" in confirmation:
+            #     client_socket.close()
+            #     return
+
+
+        # #server confirms the client
+        # confirmation = client_socket.recv(1024).decode('utf-8')
+        # print(confirmation)  
+        # print("You are now logged in. Welcome!") 
+
+
         recipient = input("Who do you want to message? ")
         client_socket.send(recipient.encode('utf-8'))
         print(f"Now messaging {recipient}. Type 'quit' to end the session or 'change' to select another recipient.")

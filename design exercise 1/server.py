@@ -3,6 +3,7 @@
 
 import socket
 import threading
+from accounts import load_accounts, save_accounts, create_account, is_valid_account, delete_account
 
 active_clients = {}  #map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
 
@@ -35,7 +36,7 @@ def send_message(recipient, sender, message):
 
 
 def client_handler(connection, address):
-    """Establishes a connection with the client. 
+    """Establishes a connection with the client Prompts for login info, and prompts for the recipient of any messages. 
 
     Args: 
         connection (socket.socket()): socket associated with the client
@@ -45,23 +46,44 @@ def client_handler(connection, address):
 
     try:
         print(f"Connected with {address}")
-        username = connection.recv(1024).decode().strip() #the first message that the server gets is the username, so it knows which socket to assign the client to in active_clients
-        connection.send("Username registered. Proceed.".encode('utf-8')) #verification for the client that they are online
-        recipient = connection.recv(1024).decode().strip()
 
-        if not username:
-            raise ValueError("Username not provided")
+        response = connection.recv(1024).decode().strip() #response from yes/no
+        username = connection.recv(1024).decode().strip() #response from the username prompt. these are always the first two things that the client provides
         
-        #server stores all associated details of the client in active_clients
-        active_clients[username] = {
-            "socket": connection,
-            "recipient": recipient
-        }
-        print(f"{username} has connected and messaging {recipient}.")
+        
+        if response == "no": 
+            username = connection.recv(1024).decode().strip()
+            password = connection.recv(1024).decode().strip()
 
-        #update recipient dict only after client is registered
+            create_account(username, password)
+            connection.send("Account created! You are now logged in.".encode('utf-8'))
+        
+        elif response == 'yes':
+            username = connection.recv(1024).decode().strip()
+            password = connection.recv(1024).decode().strip()
+
+            accounts = load_accounts()
+            
+            if username in accounts and accounts[username]['hashed_password'] == password:
+                connection.send("Success! You are now logged in.".encode('utf-8'))
+            else: 
+                connection.send("Invalid username/password. Please try again.".encode('utf-8'))
+                connection.close()
+                return
+
+        
+        #update the active clients dictionary with the new username
+        active_clients[username] = {
+            "socket": connection
+        }
+        
+        print(f"{username} has connected.")
+
+        #prompt for the recipient after successful login
+        connection.send("You have sucessfully connected to the server!".encode('utf-8'))
+        recipient = connection.recv(1024).decode().strip()
         active_clients[username]["recipient"] = recipient
-        print(f"{username} is messaging {recipient}.") #the messages that don't go through end up here
+        print(f"{username} is messaging {recipient}.")
 
         while True:
             raw_message = connection.recv(1024)
@@ -73,8 +95,9 @@ def client_handler(connection, address):
             recipient, msg = decoded_message.split(':', 1)  #split the message into recipient and message
             send_message(recipient, username, msg)
 
+
     except Exception as e:
-        print(f"Errors with {username}: {e}")
+        print(f"Errors: {e}")
 
     finally:
         connection.close()
