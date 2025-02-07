@@ -50,13 +50,13 @@ def client_handler(connection, address):
 
         #get login credentials from the client
         credentials = connection.recv(1024).decode().strip().split(',')
-        username, password, existing = credentials[0], credentials[1], credentials[2]
+        username, hashed_password, existing = credentials[0], credentials[1], credentials[2]
 
         accounts = load_accounts(FILE_PATH)
 
         if existing == "no":
             try: 
-                create_account(username, password, FILE_PATH) #create_account does all the checking for us
+                create_account(username, hashed_password, FILE_PATH) #create_account does all the checking for us
                 connection.send("Account created! You are now logged in.".encode('utf-8'))
             # all_clients_ever[username] = {
             #     "socket": connection,
@@ -70,12 +70,11 @@ def client_handler(connection, address):
             
         elif existing == "yes":
             #checks if the password is correctly authenticated
-            if username in accounts and bcrypt.checkpw(password.encode('utf-8'), accounts[username]['hashed_password']):
+            if username in accounts and bcrypt.checkpw(hashed_password.encode('utf-8'), accounts[username]['hashed_password'].encode('utf-8')):
                 connection.send("Success! You are now logged in.".encode('utf-8'))
             
             else: 
                 connection.send("Invalid username/password. Please try again.".encode('utf-8'))
-                connection.close()
                 return
 
         

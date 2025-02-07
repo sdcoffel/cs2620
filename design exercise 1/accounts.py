@@ -53,7 +53,7 @@ def is_valid_account(account):
     return set(account.keys()) == required_keys
 
 
-def create_account(username, password, FILE_PATH):
+def create_account(username, hashed_password, FILE_PATH):
     """Create a new account and save it to the txt file.
 
     This function loads existing accounts from the file, checks for duplicate
@@ -79,7 +79,6 @@ def create_account(username, password, FILE_PATH):
             raise ValueError(f"Username '{username}' already exists.")
 
     # Generate a new UUID and create the account
-    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()) #this is so wrong!!! we need to hash client side instead of serverside
 
     new_uuid = str(uuid.uuid4())
     account_object = {

@@ -5,7 +5,7 @@
 
 import socket
 import threading
-import time
+import bcrypt
 
 def receive_messages(sock):
     """ This function is in charge of recieving messages that have been forwarded from the server. 
@@ -99,8 +99,11 @@ def start_client():
             username = input("Please enter your username: ").strip()
             password = input("Please enter your password: ").strip()
 
+        #hash all passwords before sending them to the server
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()) 
+
         #send login credentials to the server
-        credentials = f"{username},{password},{existing}"
+        credentials = f"{username},{hashed_password},{existing}"
         client_socket.send(credentials.encode('utf-8'))
 
         #wait for server confirmation to validate credentials
