@@ -100,22 +100,20 @@ def delete_account(username, FILE_PATH):
     save_accounts(accounts, FILE_PATH)
 
 
-def list_accounts():
+def list_accounts(FILE_PATH):
     """List all accounts currently stored.
 
     Returns:
         list: A list of all account objects. I modified this so that every entry is on a new line, for readability
     """
     # TODO list accounts by wildcard
-    accounts = load_accounts()
-    return "\n".join(map(str, accounts.values()))
+    accounts = load_accounts(FILE_PATH)
+    return "\n".join(accounts.keys())
 
 
 # if __name__ == '__main__':
 #     FILE_PATH = "accounts.txt"
 
-#     username = "fillinhere"
-#     password = "fillinhere"
 #     my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to
 #     test = list_accounts()
 #     print(test)

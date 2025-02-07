@@ -45,7 +45,6 @@ def send_messages(sock, username, recipient):
     
     """
     
-    
     try:
         while True:
             message = input("You: ")
@@ -76,6 +75,63 @@ def send_messages(sock, username, recipient):
             print(f"Failed to close the socket properly: {e}")
 
 
+def handle_login(client_socket):
+    """Handles the login process for the client."""
+    existing = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
+    username = " " # to be filled in by the user
+
+    if existing == "no":
+        username = input("Please choose your username: ").strip()
+        password = input("Please choose your password: ").strip()
+
+    if existing == "yes":
+        username = input("Please enter your username: ").strip()
+        password = input("Please enter your password: ").strip()
+
+    #send login credentials to the server
+    credentials = f"{username},{password},{existing}"
+    client_socket.send(credentials.encode('utf-8'))
+
+    #wait for server confirmation to validate credentials
+    server_message = client_socket.recv(1024).decode('utf-8')
+    print(server_message)
+
+    return username, client_socket
+
+
+
+
+def handle_action(client_socket, username):
+    """Handles the action selection for the client."""
+    action = input("Do you want to message, or delete your account? (message/list/delete): ").strip().lower()
+    if action == "delete":
+        client_socket.send("delete_account".encode('utf-8'))
+        server_message = client_socket.recv(1024).decode('utf-8')
+        print(server_message)
+        return False
+    
+    elif action == "list": 
+        client_socket.send("list_accounts".encode('utf-8'))
+        server_message = client_socket.recv(1024).decode('utf-8')
+        print("List of users you can message: ")
+        print(server_message)
+        return True
+    
+    elif action == "message":
+        recipient = input("Who do you want to message? ")
+        client_socket.send(recipient.encode('utf-8'))
+        print(f"Now messaging {recipient}. Type 'quit' to end the session or 'change' to select another recipient.")
+        threading.Thread(target=receive_messages, args=(client_socket,)).start()
+        send_messages(client_socket, username, recipient)
+        return False
+
+    else:
+        print("Invalid action. Please try again.")
+        return True
+
+
+
+
 def start_client():
     """Responsible for booting up the client and establishing the first connection to the server. 
 
@@ -87,51 +143,12 @@ def start_client():
         #client_socket.connect((server_ip, server_port)) #we should not hardcode this, i have to change this every time and waldo will fail us 
         print("Connected to the server.")
 
-       #get login information from the user
-        existing = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
-        username = " " # to be filled in by the user
-
-        if existing == "no":
-            username = input("Please choose your username: ").strip()
-            password = input("Please choose your password: ").strip()
-
-        if existing == "yes":
-            username = input("Please enter your username: ").strip()
-            password = input("Please enter your password: ").strip()
-
-        #hash all passwords before sending them to the server
-        #hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()) 
-
-        #send login credentials to the server
-        credentials = f"{username},{password},{existing}"
-        client_socket.send(credentials.encode('utf-8'))
-
-        #wait for server confirmation to validate credentials
-        server_message = client_socket.recv(1024).decode('utf-8')
-        print(server_message)
-
-        if "Invalid username/password" in server_message:
+        username, client_socket = handle_login(client_socket)
+        if not username:
             return
-        
 
-
-        #here, the client is given the option to delete their account if they want 
-        action = input("Type 'delete' if you want to delete your account, otherwise hit 'enter' to continue to the message board!: ").strip().lower()
-        if action == "delete":
-            client_socket.send("delete_account".encode('utf-8'))
-            server_message = client_socket.recv(1024).decode('utf-8')
-            print(server_message)
-            # return
-
-
-        recipient = input("Who do you want to message? ")
-        client_socket.send(recipient.encode('utf-8'))
-        print(f"Now messaging {recipient}. Type 'quit' to end the session or 'change' to select another recipient.")
-
-
-        threading.Thread(target=receive_messages, args=(client_socket,)).start()
-        send_messages(client_socket, username, recipient)
-    
+        while handle_action(client_socket, username):
+            pass
     except Exception as e: 
         print(f"Unable to connect to the server :{e}")
     

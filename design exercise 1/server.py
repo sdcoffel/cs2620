@@ -4,7 +4,7 @@
 import socket
 import threading
 import bcrypt
-from accounts import load_accounts, save_accounts, create_account, is_valid_account, delete_account
+from accounts import load_accounts, save_accounts, create_account, is_valid_account, delete_account, list_accounts
 
 
 def send_message(recipient, sender, message): 
@@ -78,7 +78,6 @@ def client_handler(connection, address):
                 continue
 
                  
-            
         #update the active clients dictionary with the new username. this gets updated no matter what, so i am putting it outside the conditional
         active_clients[username] = {
             "socket": connection
@@ -88,35 +87,41 @@ def client_handler(connection, address):
 
 
 
-
-        #prompt for the recipient after successful login
-        recipient = connection.recv(1024).decode().strip()
-        active_clients[username]["recipient"] = recipient
-        print(f"{username} is messaging {recipient}.")
-
         while True:
-            raw_message = connection.recv(1024)
+            #read the incoming message
+            raw_message = connection.recv(1024).decode().strip()
             if not raw_message:
                 break
 
-            #more decoding
-            decoded_message = raw_message.decode('utf-8')  
-            recipient, msg = decoded_message.split(':', 1) 
-            send_message(recipient, username, msg)
-
-        
-        #if the user wants to delete their account, they can do it here
-        if connection.recv(1024).decode().strip().lower() == "delete_account":
-            try:
+            #special commands, like delete and list 
+            if raw_message.lower() == "delete_account":
                 delete_account(username, FILE_PATH)
+                print(f"Account deletion requested by user {username}")
                 connection.send("Account deleted successfully.".encode('utf-8'))
+                break
+
+            elif raw_message.lower() == "list_accounts":
+                print(f"List requested by user {username}")
+                all_clients = list_accounts(FILE_PATH)
+                connection.send(all_clients.encode('utf-8'))
+                continue
+
+            #all other messages
+            if ':' in raw_message:
+                recipient, msg = raw_message.split(':', 1)
+                send_message(recipient, username, msg)
+                
+            else:
+                #handle setting the recipient and tracking in the server
+                recipient = raw_message
+                if recipient in accounts:
+                    active_clients[username]["recipient"] = recipient
+                    print(f"{username} is messaging {recipient}.")
+                else:
+                    connection.send("Invalid recipient. Please enter a valid username.".encode('utf-8'))
+
         
-            except ValueError as e:
-                connection.send(f"Account deletion failed: {e}".encode('utf-8'))
-               
-
-
-
+  
     except Exception as e:
         print(f"Errors: {e}")
 
@@ -161,6 +166,7 @@ if __name__ == "__main__":
     FILE_PATH = "all_accounts_ever.txt"
     active_clients = {}  #map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
     start_server()
+
 
 
 
