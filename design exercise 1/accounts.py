@@ -5,7 +5,6 @@ from operations import *
 
 FILE_PATH = "accounts.txt"
 
-
 def load_accounts():
     """Load the accounts dictionary from a text file. The password must be the already hashed password.
 
@@ -80,7 +79,7 @@ def create_account(username, password):
             raise ValueError(f"Username '{username}' already exists.")
 
     # Generate a new UUID and create the account
-    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()) #this is so wrong!!! we need to hash client side instead of serverside
 
     new_uuid = str(uuid.uuid4())
     account_object = {
@@ -130,6 +129,8 @@ def list_accounts():
 
 
 # if __name__ == '__main__':
+#     FILE_PATH = "accounts.txt"
+
 #     username = "fillinhere"
 #     password = "fillinhere"
 #     my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to
