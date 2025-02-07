@@ -93,7 +93,7 @@ def start_server():
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  #this line guarantees that we can reuse the same port over and over again without having to change the number
-        server_socket.bind(('localhost', 12345))
+        server_socket.bind(('0.0.0.0', 12345)) #listen on all network interfaces
         server_socket.listen()
         print("Server is listening...")
 

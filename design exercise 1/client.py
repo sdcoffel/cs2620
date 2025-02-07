@@ -77,13 +77,14 @@ def send_messages(sock, username):
             print(f"Failed to close the socket properly: {e}")
 
 
-def start_client():
+def start_client(server_ip):
     """Responsible for booting up the client and establishing the first connection to the server. 
 
     """
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_port = 12345 #probably should not hardcode this, i have to change this every time and waldo will fail us
     try:
-        client_socket.connect(('localhost', 12345)) #we should not hardcode this, i have to change this every time and waldo will fail us 
+        client_socket.connect((server_ip, server_port)) #we should not hardcode this, i have to change this every time and waldo will fail us 
         print("Connected to the server.")
 
         username = input("Please enter your username: ")
@@ -108,4 +109,5 @@ def start_client():
         client_socket.close()
 
 if __name__ == "__main__":
-    start_client()
+    server_ip = input("Enter the server IP address: ")
+    start_client(server_ip)
