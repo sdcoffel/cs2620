@@ -60,9 +60,8 @@ def client_handler(connection, address):
         print(f"{username} has connected and messaging {recipient}.")
 
         #update recipient dict only after client is registered
-        recipient = connection.recv(1024).decode().strip()
         active_clients[username]["recipient"] = recipient
-        print(f"{username} is messaging {recipient}.")
+        print(f"{username} is messaging {recipient}.") #the messages that don't go through end up here
 
         while True:
             raw_message = connection.recv(1024)

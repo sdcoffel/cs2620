@@ -89,12 +89,14 @@ def start_client():
         username = input("Please enter your username: ")
         client_socket.send(username.encode('utf-8'))
 
+
         #server confirms the client
         confirmation = client_socket.recv(1024).decode('utf-8')
         print(confirmation)  
-
+        
         recipient = input("Who do you want to message? ")
         client_socket.send(recipient.encode('utf-8'))
+
 
         threading.Thread(target=receive_messages, args=(client_socket,)).start()
         send_messages(client_socket, username)

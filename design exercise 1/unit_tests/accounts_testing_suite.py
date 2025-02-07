@@ -4,7 +4,7 @@ import os, sys
 import tempfile
 import random
 import string
-sys.path.append('/Users/savannacoffel/cs2620/design exercise 1')
+sys.path.append('/Users/savannacoffel/cs2620/design exercise 1') #i really shouldn't hardcode this lol
 from accounts import create_account, load_accounts, save_accounts, delete_account, list_accounts, is_valid_account
 
 
@@ -90,7 +90,7 @@ class CustomTestRunner(unittest.TextTestRunner):
     however you want. Increasing the verbosity gives you more information about the tests that were run.
 
     """
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
