@@ -1,45 +1,39 @@
 import os
 import bcrypt
 import uuid
-from operations import *
+import sqlite3
+from operations import *  # Assuming this has your serialize/deserialize ops, if needed
 
-FILE_PATH = "accounts.txt"
+DB_PATH = "accounts.db"
 
 
-def load_accounts():
-    """Load the accounts dictionary from a text file. The password must be the already hashed password.
-
-    Returns:
-        dict: A dictionary of accounts loaded from the txtfile.
-              If the file does not exist, returns an empty dictionary.
+def get_connection():
     """
-    accounts = {}
-    try:
-        with open(FILE_PATH, "r") as f:
-            for line in f:
-                account = deserialize_account(line)
-                accounts[account["uuid"]] = account
-    except FileNotFoundError:
-        print("No accounts file found, starting with an empty dictionary")
-    return accounts
-
-
-def save_accounts(accounts):
-    """Save the given dictionary of accounts to a serialized form.
-
-    Args:
-        accounts (dict): The dictionary of account objects to be saved.
+    Helper to provide a new database connection.
     """
-    with open(FILE_PATH, "w") as f:
-        for account in accounts.values():
-            f.write(serialize_account(account))
+    return sqlite3.connect(DB_PATH)
+
+
+def initialize_db():
+    """
+    Create the accounts table if it doesn't exist.
+    """
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS accounts (
+                uuid TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                hashed_password BLOB NOT NULL
+            )
+            """
+        )
+        conn.commit()
 
 
 def is_valid_account(account):
     """Check if the given account dictionary is valid.
-
-    This function loads the current accounts from the file (as required),
-    though the loaded accounts are not used in validation.
 
     Args:
         account (dict): A dictionary representing an account.
@@ -55,16 +49,14 @@ def is_valid_account(account):
 
 
 def create_account(username, password):
-    """Create a new account and save it to the txt file.
+    """Create a new account and save it to the database.
 
-    This function loads existing accounts from the file, checks for duplicate
-    usernames, generates a new UUID for the account, and validates the new
-    account structure.
+    This function checks for duplicate usernames, generates a new UUID
+    for the account, and validates the new account structure.
 
     Args:
         username (str): The username of the new account.
         password (str): The user-supplied password of the new account.
-        When we create the account, we use bcrypt to hash the password.
 
     Returns:
         dict: The newly created account object.
@@ -72,36 +64,41 @@ def create_account(username, password):
     Raises:
         ValueError: If the username already exists or if the new account is invalid.
     """
-    accounts = load_accounts()
+    with get_connection() as conn:
+        cursor = conn.cursor()
 
-    # Check for duplicate username
-    for existing_account in accounts.values():
-        if existing_account["username"] == username:
+        # Check for duplicate username
+        cursor.execute("SELECT username FROM accounts WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        if row:
             raise ValueError(f"Username '{username}' already exists.")
 
-    # Generate a new UUID and create the account
-    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        # Generate a new UUID and create the account
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        new_uuid = str(uuid.uuid4())
 
-    new_uuid = str(uuid.uuid4())
-    account_object = {
-        "uuid": new_uuid,
-        "username": username,
-        "hashed_password": hashed_password,
-    }
+        account_object = {
+            "uuid": new_uuid,
+            "username": username,
+            "hashed_password": hashed_password,
+        }
 
-    # Validate the account object
-    if not is_valid_account(account_object):
-        raise ValueError("Invalid account object structure.")
+        # Validate the account object
+        if not is_valid_account(account_object):
+            raise ValueError("Invalid account object structure.")
 
-    # Save the account
-    accounts[new_uuid] = account_object
-    save_accounts(accounts)
+        # Insert the account into the database
+        cursor.execute(
+            "INSERT INTO accounts (uuid, username, hashed_password) VALUES (?, ?, ?)",
+            (new_uuid, username, hashed_password),
+        )
+        conn.commit()
 
     return account_object
 
 
 def delete_account(account_uuid):
-    """Delete an account by UUID and save the update to the txt file.
+    """Delete an account by UUID from the database.
 
     Args:
         account_uuid (str): The UUID of the account to delete.
@@ -109,29 +106,52 @@ def delete_account(account_uuid):
     Returns:
         bool: True if the account was found and deleted, False otherwise.
     """
-    accounts = load_accounts()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        # Check if the account exists
+        cursor.execute("SELECT uuid FROM accounts WHERE uuid = ?", (account_uuid,))
+        row = cursor.fetchone()
+        if not row:
+            return False
 
-    if account_uuid in accounts:
-        del accounts[account_uuid]
-        save_accounts(accounts)
-        return True
-    return False
+        # Delete the account
+        cursor.execute("DELETE FROM accounts WHERE uuid = ?", (account_uuid,))
+        conn.commit()
+
+    return True
 
 
 def list_accounts():
-    """List all accounts currently stored.
+    """List all accounts currently stored in the database.
 
     Returns:
-        list: A list of all account objects. I modified this so that every entry is on a new line, for readability
+        str: A string representation of all account objects, each on a new line.
     """
-    # TODO list accounts by wildcard
-    accounts = load_accounts()
-    return "\n".join(map(str, accounts.values()))
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT uuid, username, hashed_password FROM accounts")
+        rows = cursor.fetchall()
+
+    accounts = []
+    for acc_uuid, acc_username, acc_hashed in rows:
+        # Each row is a tuple from the DB, convert to a dict if you want that structure
+        account = {
+            "uuid": acc_uuid,
+            "username": acc_username,
+            "hashed_password": acc_hashed,
+        }
+        accounts.append(str(account))
+
+    return "\n".join(accounts)
 
 
+# Initialize the database table if this module is ever imported or run:
+initialize_db()
+
+
+# Example usage (uncomment if you want to test):
 # if __name__ == '__main__':
 #     username = "fillinhere"
 #     password = "fillinhere"
-#     my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to
-#     test = list_accounts()
-#     print(test)
+#     my_account = create_account(username, password)
+#     print(list_accounts())
