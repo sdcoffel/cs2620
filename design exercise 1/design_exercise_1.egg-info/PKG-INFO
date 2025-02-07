@@ -1,0 +1,5 @@
+Metadata-Version: 2.2
+Name: design-exercise-1
+Version: 0.1.0
+Requires-Dist: bcrypt
+Dynamic: requires-dist
