@@ -17,7 +17,7 @@ def load_accounts(FILE_PATH):
         with open(FILE_PATH, "r") as f:
             for line in f:
                 account = deserialize_account(line)
-                accounts[account["uuid"]] = account
+                accounts[account["username"]] = account
     except FileNotFoundError:
         print("No accounts file found, starting with an empty dictionary")
     return accounts
@@ -53,7 +53,7 @@ def is_valid_account(account):
     return set(account.keys()) == required_keys
 
 
-def create_account(username, hashed_password, FILE_PATH):
+def create_account(username, password, FILE_PATH):
     """Create a new account and save it to the txt file.
 
     This function loads existing accounts from the file, checks for duplicate
@@ -73,32 +73,18 @@ def create_account(username, hashed_password, FILE_PATH):
     """
     accounts = load_accounts(FILE_PATH)
 
-    # Check for duplicate username
-    for existing_account in accounts.values():
-        if existing_account["username"] == username:
-            raise ValueError(f"Username '{username}' already exists.")
-
-    # Generate a new UUID and create the account
-
-    new_uuid = str(uuid.uuid4())
-    account_object = {
-        "uuid": new_uuid,
+    if username in accounts:
+        raise ValueError("Username already exists")
+    account = {
+        "uuid": str(uuid.uuid4()),
         "username": username,
-        "hashed_password": hashed_password,
+        "password": password #fix this later
     }
-
-    # Validate the account object
-    if not is_valid_account(account_object):
-        raise ValueError("Invalid account object structure.")
-
-    # Save the account
-    accounts[new_uuid] = account_object
+    accounts[username] = account
     save_accounts(accounts, FILE_PATH)
 
-    return account_object
 
-
-def delete_account(account_uuid, FILE_PATH):
+def delete_account(username, FILE_PATH):
     """Delete an account by UUID and save the update to the txt file.
 
     Args:
@@ -107,13 +93,11 @@ def delete_account(account_uuid, FILE_PATH):
     Returns:
         bool: True if the account was found and deleted, False otherwise.
     """
-    accounts = load_accounts()
-
-    if account_uuid in accounts:
-        del accounts[account_uuid]
-        save_accounts(accounts, FILE_PATH)
-        return True
-    return False
+    accounts = load_accounts(FILE_PATH)
+    if username not in accounts:
+        raise ValueError("Username does not exist")
+    del accounts[username]
+    save_accounts(accounts, FILE_PATH)
 
 
 def list_accounts():

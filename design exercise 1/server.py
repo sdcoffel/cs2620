@@ -24,7 +24,7 @@ def send_message(recipient, sender, message):
         client_socket = active_clients[recipient]['socket'] #assign the desired recipient to a socket and save it in the active_clients dict
 
         try:
-            full_message = f"from {sender}: {message}".encode('utf-8') 
+            full_message = f"{sender}: {message}".encode('utf-8') 
             client_socket.send(full_message)
             print(f"Message from {sender} to {recipient} delivered.")
 
@@ -37,7 +37,8 @@ def send_message(recipient, sender, message):
 
 
 def client_handler(connection, address):
-    """Establishes a connection with the client Prompts for login info, and prompts for the recipient of any messages. 
+    """Establishes a connection with the client Prompts for login info, and prompts for the recipient of any messages. Clients who wish to make a new account, log in, or delete their accounts 
+    will be able to do so here. 
 
     Args: 
         connection (socket.socket()): socket associated with the client
@@ -47,43 +48,46 @@ def client_handler(connection, address):
 
     try:
         print(f"Connected with {address}")
-
         #get login credentials from the client
         credentials = connection.recv(1024).decode().strip().split(',')
-        username, hashed_password, existing = credentials[0], credentials[1], credentials[2]
-
+        username, password, existing = credentials[0], credentials[1], credentials[2]
         accounts = load_accounts(FILE_PATH)
+        while True: 
 
-        if existing == "no":
             try: 
-                create_account(username, hashed_password, FILE_PATH) #create_account does all the checking for us
-                connection.send("Account created! You are now logged in.".encode('utf-8'))
-            # all_clients_ever[username] = {
-            #     "socket": connection,
-            #     "password": password
-            # }
+                if existing == "no":
+                    if username in accounts:
+                        connection.send("Username already exists. Please try again.".encode('utf-8')) #bug here i need to fix
+                    else: 
+                        create_account(username, password, FILE_PATH) #create_account does all the checking for us
+                        connection.send("Account created! You are now logged in.".encode('utf-8'))
+                        break
+
+                elif existing == "yes":
+                    #checks if the password is correctly authenticated
+                    if username in accounts and password == accounts[username]['password']:
+                        connection.send("Success! You are now logged in.".encode('utf-8'))
+                        break
+                    
+                    else: 
+                        connection.send("Invalid username/password. Please try again.".encode('utf-8'))
+                        continue
+            
             except ValueError as e: 
-                connection.send(f"Account creation failed: {e}".encode('utf-8'))
-                connection.close()
-                return
+                connection.send(f"Account creation failed: {e}. Please try again".encode('utf-8'))
+                continue
 
+                 
             
-        elif existing == "yes":
-            #checks if the password is correctly authenticated
-            if username in accounts and bcrypt.checkpw(hashed_password.encode('utf-8'), accounts[username]['hashed_password'].encode('utf-8')):
-                connection.send("Success! You are now logged in.".encode('utf-8'))
-            
-            else: 
-                connection.send("Invalid username/password. Please try again.".encode('utf-8'))
-                return
-
-        
         #update the active clients dictionary with the new username. this gets updated no matter what, so i am putting it outside the conditional
         active_clients[username] = {
             "socket": connection
         }
         
         print(f"{username} has connected.")
+
+
+
 
         #prompt for the recipient after successful login
         recipient = connection.recv(1024).decode().strip()
@@ -97,8 +101,20 @@ def client_handler(connection, address):
 
             #more decoding
             decoded_message = raw_message.decode('utf-8')  
-            recipient, msg = decoded_message.split(':', 1)  #split the message into recipient and message
+            recipient, msg = decoded_message.split(':', 1) 
             send_message(recipient, username, msg)
+
+        
+        #if the user wants to delete their account, they can do it here
+        if connection.recv(1024).decode().strip().lower() == "delete_account":
+            try:
+                delete_account(username, FILE_PATH)
+                connection.send("Account deleted successfully.".encode('utf-8'))
+        
+            except ValueError as e:
+                connection.send(f"Account deletion failed: {e}".encode('utf-8'))
+               
+
 
 
     except Exception as e:
@@ -107,7 +123,7 @@ def client_handler(connection, address):
     finally:
         connection.close()
         if username in active_clients:
-            del active_clients[username]  #client gets removed from the active active_clients dict
+            del active_clients[username] 
         print(f"{username} has disconnected")
 
 
@@ -121,7 +137,7 @@ def start_server():
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  #this line guarantees that we can reuse the same port over and over again without having to change the number
-        #server_socket.bind(('0.0.0.0', 12345)) #listen on all network interfaces
+        #server_socket.bind(('0.0.0.0', 12345)) #listen on all network interfaces. if we actually text, we uncomment this line
         server_socket.bind(('localhost', 12345))
         server_socket.listen()
         print("Server is listening...")
@@ -134,7 +150,7 @@ def start_server():
             except Exception as e: 
                 print(f"Fatal error {e} with server")
     
-    finally: #close the socket gracefully
+    finally: 
         try: 
             server_socket.close()
         except Exception as e: 
@@ -143,7 +159,9 @@ def start_server():
 
 if __name__ == "__main__":
     FILE_PATH = "all_accounts_ever.txt"
-    all_clients_ever = {} #map of all the clients that have ever connected to the server
     active_clients = {}  #map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
     start_server()
-    
+
+
+
+  

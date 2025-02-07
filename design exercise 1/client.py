@@ -100,10 +100,10 @@ def start_client():
             password = input("Please enter your password: ").strip()
 
         #hash all passwords before sending them to the server
-        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()) 
+        #hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()) 
 
         #send login credentials to the server
-        credentials = f"{username},{hashed_password},{existing}"
+        credentials = f"{username},{password},{existing}"
         client_socket.send(credentials.encode('utf-8'))
 
         #wait for server confirmation to validate credentials
@@ -111,9 +111,17 @@ def start_client():
         print(server_message)
 
         if "Invalid username/password" in server_message:
-            client_socket.close()
             return
         
+
+
+        #here, the client is given the option to delete their account if they want 
+        action = input("Type 'delete' if you want to delete your account, otherwise hit 'enter' to continue to the message board!: ").strip().lower()
+        if action == "delete":
+            client_socket.send("delete_account".encode('utf-8'))
+            server_message = client_socket.recv(1024).decode('utf-8')
+            print(server_message)
+            # return
 
 
         recipient = input("Who do you want to message? ")
