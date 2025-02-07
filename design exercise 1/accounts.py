@@ -1,9 +1,10 @@
 import os
 import bcrypt
 import uuid
-from operations import * 
+from operations import *
 
-FILE_PATH = "accounts.txt" 
+FILE_PATH = "accounts.txt"
+
 
 def load_accounts():
     """Load the accounts dictionary from a text file. The password must be the already hashed password.
@@ -13,15 +14,14 @@ def load_accounts():
               If the file does not exist, returns an empty dictionary.
     """
     accounts = {}
-    try: 
-        with open(FILE_PATH, "r") as f: 
-            for line in f: 
+    try:
+        with open(FILE_PATH, "r") as f:
+            for line in f:
                 account = deserialize_account(line)
-                accounts[account['uuid']] = account
-    except FileNotFoundError: 
+                accounts[account["uuid"]] = account
+    except FileNotFoundError:
         print("No accounts file found, starting with an empty dictionary")
-    return accounts 
-
+    return accounts
 
 
 def save_accounts(accounts):
@@ -31,9 +31,8 @@ def save_accounts(accounts):
         accounts (dict): The dictionary of account objects to be saved.
     """
     with open(FILE_PATH, "w") as f:
-        for account in accounts.values(): 
+        for account in accounts.values():
             f.write(serialize_account(account))
-        
 
 
 def is_valid_account(account):
@@ -64,8 +63,8 @@ def create_account(username, password):
 
     Args:
         username (str): The username of the new account.
-        password (str): The user-supplied password of the new account. 
-        When we create the account, we use bcrypt to hash the password. 
+        password (str): The user-supplied password of the new account.
+        When we create the account, we use bcrypt to hash the password.
 
     Returns:
         dict: The newly created account object.
@@ -80,10 +79,9 @@ def create_account(username, password):
         if existing_account["username"] == username:
             raise ValueError(f"Username '{username}' already exists.")
 
-
     # Generate a new UUID and create the account
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-    
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+
     new_uuid = str(uuid.uuid4())
     account_object = {
         "uuid": new_uuid,
@@ -126,6 +124,7 @@ def list_accounts():
     Returns:
         list: A list of all account objects. I modified this so that every entry is on a new line, for readability
     """
+    # TODO list accounts by wildcard
     accounts = load_accounts()
     return "\n".join(map(str, accounts.values()))
 
@@ -133,6 +132,6 @@ def list_accounts():
 # if __name__ == '__main__':
 #     username = "fillinhere"
 #     password = "fillinhere"
-#     my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to 
+#     my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to
 #     test = list_accounts()
 #     print(test)

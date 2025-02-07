@@ -80,4 +80,5 @@ def list_messages():
     Returns:
         list: A list of all message objects.
     """
+    # TODO need to list messages by sender
     return list(messages.values())
