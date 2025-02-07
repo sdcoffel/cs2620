@@ -3,9 +3,9 @@ import bcrypt
 import uuid
 from operations import *
 
-FILE_PATH = "accounts.txt"
+# FILE_PATH = "accounts.txt"
 
-def load_accounts():
+def load_accounts(FILE_PATH):
     """Load the accounts dictionary from a text file. The password must be the already hashed password.
 
     Returns:
@@ -23,7 +23,7 @@ def load_accounts():
     return accounts
 
 
-def save_accounts(accounts):
+def save_accounts(accounts, FILE_PATH):
     """Save the given dictionary of accounts to a serialized form.
 
     Args:
@@ -53,7 +53,7 @@ def is_valid_account(account):
     return set(account.keys()) == required_keys
 
 
-def create_account(username, password):
+def create_account(username, password, FILE_PATH):
     """Create a new account and save it to the txt file.
 
     This function loads existing accounts from the file, checks for duplicate
@@ -71,7 +71,7 @@ def create_account(username, password):
     Raises:
         ValueError: If the username already exists or if the new account is invalid.
     """
-    accounts = load_accounts()
+    accounts = load_accounts(FILE_PATH)
 
     # Check for duplicate username
     for existing_account in accounts.values():
@@ -94,12 +94,12 @@ def create_account(username, password):
 
     # Save the account
     accounts[new_uuid] = account_object
-    save_accounts(accounts)
+    save_accounts(accounts, FILE_PATH)
 
     return account_object
 
 
-def delete_account(account_uuid):
+def delete_account(account_uuid, FILE_PATH):
     """Delete an account by UUID and save the update to the txt file.
 
     Args:
@@ -112,7 +112,7 @@ def delete_account(account_uuid):
 
     if account_uuid in accounts:
         del accounts[account_uuid]
-        save_accounts(accounts)
+        save_accounts(accounts, FILE_PATH)
         return True
     return False
 

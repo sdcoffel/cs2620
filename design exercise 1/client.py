@@ -1,10 +1,11 @@
 #TODO: 
 # - if i start the client before the server, the connection is refused. i should have a mechanism that continuously polls the server until it's online
 # when i end the chat, i get [Errno 9] Bad file descriptor. this just means that its no longer connected to the server. i should have a way of exiting gracefully so i don't get that scary message
-
+#fix the hashing and do it client side. rn i can't get into my own account
 
 import socket
 import threading
+import time
 
 def receive_messages(sock):
     """ This function is in charge of recieving messages that have been forwarded from the server. 
@@ -86,42 +87,30 @@ def start_client():
         #client_socket.connect((server_ip, server_port)) #we should not hardcode this, i have to change this every time and waldo will fail us 
         print("Connected to the server.")
 
-        # username = input("Please enter your username: ")
-        # client_socket.send(username.encode('utf-8'))
+       #get login information from the user
+        existing = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
+        username = " " # to be filled in by the user
 
+        if existing == "no":
+            username = input("Please choose your username: ").strip()
+            password = input("Please choose your password: ").strip()
 
-        #login logic 
-        response = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
-        #client_socket.send(response.encode('utf-8'))
+        if existing == "yes":
+            username = input("Please enter your username: ").strip()
+            password = input("Please enter your password: ").strip()
 
-        if response == 'no':
-            username = input("Please enter a username: ")
-            client_socket.send(username.encode('utf-8'))
-            
-            password = input("Please enter a password: ")
-            client_socket.send(password.encode('utf-8'))
-            
-            confirmation = client_socket.recv(1024).decode('utf-8')
-            print(confirmation)
+        #send login credentials to the server
+        credentials = f"{username},{password},{existing}"
+        client_socket.send(credentials.encode('utf-8'))
 
-        elif response == 'yes':
-            username = input("Please enter your username: ")
-            client_socket.send(username.encode('utf-8'))
+        #wait for server confirmation to validate credentials
+        server_message = client_socket.recv(1024).decode('utf-8')
+        print(server_message)
 
-            password = input("Please enter your password: ")
-            client_socket.send(password.encode('utf-8'))
-
-            confirmation = client_socket.recv(1024).decode('utf-8')
-            print(confirmation)
-            # if "Invalid" in confirmation:
-            #     client_socket.close()
-            #     return
-
-
-        # #server confirms the client
-        # confirmation = client_socket.recv(1024).decode('utf-8')
-        # print(confirmation)  
-        # print("You are now logged in. Welcome!") 
+        if "Invalid username/password" in server_message:
+            client_socket.close()
+            return
+        
 
 
         recipient = input("Who do you want to message? ")

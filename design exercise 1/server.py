@@ -3,9 +3,9 @@
 
 import socket
 import threading
+import bcrypt
 from accounts import load_accounts, save_accounts, create_account, is_valid_account, delete_account
 
-active_clients = {}  #map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
 
 def send_message(recipient, sender, message): 
     """This function will send a message to a specific client. We still have a synchronization bug, so the first message may not go through. Other than that, this is ok
@@ -19,6 +19,7 @@ def send_message(recipient, sender, message):
 
     """
     
+    #currently both have to be active for the message to be delievered. i need to tweak this so that the message can be delivered even if the recipient is not active
     if recipient in active_clients and 'socket' in active_clients[recipient]:
         client_socket = active_clients[recipient]['socket'] #assign the desired recipient to a socket and save it in the active_clients dict
 
@@ -47,32 +48,38 @@ def client_handler(connection, address):
     try:
         print(f"Connected with {address}")
 
-        response = connection.recv(1024).decode().strip() #response from yes/no
-        username = connection.recv(1024).decode().strip() #response from the username prompt. these are always the first two things that the client provides
-        
-        
-        if response == "no": 
-            username = connection.recv(1024).decode().strip()
-            password = connection.recv(1024).decode().strip()
+        #get login credentials from the client
+        credentials = connection.recv(1024).decode().strip().split(',')
+        username, password, existing = credentials[0], credentials[1], credentials[2]
 
-            create_account(username, password)
-            connection.send("Account created! You are now logged in.".encode('utf-8'))
-        
-        elif response == 'yes':
-            username = connection.recv(1024).decode().strip()
-            password = connection.recv(1024).decode().strip()
+        accounts = load_accounts(FILE_PATH)
 
-            accounts = load_accounts()
+        if existing == "no":
+            try: 
+                create_account(username, password, FILE_PATH) #create_account does all the checking for us
+                connection.send("Account created! You are now logged in.".encode('utf-8'))
+            # all_clients_ever[username] = {
+            #     "socket": connection,
+            #     "password": password
+            # }
+            except ValueError as e: 
+                connection.send(f"Account creation failed: {e}".encode('utf-8'))
+                connection.close()
+                return
+
             
-            if username in accounts and accounts[username]['hashed_password'] == password:
+        elif existing == "yes":
+            #checks if the password is correctly authenticated
+            if username in accounts and bcrypt.checkpw(password.encode('utf-8'), accounts[username]['hashed_password']):
                 connection.send("Success! You are now logged in.".encode('utf-8'))
+            
             else: 
                 connection.send("Invalid username/password. Please try again.".encode('utf-8'))
                 connection.close()
                 return
 
         
-        #update the active clients dictionary with the new username
+        #update the active clients dictionary with the new username. this gets updated no matter what, so i am putting it outside the conditional
         active_clients[username] = {
             "socket": connection
         }
@@ -80,7 +87,6 @@ def client_handler(connection, address):
         print(f"{username} has connected.")
 
         #prompt for the recipient after successful login
-        connection.send("You have sucessfully connected to the server!".encode('utf-8'))
         recipient = connection.recv(1024).decode().strip()
         active_clients[username]["recipient"] = recipient
         print(f"{username} is messaging {recipient}.")
@@ -137,4 +143,8 @@ def start_server():
          
 
 if __name__ == "__main__":
+    FILE_PATH = "all_accounts_ever.txt"
+    all_clients_ever = {} #map of all the clients that have ever connected to the server
+    active_clients = {}  #map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
     start_server()
+    
