@@ -86,14 +86,13 @@ def client_handler(connection, address):
         print(f"{username} has connected.")
 
 
-
         while True:
             #read the incoming message
             raw_message = connection.recv(1024).decode().strip()
             if not raw_message:
                 break
 
-            #special commands, like delete and list 
+            #special commands, like delete and list, go here
             if raw_message.lower() == "delete_account":
                 delete_account(username, FILE_PATH)
                 print(f"Account deletion requested by user {username}")
@@ -110,7 +109,7 @@ def client_handler(connection, address):
             if ':' in raw_message:
                 recipient, msg = raw_message.split(':', 1)
                 send_message(recipient, username, msg)
-                
+
             else:
                 #handle setting the recipient and tracking in the server
                 recipient = raw_message
