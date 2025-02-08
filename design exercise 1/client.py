@@ -8,7 +8,7 @@ import hashlib
 
 
 def hash_password(password):
-    """Hash a password for storing."""
+    """Hash a password for storing. This uses hashlib to hash the password and then send it over the network."""
     return hashlib.sha256(password.encode()).hexdigest()
 
 
@@ -39,9 +39,12 @@ def receive_messages(sock):
         except Exception as e:
             print(f"Failed to close the socket properly: {e}")
 
+
+
 def send_messages(sock, username, recipient):
     """Sends messages along the socket to the server. If an empty message is typed, the user has the power to 
     terminate the connection when prompted. Different error handling mechanisms are at the bottom of the function. 
+    The user can exit the chat by typing 'quit', change the intended recipient by typing 'change', or delete a message that was sent during that session by typing 'delete'.
 
     Args: 
         sock (socket.socket): Socket the client is currently connected with. 
@@ -87,8 +90,12 @@ def send_messages(sock, username, recipient):
             print(f"Failed to close the socket properly: {e}")
 
 
+
 def handle_login(client_socket):
-    """Handles the login process for the client."""
+    """Handles the login process for the client. This prompts the user for their login data, and sends it to the server for credential validation.
+    If the user has any pending messages, these are handled at login and displayed for the client to see in bunches of 10 messages. The client can request to see another 10 messages 
+    at a time if they wish to see more. 
+    """
     existing = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
 
     logged_in = False #boolean that switches depending on if the user is logged in or not
@@ -98,7 +105,6 @@ def handle_login(client_socket):
 
         elif existing == "yes":
             username = input("Please enter your username: ").strip() 
-
 
         password = input("Please enter your password: ").strip()
         hashed_password = hash_password(password) #hashes the password
@@ -140,15 +146,16 @@ def handle_login(client_socket):
         else: 
             print("Invalid input")
 
-
     print("Ready to go!")
-
     return username, client_socket
 
 
 
 def handle_action(client_socket, username):
-    """Handles the action selection for the client."""
+    """Handles the action selection for the client. Clients can delete their account, list all accounts registered on the server, and begin messaging from here.
+    If an action is not one of these keywords, prompt the client to try again.
+    
+    """
     action = input("Do you want to message, or delete your account? (message/list/delete account): ").strip().lower()
     
     if action == "delete account":
@@ -181,7 +188,7 @@ def handle_action(client_socket, username):
 
 
 def start_client():
-    """Responsible for booting up the client and establishing the first connection to the server. 
+    """Responsible for booting up the client and establishing the first connection to the server. Connects to the server on a localhost port. 
 
     """
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

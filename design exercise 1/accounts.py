@@ -110,9 +110,3 @@ def list_accounts(FILE_PATH):
     return "\n".join(accounts.keys())
 
 
-# if __name__ == '__main__':
-#     FILE_PATH = "accounts.txt"
-
-#     my_account = create_account(username, password) #update this to automatically parse into strings so that we don't have to
-#     test = list_accounts()
-#     print(test)

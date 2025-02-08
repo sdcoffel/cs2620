@@ -172,7 +172,7 @@ def has_pending_messages(username, file_path):
 
 
 def save_pending_messages(file_path, recipient, sender, message):
-    """Append a single pending message to the file."""
+    """Append a single pending message to the file. One at a time."""
     with open(file_path, 'a') as file:
         # Ensure the message is saved in the correct format
         if isinstance(message, dict):
@@ -203,7 +203,7 @@ def load_pending_messages(file_path):
 
 
 def delete_pending_messages(file_path, recipient, num_messages):
-    """Delete the most recent num_messages pending messages for a recipient from the file."""
+    """Delete the most recent num_messages pending messages for a recipient from the file. In the server script, this is in units of 10, but it can be changed upon request."""
     pending_messages = load_pending_messages(file_path)
     if recipient in pending_messages:
         # Keep only the messages that are not the most recent num_messages
@@ -214,21 +214,4 @@ def delete_pending_messages(file_path, recipient, num_messages):
                     line = f"{rec}|{sender}|{message}\n"
                     file.write(line)
 
-
-
-# if __name__ == '__main__': 
-    # # Test save_pending_messages and load_pending_messages
-    # test_file_path = "test_pending_messages.txt"
-    
-    # # Create some test pending messages
-    # test_pending_messages = {
-    #     "user1": [("user2", "Hello user1!"), ("user3", "Hi user1!")],
-    #     "user2": [("user1", "Hello user2!")]
-    # }
-    
-    # # Save the test pending messages to the file
-    # save_pending_messages(test_file_path, test_pending_messages)
-    
-    # # Load the pending messages from the file
-    # loaded_pending_messages = load_pending_messages(test_file_path)
     
