@@ -3,7 +3,6 @@ import bcrypt
 import uuid
 from operations import *
 
-# FILE_PATH = "accounts.txt"
 
 def load_accounts(FILE_PATH):
     """Load the accounts dictionary from a text file. The password must be the already hashed password.
