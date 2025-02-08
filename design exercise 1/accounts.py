@@ -4,7 +4,7 @@ import uuid
 import sqlite3
 from operations import *  # Assuming this has your serialize/deserialize ops, if needed
 
-DB_PATH = "accounts.db"
+DB_PATH = "database.db"
 
 
 def get_connection():
