@@ -84,32 +84,40 @@ def send_messages(sock, username, recipient):
 def handle_login(client_socket):
     """Handles the login process for the client."""
     existing = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
-    username = " " # to be filled in by the user
+    #username = " " # to be filled in by the user
 
-    if existing == "no":
-        username = input("Please choose your username: ").strip()
-        password = input("Please choose your password: ").strip()
+    logged_in = False 
+    while not logged_in: 
+        if existing == "no": 
+            username = input("Please choose your new username: ").strip()
 
-    if existing == "yes":
-        username = input("Please enter your username: ").strip()
+        elif existing == "yes":
+            username = input("Please enter your username: ").strip() 
+
+
         password = input("Please enter your password: ").strip()
 
-    #send login credentials to the server
-    credentials = f"{username},{password},{existing}"
-    client_socket.send(credentials.encode('utf-8'))
 
-    #wait for server confirmation to validate credentials
-    server_message = client_socket.recv(1024).decode('utf-8')
-    print(server_message)
-    print("Checking for pending messages...")
+        #send login credentials to the server
+        credentials = f"{username},{password},{existing}"
+        client_socket.send(credentials.encode('utf-8'))
+
+        #wait for server confirmation to validate credentials
+        server_message = client_socket.recv(1024).decode('utf-8')
+        print(server_message)
+
+        if "Success" in server_message or "Account created" in server_message:
+            logged_in = True
+        else: 
+            pass
 
     #grab any pending messages
     pending_message_info = client_socket.recv(4096).decode('utf-8')
     print(pending_message_info)
+    
+    print("Ready to go!")
 
-    print("All pending messages received.")
     return username, client_socket
-
 
 
 

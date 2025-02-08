@@ -57,40 +57,41 @@ def client_handler(connection, address):
 
     try:
         print(f"Connected with {address}")
-        #get login credentials from the client
-        credentials = connection.recv(1024).decode().strip().split(',')
-        username, password, existing = credentials[0], credentials[1], credentials[2]
-        accounts = load_accounts(FILE_PATH)
+        
         while True: 
+            #get login credentials from the client
+            credentials = connection.recv(1024).decode().strip().split(',')
+            username, password, existing = credentials[0], credentials[1], credentials[2]
+            accounts = load_accounts(FILE_PATH)
 
             try: 
                 if existing == "no":
                     if username in accounts:
-                        connection.send("Username already exists. Please try again.".encode('utf-8')) #bug here i need to fix
+                        connection.send("Username already exists. Please try again.\n".encode('utf-8')) #bug here i need to fix
                     else: 
                         create_account(username, password, FILE_PATH) #create_account does all the checking for us
-                        connection.send("Account created! You are now logged in.".encode('utf-8'))
+                        connection.send("Account created! You are now logged in.\n".encode('utf-8'))
                         break
 
                 elif existing == "yes":
                     #checks if the password is correctly authenticated
                     if username in accounts and password == accounts[username]['password']:
-                        connection.send("Success! You are now logged in.".encode('utf-8'))
+                        connection.send("Success! You are now logged in.\n".encode('utf-8'))
                         break
                     
                     else: 
-                        connection.send("Invalid username/password. Please try again.".encode('utf-8'))
+                        connection.send("Invalid username/password. Please try again.\n".encode('utf-8'))
                         continue
             
             except ValueError as e: 
-                connection.send(f"Account creation failed: {e}. Please try again".encode('utf-8'))
+                connection.send(f"Account creation failed: {e}. Please try again.\n".encode('utf-8'))
                 continue
 
         #update the active clients dictionary with the new username. this gets updated no matter what, so i am putting it outside the conditional
         active_clients[username] = {
             "socket": connection
         }
-        print(f"{username} has connected.")
+        print(f"{username} has connected.\n")
 
         #any pending messages get sent to the client first
         pending_messages = load_pending_messages(PENDING_MESSAGES_FILE_PATH) #update the dictionary with message population info
@@ -101,7 +102,7 @@ def client_handler(connection, address):
             for sender, message in pending_messages[username]:
                 full_message = f"{sender}: {message}\n"
                 pending_message_info += full_message
-                
+
                 #save the message to all_messages_ever.txt
                 create_message(sender, username, message, messages)
             save_messages(MESSAGES_FILE_PATH, messages)
@@ -111,7 +112,7 @@ def client_handler(connection, address):
 
             print(f"Pending messages for {username} sent to {username}.")
         else:
-            connection.send("You have 0 pending messages.".encode('utf-8'))
+            connection.send("You have 0 pending messages.\n".encode('utf-8'))
 
 
         while True:
@@ -167,8 +168,8 @@ def client_handler(connection, address):
 
     finally:
         connection.close()
-        if username in active_clients:
-            del active_clients[username] 
+        # if username in active_clients:
+        #     del active_clients[username] 
         print(f"{username} has disconnected")
 
 

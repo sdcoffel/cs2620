@@ -13,9 +13,15 @@ a2f3fe44-30ef-4b0e-9ff6-3b7cdff5ded6|savanna2028|$2b$12$cAAXdf/SlvDyQMlY9cD1eedm
 0a1a88fa-cbc2-4df5-bd70-cde9b13488d5|savanna2029|$2b$12$qxZRLCUz5GZLQ8lhfIP5ouZ6OWHkooKIn/CrGpAUGMGvDQzcnSnze
 9f5674d2-545c-410f-a2ed-841d4a54d572|savanna2030|$2b$12$q6ThAy3XWra9teSPHU2t5O7t0efwm12kBN0D6UZeAcZ7Z.D2BiWiy
 81a8fe67-fe07-4f77-90d8-f76987605588|savanna2031|$2b$12$ECMcTrYrpohVCm.BzZSCP.rgwLAtnd5.X1tBYMhzQq5/qjEDMf60q
-961fda5e-fb3b-4c44-81ee-5e100387b7b4|usersav|usersav
 e49445be-98ab-44a3-9673-fb73f60dc48f|userian|userian
 01b7984d-0cb2-437a-9085-6cbaa3584016|useramy|useramy
 ebd5ba7b-3c8b-41ec-bfd9-974a3f5538b3|savannatest|savannatest
 1d95d06d-957e-49a2-92ca-133ac9187cf9|viktest|viktest
 59e07fd5-c8aa-4466-a3b3-ae606aa9bd80|savannatestuser|savannatestuser
+257dbece-38b2-4723-86d5-63211debc312|newusersav|newusersav,new user sav,no
+46a020b6-5f77-4fe1-b658-1c73ef5cb086|newusersav1|newusersav1,newusersav,no
+1bb95d49-4e02-4b7f-8d7d-e5b2309c2917|newusersav2|newusersav2,newusersav,no
+36b4afb7-9f7d-4b19-9fb4-d3e520b62fd4|newusersav3|newusersav3,newusersav,no
+cc4e7bc2-1da9-4458-bc93-83174d7f540e|usersav|usersav
+ca988e8c-fcd9-4f38-a67c-82e46fe57578|usersav4|usersav
+d58b70be-4bdf-46cc-8408-c4ef8183c1db|usersav5|usersav5
