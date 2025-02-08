@@ -162,6 +162,14 @@ def save_messages(file_path, messages):
             file.write(line)
 
 
+def has_pending_messages(username, file_path):
+    """This function checks if there are pending messages for the user. Used when invoking account deletion.
+     Returns True if there are unread messages
+     """
+    
+    pending_messages = load_pending_messages(file_path)  
+    return username in pending_messages and len(pending_messages[username]) > 0
+
 
 def save_pending_messages(file_path, recipient, sender, message):
     """Append a single pending message to the file."""

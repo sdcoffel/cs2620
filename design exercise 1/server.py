@@ -32,12 +32,14 @@ def send_message(recipient, sender, message):
             print(f"Failed to send message from {sender} to {recipient}: {e}")
 
     else:
-        #print(f"{recipient} not found. Message from {sender} not delivered.")
         if recipient not in messages: 
             pending_messages[recipient] = []
         pending_messages[recipient].append((sender, message))
         save_pending_messages(PENDING_MESSAGES_FILE_PATH, recipient, sender, pending_messages)
         print(f"Message from {sender} to {recipient} saved as a pending message by the server.")
+
+
+    #add a check here for users that are not registered on the server
 
 
 
@@ -143,8 +145,8 @@ def client_handler(connection, address):
                 continue
 
 
-            #signals the server to delete a message
-            elif raw_message.lower().startswith("delete"):
+            
+            elif raw_message.lower().startswith("delete account"):
                 _, message_content = raw_message.split(' ', 1)
                 #delete_message(message_content, MESSAGES_FILE_PATH)
                 if delete_message(message_content, MESSAGES_FILE_PATH): #if deletion was successful

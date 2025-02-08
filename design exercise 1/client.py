@@ -1,7 +1,6 @@
 #TODO: 
 # - if i start the client before the server, the connection is refused. i should have a mechanism that continuously polls the server until it's online
 # when i end the chat, i get [Errno 9] Bad file descriptor. this just means that its no longer connected to the server. i should have a way of exiting gracefully so i don't get that scary message
-#fix the hashing and do it client side. rn i can't get into my own account
 
 import socket
 import threading
@@ -63,6 +62,7 @@ def send_messages(sock, username, recipient):
                 print(f"Now messaging {recipient}. Type 'quit' to end the session, 'change' to change the recipient, or 'delete' to delete any messages.")
                 continue
 
+            #for message deletion
             elif message.lower().startswith('delete'):
                 sock.send(message.encode('utf-8'))
                 continue
@@ -149,8 +149,10 @@ def handle_login(client_socket):
 
 def handle_action(client_socket, username):
     """Handles the action selection for the client."""
-    action = input("Do you want to message, or delete your account? (message/list/delete): ").strip().lower()
-    if action == "delete":
+    action = input("Do you want to message, or delete your account? (message/list/delete account): ").strip().lower()
+    
+    if action == "delete account":
+        #this tells the server that we are going to delete the account
         client_socket.send("delete_account".encode('utf-8'))
         server_message = client_socket.recv(1024).decode('utf-8')
         print(server_message)
