@@ -1,10 +1,13 @@
+#TODO:
+# - figure out if pending messages are going to be stored here or not
+
 import socket
 import threading
 import bcrypt
-from accounts import *
-from messages import *
+from accounts import load_accounts, save_accounts, create_account, is_valid_account, delete_account, list_accounts
+from messages import * 
 
-def send_message(sender, recipient, message): 
+def send_message(recipient, sender, message): 
     """This function will send a message to a specific client. We still have a synchronization bug, so the first message may not go through. Other than that, this is ok
 
     Args: 
@@ -15,14 +18,14 @@ def send_message(sender, recipient, message):
     If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client
 
     """
-    #when a message comes through, store it in the messages dict
-    create_message(sender, recipient, message, messages_dict)
-    print("Message saved to server log.")
+    
+    create_message(sender, recipient, message, messages)
+    save_messages(MESSAGES_FILE_PATH, messages)
+    print("Message from {sender} to {recipient} saved to chatlog.")
 
     #currently both have to be active for the message to be delievered. i need to tweak this so that the message can be delivered even if the recipient is not active
     if recipient in active_clients and 'socket' in active_clients[recipient]:
         client_socket = active_clients[recipient]['socket'] #assign the desired recipient to a socket and save it in the active_clients dict
-        
 
         try:
             full_message = f"{sender}: {message}".encode('utf-8') 
@@ -35,7 +38,6 @@ def send_message(sender, recipient, message):
     else:
         print(f"{recipient} not found. Message from {sender} not delivered.")
 
-        
 
 
 
@@ -89,13 +91,14 @@ def client_handler(connection, address):
         print(f"{username} has connected.")
 
 
+
         while True:
             #read the incoming message
             raw_message = connection.recv(1024).decode().strip()
             if not raw_message:
                 break
 
-            #special commands, like delete and list, go here
+            #special commands, like delete and list 
             if raw_message.lower() == "delete_account":
                 delete_account(username, FILE_PATH)
                 print(f"Account deletion requested by user {username}")
@@ -112,7 +115,7 @@ def client_handler(connection, address):
             if ':' in raw_message:
                 recipient, msg = raw_message.split(':', 1)
                 send_message(recipient, username, msg)
-
+                
             else:
                 #handle setting the recipient and tracking in the server
                 recipient = raw_message
@@ -141,13 +144,6 @@ def start_server():
     This will run until the server encounters an exception or is manually shut off.
 
     """
-
-    #on server start, this will load up all the messages that have ever been sent from storage on disk
-    global messages_dict
-    messages_dict = load_messages(MESSAGES_FILE_PATH)
-    print("Messages loaded from server log.")
-
-
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  #this line guarantees that we can reuse the same port over and over again without having to change the number
@@ -166,8 +162,6 @@ def start_server():
     
     finally: 
         try: 
-            save_messages(MESSAGES_FILE_PATH, messages_dict) #saves the messages to disk on server shutdown
-            print("Messages saved to server log.")
             server_socket.close()
         except Exception as e: 
             print(f"Failed to close server socket properly! : {e}")
@@ -177,9 +171,9 @@ if __name__ == "__main__":
     FILE_PATH = "all_accounts_ever.txt"
     MESSAGES_FILE_PATH = "all_messages_ever.txt"
     active_clients = {}  #map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
-    messages_dict = {} #map of all messages sent. this is a universal map, which i like. i hesitate to hardcode anything though
+    messages = {}
     start_server()
-    
+
 
 
 

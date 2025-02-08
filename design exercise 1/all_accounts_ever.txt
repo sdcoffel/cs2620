@@ -14,3 +14,8 @@ a2f3fe44-30ef-4b0e-9ff6-3b7cdff5ded6|savanna2028|$2b$12$cAAXdf/SlvDyQMlY9cD1eedm
 9f5674d2-545c-410f-a2ed-841d4a54d572|savanna2030|$2b$12$q6ThAy3XWra9teSPHU2t5O7t0efwm12kBN0D6UZeAcZ7Z.D2BiWiy
 81a8fe67-fe07-4f77-90d8-f76987605588|savanna2031|$2b$12$ECMcTrYrpohVCm.BzZSCP.rgwLAtnd5.X1tBYMhzQq5/qjEDMf60q
 961fda5e-fb3b-4c44-81ee-5e100387b7b4|usersav|usersav
+e49445be-98ab-44a3-9673-fb73f60dc48f|userian|userian
+01b7984d-0cb2-437a-9085-6cbaa3584016|useramy|useramy
+ebd5ba7b-3c8b-41ec-bfd9-974a3f5538b3|savannatest|savannatest
+1d95d06d-957e-49a2-92ca-133ac9187cf9|viktest|viktest
+59e07fd5-c8aa-4466-a3b3-ae606aa9bd80|savannatestuser|savannatestuser

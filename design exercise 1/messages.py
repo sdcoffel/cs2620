@@ -54,7 +54,7 @@ def create_message(sender, receiver, content, messages):
     return message_object
 
 
-def delete_message(message_uuid, messages):
+def delete_message(content, messages):
     """
     Delete a message by UUID from the messages dict.
 
@@ -64,9 +64,10 @@ def delete_message(message_uuid, messages):
     Returns:
         bool: True if the message was found and deleted, False otherwise.
     """
-    if message_uuid in messages:
-        del messages[message_uuid]
-        return True
+    for message_id, message in messages.items():
+        if message['content'] == content:
+            del messages[message_id]
+            return True
     return False
 
 
