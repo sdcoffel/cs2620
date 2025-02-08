@@ -164,11 +164,17 @@ def save_messages(file_path, messages):
 
 
 def save_pending_messages(file_path, recipient, sender, message):
-    """Append a single pending message to the file each time."""
+    """Append a single pending message to the file."""
     with open(file_path, 'a') as file:
+        # Ensure the message is saved in the correct format
+        if isinstance(message, dict):
+            # Extract the actual message from the dictionary
+            for key, value in message.items():
+                if isinstance(value, list) and len(value) > 0 and isinstance(value[0], tuple):
+                    message = value[0][1]
+                    break
         line = f"{recipient}|{sender}|{message}\n"
         file.write(line)
-
 
 
 def load_pending_messages(file_path):

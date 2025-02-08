@@ -101,11 +101,14 @@ def client_handler(connection, address):
             for sender, message in pending_messages[username]:
                 full_message = f"{sender}: {message}\n"
                 pending_message_info += full_message
-                print(pending_message_info)
+                
+                #save the message to all_messages_ever.txt
+                create_message(sender, username, message, messages)
+            save_messages(MESSAGES_FILE_PATH, messages)
             print("Sending:", pending_message_info)
             connection.send(pending_message_info.encode('utf-8'))
-            #del pending_messages[username]
-            #we are not at the point of resaving and deleting, and we shouldn't need to. one call to delete should be enough
+            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username)
+
             print(f"Pending messages for {username} sent to {username}.")
         else:
             connection.send("You have 0 pending messages.".encode('utf-8'))
