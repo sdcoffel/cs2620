@@ -54,21 +54,40 @@ def create_message(sender, receiver, content, messages):
     return message_object
 
 
-def delete_message(content, messages):
+def delete_message(content, file_path):
     """
-    Delete a message by UUID from the messages dict.
+    Delete a message by its content from the file.
 
     Args:
-        message_uuid (str): The UUID of the message to delete.
+        content (str): The content of the message to delete.
+        file_path (str): The path to the file where messages are stored.
 
     Returns:
         bool: True if the message was found and deleted, False otherwise.
     """
-    for message_id, message in messages.items():
-        if message['content'] == content:
-            del messages[message_id]
-            return True
-    return False
+    messages = []
+    message_found = False
+
+    # Read all messages from the file
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                parts = line.strip().split('|')
+                if len(parts) == 5:
+                    message_id, datetime, sender, receiver, message_content = parts
+                    if message_content != content:
+                        messages.append(line)
+                    else:
+                        message_found = True
+    except FileNotFoundError:
+        return False
+
+    # Write the remaining messages back to the file
+    with open(file_path, 'w') as file:
+        for message in messages:
+            file.write(message)
+
+    return message_found
 
 
 def list_messages(messages, sender = None, receiver= None):

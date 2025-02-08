@@ -82,14 +82,11 @@ def client_handler(connection, address):
                 connection.send(f"Account creation failed: {e}. Please try again".encode('utf-8'))
                 continue
 
-                 
         #update the active clients dictionary with the new username. this gets updated no matter what, so i am putting it outside the conditional
         active_clients[username] = {
             "socket": connection
         }
-        
         print(f"{username} has connected.")
-
 
 
         while True:
@@ -105,10 +102,23 @@ def client_handler(connection, address):
                 connection.send("Account deleted successfully.".encode('utf-8'))
                 break
 
+            #signals the server to list all accounts
             elif raw_message.lower() == "list_accounts":
                 print(f"List requested by user {username}")
                 all_clients = list_accounts(FILE_PATH)
                 connection.send(all_clients.encode('utf-8'))
+                continue
+
+
+            #signals the server to delete a message
+            elif raw_message.lower().startswith("delete"):
+                _, message_content = raw_message.split(' ', 1)
+                #delete_message(message_content, MESSAGES_FILE_PATH)
+                if delete_message(message_content, MESSAGES_FILE_PATH): #if deletion was successful
+                    connection.send(f"Message with content '{message_content}' deleted successfully.".encode('utf-8'))
+                    print("Message deleted from chatlog.")
+                else:
+                    connection.send(f"Message with content '{message_content}' not found.".encode('utf-8'))
                 continue
 
             #all other messages

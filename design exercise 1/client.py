@@ -51,10 +51,16 @@ def send_messages(sock, username, recipient):
             if message.lower() == 'quit':
                 print("Ending connection...")
                 break
+
             elif message.lower() == 'change':
                 recipient = input("Enter the recipient's username: ")
-                print(f"Now messaging {recipient}. Type 'quit' to end the session.")
+                print(f"Now messaging {recipient}. Type 'quit' to end the session, 'change' to change the recipient, or 'delete' to delete any messages.")
                 continue
+
+            elif message.lower().startswith('delete'):
+                sock.send(message.encode('utf-8'))
+                continue
+            
 
             full_message = f"{recipient}:{message}"
             sock.send(full_message.encode('utf-8'))
