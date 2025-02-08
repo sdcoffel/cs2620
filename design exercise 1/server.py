@@ -91,24 +91,35 @@ def client_handler(connection, address):
 
         #any pending messages get sent to the client first
         pending_messages = load_pending_messages(PENDING_MESSAGES_FILE_PATH) #update the dictionary with message population info
-        if username in pending_messages:
 
-            num_pending_messages = len(pending_messages[username]) #looks like an off by 1 error here, the very first message isn't being picked up
+        if username in pending_messages:
+            message_list = pending_messages[username]
+            num_pending_messages = len(message_list) 
+            message_limit = message_list[-10:] #grabs the most recent 10 messages 
+
             pending_message_info = f"You have {num_pending_messages} pending messages:\n"
-            for sender, message in pending_messages[username]:
+            for sender, message in message_limit:
                 full_message = f"{sender}: {message}\n"
                 pending_message_info += full_message
 
-                #save the message to all_messages_ever.txt
+                #save the message to all_messages_ever.txt for server records
                 create_message(sender, username, message, messages)
+
             save_messages(MESSAGES_FILE_PATH, messages)
             print("Sending:", pending_message_info)
             connection.send(pending_message_info.encode('utf-8'))
-            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username)
+
+            if len(message_list) > 10: 
+                pending_messages[username] = message_list[:-10] #the next 10 messages are queued up for the client to request if they want to see more
+
+            else: 
+                delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, 10)
 
             print(f"Pending messages for {username} sent to {username}.")
         else:
             connection.send("You have 0 pending messages.\n".encode('utf-8'))
+
+
 
 
         while True:
@@ -118,7 +129,7 @@ def client_handler(connection, address):
                 break
 
             #special commands, like delete and list 
-            if raw_message.lower() == "delete_account":
+            elif raw_message.lower() == "delete_account":
                 delete_account(username, FILE_PATH)
                 print(f"Account deletion requested by user {username}")
                 connection.send("Account deleted successfully.".encode('utf-8'))
@@ -143,6 +154,41 @@ def client_handler(connection, address):
                     connection.send(f"Message with content '{message_content}' not found.".encode('utf-8'))
                 continue
 
+
+            #signals if the user wants to request more than the first 10 pending messages. the username argument is the RECIEVER of the pending messages, hence the different argument name from the function definition 
+            elif raw_message.lower() == 'more':
+                if username in pending_messages and pending_messages[username]:
+                    message_list = pending_messages[username]
+                    if message_list:
+                        message_limit = message_list[-10:]
+                        more_message_info = ""
+                        for sender, message in message_limit:
+                            full_message = f"{sender}: {message}\n"
+                            more_message_info += full_message
+                        connection.send(more_message_info.encode('utf-8'))
+
+                        #save the 10 message chunk to all_messages_ever.txt for server records. then, delete this batch from the .txt file
+                        create_message(sender, username, message, messages)
+                        save_messages(MESSAGES_FILE_PATH, messages)
+                        pending_messages[username] = message_list[:-10]
+                        delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, 10)
+
+                        if not pending_messages[username]:
+                            #
+                            connection.send("No more messages.\n".encode('utf-8'))
+                            continue
+                    else:
+                        connection.send("No more messages.\n".encode('utf-8'))
+                        continue
+                else:
+                    connection.send("No more messages.\n".encode('utf-8'))
+                    continue
+
+            
+            elif raw_message.lower() == 'done':
+                continue
+
+
             #all other messages
             if ':' in raw_message:
                 recipient, msg = raw_message.split(':', 1)
@@ -155,7 +201,8 @@ def client_handler(connection, address):
                     active_clients[username]["recipient"] = recipient
                     print(f"{username} is messaging {recipient}.")
                 else:
-                    connection.send("Invalid recipient. Please enter a valid username.".encode('utf-8'))
+                    pass
+                    #connection.send("Invalid recipient. Please enter a valid username.".encode('utf-8'))
 
         
   

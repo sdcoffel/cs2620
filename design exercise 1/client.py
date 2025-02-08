@@ -121,6 +121,26 @@ def handle_login(client_socket):
     pending_message_info = client_socket.recv(4096).decode('utf-8')
     print(pending_message_info)
 
+    #if there are more than 10 messages, enter the loop and give the client the option to get more messages
+    while True: 
+        print("Type 'more to receive more messages or 'done' to continue. ")
+        command = input(" | ").strip().lower()
+        if command == "more": 
+            client_socket.send(command.encode('utf-8'))
+            more_messages = client_socket.recv(4096).decode('utf-8')
+
+            if more_messages:
+                print(more_messages)
+            if "No more messages" in more_messages or "End of messages" in more_messages:
+                print("Continuing to the chat...")
+                break
+        elif command == "done":
+            print("Continuing to the chat...")
+            break
+        else: 
+            print("Invalid input")
+
+
     print("Ready to go!")
 
     return username, client_socket

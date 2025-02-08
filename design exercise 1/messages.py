@@ -194,12 +194,12 @@ def load_pending_messages(file_path):
     return pending_messages
 
 
-
-def delete_pending_messages(file_path, recipient):
-    """Delete all pending messages for a recipient from the file."""
+def delete_pending_messages(file_path, recipient, num_messages):
+    """Delete the most recent num_messages pending messages for a recipient from the file."""
     pending_messages = load_pending_messages(file_path)
     if recipient in pending_messages:
-        del pending_messages[recipient]
+        # Keep only the messages that are not the most recent num_messages
+        pending_messages[recipient] = pending_messages[recipient][:-num_messages]
         with open(file_path, 'w') as file:
             for rec, messages in pending_messages.items():
                 for sender, message in messages:
