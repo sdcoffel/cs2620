@@ -101,7 +101,13 @@ def handle_login(client_socket):
     #wait for server confirmation to validate credentials
     server_message = client_socket.recv(1024).decode('utf-8')
     print(server_message)
+    print("Checking for pending messages...")
 
+    #grab any pending messages
+    pending_message_info = client_socket.recv(4096).decode('utf-8')
+    print(pending_message_info)
+
+    print("All pending messages received.")
     return username, client_socket
 
 

@@ -163,38 +163,58 @@ def save_messages(file_path, messages):
 
 
 
+def save_pending_messages(file_path, recipient, sender, message):
+    """Append a single pending message to the file each time."""
+    with open(file_path, 'a') as file:
+        line = f"{recipient}|{sender}|{message}\n"
+        file.write(line)
+
+
+
+def load_pending_messages(file_path):
+    """Load pending messages from a file."""
+    pending_messages = {}
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                parts = line.strip().split('|')
+                if len(parts) == 3:
+                    recipient, sender, message = parts
+                    if recipient not in pending_messages:
+                        pending_messages[recipient] = []
+                    pending_messages[recipient].append((sender, message))
+    except FileNotFoundError:
+        pass
+    return pending_messages
+
+
+
+def delete_pending_messages(file_path, recipient):
+    """Delete all pending messages for a recipient from the file."""
+    pending_messages = load_pending_messages(file_path)
+    if recipient in pending_messages:
+        del pending_messages[recipient]
+        with open(file_path, 'w') as file:
+            for rec, messages in pending_messages.items():
+                for sender, message in messages:
+                    line = f"{rec}|{sender}|{message}\n"
+                    file.write(line)
+
 
 
 # if __name__ == '__main__': 
-#     # In-memory store of messages (lowercase)
-#     messages = {}
-
-#     # Create a new message
-#     new_message = create_message("Alice", "Bob", "Hello, Bob!")
-#     message2 = create_message("Bob", "Alice", "Hello, Alice!")
-#     message3 = create_message("Alice", "Bob", "How are you?")
-#     message4 = create_message("Bob", "Alice", "I'm good, thanks!")
-#     message5 = create_message("Alice", "Bob", "That's great to hear!")
-#     message6= create_message("Bob", "Alice", "I'll talk to you later.")
-
-#     # List all messages between Alice and Bob
-
-#     all_messages = list_messages()
-#     print("\nAll messages:")
-#     for msg in all_messages:
-#         print(f"{format_datetime(msg['datetime'])} - {msg['sender']} to {msg['receiver']}: {msg['content']}")
-
-#     # Delete a message
-#     deleted1 = delete_message(new_message['uuid'])
-#     deleted2 = delete_message(message2['uuid'])
-
-#     # List all messages between Alice and Bob
-#     all_messages = list_messages()
-#     print("\nAll messages after deletion:")
-#     for msg in all_messages:
-#         print(f"{format_datetime(msg['datetime'])} - {msg['sender']} to {msg['receiver']}: {msg['content']}")   
-
-#     #prints all the messages in a nice format
-#     print("\nmessages dictionary:")
-#     for msg_id, msg in messages.items():
-#         print(f"{msg_id}: {msg}")
+    # # Test save_pending_messages and load_pending_messages
+    # test_file_path = "test_pending_messages.txt"
+    
+    # # Create some test pending messages
+    # test_pending_messages = {
+    #     "user1": [("user2", "Hello user1!"), ("user3", "Hi user1!")],
+    #     "user2": [("user1", "Hello user2!")]
+    # }
+    
+    # # Save the test pending messages to the file
+    # save_pending_messages(test_file_path, test_pending_messages)
+    
+    # # Load the pending messages from the file
+    # loaded_pending_messages = load_pending_messages(test_file_path)
+    

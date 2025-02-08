@@ -36,8 +36,12 @@ def send_message(recipient, sender, message):
             print(f"Failed to send message from {sender} to {recipient}: {e}")
 
     else:
-        print(f"{recipient} not found. Message from {sender} not delivered.")
-
+        #print(f"{recipient} not found. Message from {sender} not delivered.")
+        if recipient not in messages: 
+            pending_messages[recipient] = []
+        pending_messages[recipient].append((sender, message))
+        save_pending_messages(PENDING_MESSAGES_FILE_PATH, recipient, sender, pending_messages)
+        print(f"Message from {sender} to {recipient} saved as a pending message by the server.")
 
 
 
@@ -87,6 +91,24 @@ def client_handler(connection, address):
             "socket": connection
         }
         print(f"{username} has connected.")
+
+        #any pending messages get sent to the client first
+        pending_messages = load_pending_messages(PENDING_MESSAGES_FILE_PATH) #update the dictionary with message population info
+        if username in pending_messages:
+
+            num_pending_messages = len(pending_messages[username]) #looks like an off by 1 error here, the very first message isn't being picked up
+            pending_message_info = f"You have {num_pending_messages} pending messages:\n"
+            for sender, message in pending_messages[username]:
+                full_message = f"{sender}: {message}\n"
+                pending_message_info += full_message
+                print(pending_message_info)
+            print("Sending:", pending_message_info)
+            connection.send(pending_message_info.encode('utf-8'))
+            #del pending_messages[username]
+            #we are not at the point of resaving and deleting, and we shouldn't need to. one call to delete should be enough
+            print(f"Pending messages for {username} sent to {username}.")
+        else:
+            connection.send("You have 0 pending messages.".encode('utf-8'))
 
 
         while True:
@@ -154,6 +176,12 @@ def start_server():
     This will run until the server encounters an exception or is manually shut off.
 
     """
+
+    #grab some globals at the very beginning on boot up 
+    global pending_messages #everyone should be able to access this
+    load_pending_messages(PENDING_MESSAGES_FILE_PATH)
+    print("Pending messages loaded...")
+
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  #this line guarantees that we can reuse the same port over and over again without having to change the number
@@ -172,6 +200,8 @@ def start_server():
     
     finally: 
         try: 
+            save_pending_messages(PENDING_MESSAGES_FILE_PATH, pending_messages)
+            print("Pending messages saved...")
             server_socket.close()
         except Exception as e: 
             print(f"Failed to close server socket properly! : {e}")
@@ -180,8 +210,10 @@ def start_server():
 if __name__ == "__main__":
     FILE_PATH = "all_accounts_ever.txt"
     MESSAGES_FILE_PATH = "all_messages_ever.txt"
+    PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
     active_clients = {}  #map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
     messages = {}
+    pending_messages = {}
     start_server()
 
 
