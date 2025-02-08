@@ -1,9 +1,5 @@
-#TODO:
-# - figure out if pending messages are going to be stored here or not
-
 import socket
 import threading
-import bcrypt
 from accounts import load_accounts, save_accounts, create_account, is_valid_account, delete_account, list_accounts
 from messages import * 
 

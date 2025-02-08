@@ -5,7 +5,13 @@
 
 import socket
 import threading
-import bcrypt
+import hashlib
+
+
+def hash_password(password):
+    """Hash a password for storing."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
 
 def receive_messages(sock):
     """ This function is in charge of recieving messages that have been forwarded from the server. 
@@ -84,9 +90,8 @@ def send_messages(sock, username, recipient):
 def handle_login(client_socket):
     """Handles the login process for the client."""
     existing = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
-    #username = " " # to be filled in by the user
 
-    logged_in = False 
+    logged_in = False #boolean that switches depending on if the user is logged in or not
     while not logged_in: 
         if existing == "no": 
             username = input("Please choose your new username: ").strip()
@@ -96,10 +101,11 @@ def handle_login(client_socket):
 
 
         password = input("Please enter your password: ").strip()
+        hashed_password = hash_password(password) #hashes the password
 
 
         #send login credentials to the server
-        credentials = f"{username},{password},{existing}"
+        credentials = f"{username},{hashed_password},{existing}"
         client_socket.send(credentials.encode('utf-8'))
 
         #wait for server confirmation to validate credentials
@@ -114,7 +120,7 @@ def handle_login(client_socket):
     #grab any pending messages
     pending_message_info = client_socket.recv(4096).decode('utf-8')
     print(pending_message_info)
-    
+
     print("Ready to go!")
 
     return username, client_socket
