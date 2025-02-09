@@ -185,7 +185,28 @@ def client_handler(connection, address):
                 break
 
             # protocol for special commands, like delete and list
+
+            # protocol for deleting a specific account
             elif raw_message.lower() == "delete_account":
+
+                if username in pending_messages and pending_messages[username]:
+                    connection.send(
+                        "You have unread messages. Are you sure you want to delete your account?".encode(
+                            "utf-8"
+                        )
+                    )
+                    confirmation = connection.recv(1024).decode().strip().lower()
+
+                    if confirmation == "yes":
+                        delete_account(username, FILE_PATH)
+                        print(f"Account deletion requested by user {username}")
+                        connection.send("Account deleted successfully.".encode("utf-8"))
+                        break
+
+                    else:
+                        connection.send("Account deletion aborted.".encode("utf-8"))
+                        continue
+
                 delete_account(username, FILE_PATH)
                 print(f"Account deletion requested by user {username}")
                 connection.send("Account deleted successfully.".encode("utf-8"))
@@ -198,8 +219,8 @@ def client_handler(connection, address):
                 connection.send(all_clients.encode("utf-8"))
                 continue
 
-            # protocol for deleting an account
-            elif raw_message.lower().startswith("delete account"):
+            # protocol for deleting a specific message
+            elif raw_message.lower().startswith("delete"):
                 _, message_content = raw_message.split(" ", 1)
                 # delete_message(message_content, MESSAGES_FILE_PATH)
                 if delete_message(

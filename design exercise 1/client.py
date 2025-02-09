@@ -156,14 +156,26 @@ def handle_action(client_socket, username):
     If an action is not one of these keywords, prompt the client to try again.
     
     """
-    action = input("Do you want to message, or delete your account? (message/list/delete account): ").strip().lower()
+    action = input("Do you want to message, list users, or delete your account? (message/list/delete account): ").strip().lower()
     
     if action == "delete account":
         #this tells the server that we are going to delete the account
         client_socket.send("delete_account".encode('utf-8'))
         server_message = client_socket.recv(1024).decode('utf-8')
         print(server_message)
-        return False
+
+        if "You have unread messages" in server_message:
+            confirmation = input("Are you sure you want to delete your account? (yes/no): ").strip().lower()
+            client_socket.send(confirmation.encode('utf-8'))
+            server_message = client_socket.recv(1024).decode('utf-8')
+            print(server_message)
+            if "Account deleted successfully" in server_message:
+                return False
+            else:
+                return True
+        else:
+            return False
+        
     
     elif action == "list": 
         client_socket.send("list_accounts".encode('utf-8'))
