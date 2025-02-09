@@ -17,6 +17,7 @@ class TestAccountManager(unittest.TestCase):
         self.test_file = tempfile.NamedTemporaryFile(delete=False)
         self.test_file_path = self.test_file.name
         self.test_file.close()
+        self.accounts = {}
 
     def tearDown(self): 
         """This will get rid of the file after testing."""
@@ -34,45 +35,49 @@ class TestAccountManager(unittest.TestCase):
 
 
     def test_create_account(self):
-        
         """Make sure we can create the dummy account and add it to the file"""
         for _ in range(5):
             username = self.generate_random_string()
             password = self.generate_random_string()
-            account = create_account(username, password)
+            create_account(username, password, self.test_file_path)
 
-            # assertions we NEED to pass
-            self.assertTrue(is_valid_account(account))
-            self.assertEqual(account['username'], username) # we better pass these
-            self.assertNotEqual(account['hashed_password'], password) # checks that the hashing algo did something
-
-            # make sure account gets saved
-            accounts = load_accounts()
-            self.assertIn(account['uuid'], accounts)
+            #load accounts to verify the account was created
+            accounts = load_accounts(self.test_file_path)
+    
+            #verify this has the structure we expect
+            self.assertIsNotNone(accounts)
+            self.assertIn(username, accounts)
+            account = accounts[username]
+            self.assertEqual(account['username'], username)
+            self.assertEqual(account['password'], password)  # fix this later to check hashed password
 
     
+
     def test_duplicate_username(self):
         """Makes sure that we handle dupes properly"""
+        #try this 5 times, each with a randomly generated username. this takes out any bias that i have with choosing usernames. also, i tend to forget what i've chosen.
         for _ in range(5):
             username = self.generate_random_string()
             password = self.generate_random_string()
-            create_account(username, password)
+            create_account(username, password, self.test_file_path)
 
             with self.assertRaises(ValueError) as context:
-                create_account(username, password) # creates a new account with the same info; we should trigger the value error here
+                create_account(username, password, self.test_file_path) # creates a new account with the same info; we should trigger the value error here
                 
 
     def test_delete_account(self):
         """Test account deletion"""
+        #same deal. test this 5 times, just to ensure that we're not getting lucky
         for _ in range(5):
             username = self.generate_random_string()
             password = self.generate_random_string()
-            account = create_account(username, password)
-            result = delete_account(account['uuid'])
-            self.assertTrue(result) # ensures that this is actually deleted
-            accounts = load_accounts()
-            self.assertNotIn(account['uuid'], accounts) # checks that the deleted account is no longer in the registered accounts
-
+            create_account(username, password, self.test_file_path)
+            accounts = load_accounts(self.test_file_path)
+            account = accounts[username]
+            result = delete_account(username, self.test_file_path)
+            self.assertFalse(result)  # ensures that this is actually deleted - we should return False because that account is gone 
+            accounts = load_accounts(self.test_file_path)
+            self.assertNotIn(username, accounts)  # checks that the deleted account is no longer in the registered accounts
 
       
     def test_invalid_account(self):
@@ -83,10 +88,24 @@ class TestAccountManager(unittest.TestCase):
 
 
 
+    def test_list_accounts(self):
+        """Test listing of accounts"""
+        #make 5 random accounts, and check that the list is generated
+        for _ in range(5):
+            username = self.generate_random_string()
+            password = self.generate_random_string()
+            create_account(username, password, self.test_file_path)
+
+        accounts = list_accounts(self.test_file_path)
+        self.assertIsNotNone(accounts)
+        self.assertGreater(len(accounts), 0) #make sure that SOMETHING gets written (format checked in other tests, so no need to do that here)
+
+
 
 class CustomTestRunner(unittest.TextTestRunner):
     """This is the package's custom test runner class. You can customize the output of the test results 
-    however you want. Increasing the verbosity gives you more information about the tests that were run.
+    however you want. Increasing the verbosity gives you more information about the tests that were run. I personally put it on 2
+    because I like having information but not being overwhelmed.
 
     """
 

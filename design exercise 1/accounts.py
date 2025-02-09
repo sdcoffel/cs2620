@@ -105,7 +105,6 @@ def list_accounts(FILE_PATH):
     Returns:
         list: A list of all account objects. I modified this so that every entry is on a new line, for readability
     """
-    # TODO list accounts by wildcard
     accounts = load_accounts(FILE_PATH)
     return "\n".join(accounts.keys())
 

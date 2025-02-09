@@ -9,12 +9,17 @@ import string, random
 
 
 class TestMessageManager(unittest.TestCase):
+    """This is a suite of tests that is designed to test the messaging functions and how we store all the messages. This gives me more confidence in their behavior on the server. 
+    If I pass these, I am reasonably confident that the data is being managed properly during communications. I watch them all in .txt files, but this is good for robust checking.
+    
+    """
     def setUp(self):
         """Create a temporary file to simulate the message storage mechanism and prepare the environment for message operations."""
         self.temp_file = tempfile.NamedTemporaryFile(delete=False)
         self.temp_file_path = self.temp_file.name
         self.temp_file.close()
         self.messages = {}
+        self.pending_messages = {}
 
 
     def tearDown(self):
@@ -30,6 +35,8 @@ class TestMessageManager(unittest.TestCase):
 
     def test_is_valid_message(self):
         """Test the validation of message structures"""
+
+        #how we expect all messages passing through the server to look
         valid_message = {
             "uuid": "1234",
             "datetime": datetime.now().isoformat(),
@@ -43,7 +50,7 @@ class TestMessageManager(unittest.TestCase):
             "uuid": "1234",
             "datetime": datetime.now().isoformat(),
             "sender": "alice",
-            # 'receiver' key is missing
+            #'receiver' key is missing
             "content": "Hello, Bob!"
         }
         self.assertFalse(is_valid_message(invalid_message))
@@ -64,11 +71,13 @@ class TestMessageManager(unittest.TestCase):
 
     def test_delete_message(self):
         """Test deleting a message by its content"""
-        # First, create a message to delete
+        #create a message 
         sender = "alice"
         receiver = "bob"
         content = "Temporary message"
         message = create_message(sender, receiver, content, self.messages)
+        #delete the messages, and assert that the call to delete_message should return False, since the message is now gone. 
+        #delete_account returns the boolean message_found, which should be False on deletion
         self.assertFalse(delete_message("nonexistent message", self.temp_file_path))
 
 
@@ -79,15 +88,16 @@ class TestMessageManager(unittest.TestCase):
         content = "Hello, Bob!"
         message = create_message(sender, receiver, content, self.messages)
 
+        #should just be 1 because we've only created 1 message
         all_messages = list_messages(self.messages)
         self.assertEqual(len(all_messages), 1)
         self.assertIn(message, all_messages)
 
         filtered_messages = list_messages(self.messages, sender, receiver)
-        self.assertEqual(len(filtered_messages), 1)
+        self.assertEqual(len(filtered_messages), 1) #should match the number of messages alice has sent to bob, which is 1
         self.assertIn(message, filtered_messages)
 
-        # Test with no matches
+        #test for no matches in the original message list (should be 0 because there are no charlies or dave in our test data)
         no_match_messages = list_messages(self.messages, "charlie", "dave")
         self.assertEqual(len(no_match_messages), 0)
 
@@ -100,10 +110,11 @@ class TestMessageManager(unittest.TestCase):
         for content in contents:
             create_message(sender, receiver, content, self.messages)
 
-        # Reverse the list to simulate out-of-order insertion
+        #reverse the list to simulate out-of-order insertion. this may never happen on the server, but good to be prepared for it
         for content in reversed(contents):
             create_message(receiver, sender, content, self.messages)
 
+        #ensures that list_messages will list all 4 contents by the correct order that they came in (i.e., its paring the contents correctly)
         filtered_messages = list_messages(self.messages, sender, receiver)
         expected_order = contents + list(reversed(contents))
         actual_order = [msg['content'] for msg in filtered_messages]
@@ -114,13 +125,9 @@ class TestMessageManager(unittest.TestCase):
     @patch('builtins.open', mock_open(read_data="uuid1,2020-01-01 12:00,alice,bob,Hello!\n" + "uuid2,2020-01-01 12:05,alice,charlie,Hey there!\n"))
     def test_load_messages(self):
         """Test loading messages from a file with mocked file opening to ensure proper handling of CSV formatted data."""
-        # Import the function/module under test
-        from messages import load_messages
 
-        # Call the function that reads the file
         messages = load_messages('fake_path')
-
-        # Assertions to verify that messages were loaded correctly
+        #verify this got loaded correctly
         self.assertEqual(len(messages), 2)
         self.assertIn('uuid1', messages)
         self.assertIn('uuid2', messages)
@@ -128,31 +135,34 @@ class TestMessageManager(unittest.TestCase):
         self.assertEqual(messages['uuid2']['content'], 'Hey there!')
 
 
-    #THE MOTHERLOAD OF TESTING
+
     def test_random_message_operations(self):
-        """Test creating, ordering, and loading messages with random data"""
+        """Test creating, ordering, and loading messages with random data. There are 10 messages with randomly generated sender,
+        reciever, and content info. This is the MOTHERLOAD of testing."""
+
         num_messages = 10
         senders = [self.generate_random_string() for _ in range(num_messages)]
         receivers = [self.generate_random_string() for _ in range(num_messages)]
         contents = [self.generate_random_string(20) for _ in range(num_messages)]
 
-        # Create messages with random data
+        #create all messages
         for i in range(num_messages):
             create_message(senders[i], receivers[i], contents[i], self.messages)
 
-        # Simulate writing to a file and then reading from it
+
+        #write and read from a fake file
         mock_data = ''.join(f"{msg['uuid']},{msg['datetime']},{msg['sender']},{msg['receiver']},{msg['content']}\n"
                             for msg in self.messages.values())
         
         with patch('builtins.open', mock_open(read_data=mock_data)) as mocked_file:
             loaded_messages = load_messages('fake_path')
             self.assertEqual(len(loaded_messages), num_messages)
-            # Ensure all messages are loaded correctly
+            #assert all the messages have been loaded correctly
             for uuid, message in loaded_messages.items():
                 self.assertIn(uuid, self.messages)
                 self.assertEqual(message['content'], self.messages[uuid]['content'])
         
-        # Test filtering and sorting messages between two specific users
+        #filter and sort messages by the specific sender and reciever we want to test
         test_sender = senders[0]
         test_receiver = receivers[0]
         filtered_messages = list_messages(self.messages, test_sender, test_receiver)
@@ -161,8 +171,38 @@ class TestMessageManager(unittest.TestCase):
                              (msg['sender'] == test_sender and msg['receiver'] == test_receiver) or
                              (msg['sender'] == test_receiver and msg['receiver'] == test_sender)]
 
+        #test that we have parsed these correctly
         actual_contents = [msg['content'] for msg in filtered_messages]
         self.assertEqual(sorted(expected_contents), sorted(actual_contents))
+
+
+
+    def test_store_pending_message(self):
+        """Test storing a pending message. These behave very similar to normal messages, so I do not expect much difference here. 
+        I'll do this the same way as normal messages, just for completeness sake.
+        """
+
+        sender = "alice"
+        receiver = "bob"
+        content = "Hello, Bob!"
+        message = create_message(sender, receiver, content, self.pending_messages) #creates the messages and marks it as pending
+        self.assertTrue(is_valid_message(message))
+        self.assertEqual(message['sender'], sender)
+        self.assertEqual(message['receiver'], receiver)
+        self.assertEqual(message['content'], content)
+        self.assertIn(message['uuid'], self.pending_messages)
+
+
+    def test_list_pending_messages(self):
+        """Test listing all pending messages. Same deal."""
+        sender = "alice"
+        receiver = "bob"
+        content = "Hello, Bob!"
+        message = create_message(sender, receiver, content, self.pending_messages) #again, creates message and marks as pending
+
+        all_pending_messages = list_messages(self.pending_messages)
+        self.assertEqual(len(all_pending_messages), 1) #we should have only made 1
+        self.assertIn(message, all_pending_messages)
 
 
 
