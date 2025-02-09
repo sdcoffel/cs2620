@@ -9,6 +9,7 @@ from accounts import (
     list_accounts,
 )
 from messages import *
+from settings import JSON_MODE
 
 # TODO: wildcard listing for the list accounts function
 
