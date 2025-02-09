@@ -5,6 +5,7 @@
 import socket
 import threading
 import hashlib
+import re
 
 
 def hash_password(password):
@@ -157,7 +158,7 @@ def handle_login(client_socket):
         else: 
             print("Invalid input")
 
-    print("Ready to go!")
+    print("Ready to go! Type 'logout' at any point in order to logout of the app.")
     return username, client_socket
 
 
@@ -191,8 +192,27 @@ def handle_action(client_socket, username):
     elif action == "list": 
         client_socket.send("list_accounts".encode('utf-8'))
         server_message = client_socket.recv(1024).decode('utf-8')
-        print("List of users you can message: ")
+        accounts = server_message.split('\n')
+        print("List of users you can message: \n")
         print(server_message)
+
+        while True:
+            pattern = input("Enter a wildcard pattern to filter accounts (or 'all' to list all accounts): ").strip()
+            if pattern.lower() == 'all':
+                filtered_accounts = accounts
+            else:
+                filtered_accounts = [account for account in accounts if re.search(pattern, account)]
+            
+            if not filtered_accounts:
+                print("No accounts match the given pattern.")
+            else:
+                for account in filtered_accounts:
+                    print(account)
+            
+            more = input("Do you want to filter again? (yes/no): ").strip().lower()
+            if more != 'yes':
+                break
+        
         return True
     
     elif action == "message":
