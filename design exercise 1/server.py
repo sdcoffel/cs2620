@@ -1,5 +1,6 @@
 import socket
 import threading
+import json  # <-- Added for JSON support
 from accounts import (
     load_accounts,
     save_accounts,
@@ -36,17 +37,24 @@ def send_message(recipient, sender, message):
     save_messages(MESSAGES_FILE_PATH, messages)
     print("Message from {sender} to {recipient} saved to chatlog.")
 
-    # assign the desired recipient to a socket and save it in the active_clients dict
     if recipient in active_clients and "socket" in active_clients[recipient]:
         client_socket = active_clients[recipient]["socket"]
 
         try:
-            full_message = f"{sender}: {message}".encode("utf-8")
-            client_socket.send(full_message)
+            if JSON_MODE:
+                # Send as JSON data
+                data_to_send = {"sender": sender, "message": message}
+                client_socket.send(json.dumps(data_to_send).encode("utf-8"))
+            else:
+                # Existing (non-JSON) implementation
+                full_message = f"{sender}: {message}".encode("utf-8")
+                client_socket.send(full_message)
+
             print(f"Message from {sender} to {recipient} delivered.")
 
         except Exception as e:
             print(f"Failed to send message from {sender} to {recipient}: {e}")
+            # TODO should we notify client of the failure?
 
     else:
         if recipient not in messages:
@@ -58,8 +66,6 @@ def send_message(recipient, sender, message):
         print(
             f"Message from {sender} to {recipient} saved as a pending message by the server."
         )
-
-    # add a check here for users that are not registered on the server
 
 
 def client_handler(connection, address):
@@ -79,50 +85,73 @@ def client_handler(connection, address):
 
     """
 
+    username = None  # We'll set this after login
     try:
         print(f"Connected with {address}")
 
         """Login protocols."""
 
         while True:
-            # get login credentials from the client
-            credentials = connection.recv(1024).decode().strip().split(",")
-            username, password, existing = (
-                credentials[0],
-                credentials[1],
-                credentials[2],
-            )
+            if not JSON_MODE:
+                credentials = connection.recv(1024).decode().strip().split(",")
+                username, password, existing = (
+                    credentials[0],
+                    credentials[1],
+                    credentials[2],
+                )
+            else:
+                data_json = connection.recv(1024).decode().strip()
+                data = json.loads(data_json)
+                username = data["username"]
+                password = data["password"]
+                existing = data["existing"]
+
             accounts = load_accounts(FILE_PATH)
 
             try:
                 if existing == "no":
                     if username in accounts:
+                        # Error message → Keep the same
                         connection.send(
                             "Username already exists. Please try again.\n".encode(
                                 "utf-8"
                             )
-                        )  # bug here i need to fix
-                    else:
-                        create_account(
-                            username, password, FILE_PATH
-                        )  # create_account does all the checking for us
-                        connection.send(
-                            "Account created! You are now logged in.\n".encode("utf-8")
                         )
+                    else:
+                        create_account(username, password, FILE_PATH)
+                        if JSON_MODE:
+                            connection.send(
+                                json.dumps(
+                                    {"data": "Account created! You are now logged in."}
+                                ).encode("utf-8")
+                            )
+                        else:
+                            connection.send(
+                                "Account created! You are now logged in.\n".encode(
+                                    "utf-8"
+                                )
+                            )
                         break
 
                 elif existing == "yes":
-                    # checks if the password is correctly authenticated
                     if (
                         username in accounts
                         and password == accounts[username]["password"]
                     ):
-                        connection.send(
-                            "Success! You are now logged in.\n".encode("utf-8")
-                        )
+                        if JSON_MODE:
+                            connection.send(
+                                json.dumps(
+                                    {"data": "Success! You are now logged in."}
+                                ).encode("utf-8")
+                            )
+                        else:
+                            connection.send(
+                                "Success! You are now logged in.\n".encode("utf-8")
+                            )
                         break
 
                     else:
+                        # Error message → Keep the same
                         connection.send(
                             "Invalid username/password. Please try again.\n".encode(
                                 "utf-8"
@@ -131,25 +160,22 @@ def client_handler(connection, address):
                         continue
 
             except ValueError as e:
+                # Error message → Keep the same
                 connection.send(
                     f"Account creation failed: {e}. Please try again.\n".encode("utf-8")
                 )
                 continue
 
-        # update the active clients dictionary with the new username. this gets updated no matter what, so i am putting it outside the conditional
         active_clients[username] = {"socket": connection}
         print(f"{username} has connected.\n")
 
-        """This section allows you to handle pending messages for offline clients."""
-        # any pending messages get sent to the client first
-        pending_messages = load_pending_messages(
-            PENDING_MESSAGES_FILE_PATH
-        )  # update the dictionary with message population info
+        """Handle pending messages."""
+        pending_messages = load_pending_messages(PENDING_MESSAGES_FILE_PATH)
 
         if username in pending_messages:
             message_list = pending_messages[username]
             num_pending_messages = len(message_list)
-            message_limit = message_list[-10:]  # grabs the most recent 10 messages
+            message_limit = message_list[-10:]
 
             pending_message_info = (
                 f"You have {num_pending_messages} pending messages:\n"
@@ -157,83 +183,138 @@ def client_handler(connection, address):
             for sender, message in message_limit:
                 full_message = f"{sender}: {message}\n"
                 pending_message_info += full_message
-
-                # save the message to all_messages_ever.txt for server records
                 create_message(sender, username, message, messages)
 
             save_messages(MESSAGES_FILE_PATH, messages)
-            print("Sending:", pending_message_info)
-            connection.send(pending_message_info.encode("utf-8"))
+
+            if JSON_MODE:
+                # Send as JSON data
+                data_to_send = {
+                    "type": "pending_messages",
+                    "count": num_pending_messages,
+                    "messages": [],
+                }
+                for sender, msg in message_limit:
+                    data_to_send["messages"].append({"sender": sender, "message": msg})
+                connection.send(json.dumps(data_to_send).encode("utf-8"))
+            else:
+                connection.send(pending_message_info.encode("utf-8"))
 
             if len(message_list) > 10:
-                pending_messages[username] = message_list[
-                    :-10
-                ]  # the next 10 messages are queued up for the client to request if they want to see more
-
+                pending_messages[username] = message_list[:-10]
             else:
                 delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, 10)
 
             print(f"Pending messages for {username} sent to {username}.")
         else:
-            connection.send("You have 0 pending messages.\n".encode("utf-8"))
+            if JSON_MODE:
+                connection.send(
+                    json.dumps({"data": "You have 0 pending messages."}).encode("utf-8")
+                )
+            else:
+                connection.send("You have 0 pending messages.\n".encode("utf-8"))
 
-        """The bulk of incoming messages are processed in this loop. Here, you have options to handle special keyboard commands!"""
-
+        """Main message loop."""
         while True:
-            # read the incoming message, make a decision of what operation to perform based on the contents of the message
-            raw_message = connection.recv(1024).decode().strip()
+            if not JSON_MODE:
+                raw_message = connection.recv(1024).decode().strip()
+            else:
+                data_json = connection.recv(1024).decode().strip()
+                if not data_json:
+                    break
+                data_obj = json.loads(data_json)
+                # We'll store the actual command or message in raw_message to preserve existing checks
+                raw_message = data_obj.get("raw_message", "")
+
             if not raw_message:
                 break
 
-            # protocol for special commands, like delete and list
-
-            # protocol for deleting a specific account
-            elif raw_message.lower() == "delete_account":
-
+            if raw_message.lower() == "delete_account":
                 if username in pending_messages and pending_messages[username]:
-                    connection.send(
-                        "You have unread messages. Are you sure you want to delete your account?".encode(
-                            "utf-8"
+                    if JSON_MODE:
+                        connection.send(
+                            json.dumps(
+                                {
+                                    "data": "You have unread messages. Are you sure you want to delete your account?"
+                                }
+                            ).encode("utf-8")
                         )
-                    )
+                    else:
+                        connection.send(
+                            "You have unread messages. Are you sure you want to delete your account?".encode(
+                                "utf-8"
+                            )
+                        )
                     confirmation = connection.recv(1024).decode().strip().lower()
 
                     if confirmation == "yes":
                         delete_account(username, FILE_PATH)
                         print(f"Account deletion requested by user {username}")
-                        connection.send("Account deleted successfully.".encode("utf-8"))
+                        if JSON_MODE:
+                            connection.send(
+                                json.dumps(
+                                    {"data": "Account deleted successfully."}
+                                ).encode("utf-8")
+                            )
+                        else:
+                            connection.send(
+                                "Account deleted successfully.".encode("utf-8")
+                            )
                         break
 
                     else:
-                        connection.send("Account deletion aborted.".encode("utf-8"))
+                        # Not an error, but user canceled → still normal data
+                        if JSON_MODE:
+                            connection.send(
+                                json.dumps(
+                                    {"data": "Account deletion aborted."}
+                                ).encode("utf-8")
+                            )
+                        else:
+                            connection.send("Account deletion aborted.".encode("utf-8"))
                         continue
 
                 delete_account(username, FILE_PATH)
                 print(f"Account deletion requested by user {username}")
-                connection.send("Account deleted successfully.".encode("utf-8"))
-                break
-
-            # signals the server to list all accounts
-            elif raw_message.lower() == "list_accounts":
-                print(f"List requested by user {username}")
-                all_clients = list_accounts(FILE_PATH)
-                connection.send(all_clients.encode("utf-8"))
-                continue
-
-            # protocol for deleting a specific message
-            elif raw_message.lower().startswith("delete"):
-                _, message_content = raw_message.split(" ", 1)
-                # delete_message(message_content, MESSAGES_FILE_PATH)
-                if delete_message(
-                    message_content, MESSAGES_FILE_PATH
-                ):  # if deletion was successful
+                if JSON_MODE:
                     connection.send(
-                        f"Message with content '{message_content}' deleted successfully.".encode(
+                        json.dumps({"data": "Account deleted successfully."}).encode(
                             "utf-8"
                         )
                     )
+                else:
+                    connection.send("Account deleted successfully.".encode("utf-8"))
+                break
+
+            elif raw_message.lower() == "list_accounts":
+                print(f"List requested by user {username}")
+                all_clients = list_accounts(FILE_PATH)
+                if JSON_MODE:
+                    connection.send(json.dumps({"data": all_clients}).encode("utf-8"))
+                else:
+                    connection.send(all_clients.encode("utf-8"))
+                continue
+
+            elif raw_message.lower().startswith("delete"):
+                _, message_content = raw_message.split(" ", 1)
+                if delete_message(message_content, MESSAGES_FILE_PATH):
+                    if JSON_MODE:
+                        connection.send(
+                            json.dumps(
+                                {
+                                    "data": f"Message with content '{message_content}' deleted successfully."
+                                }
+                            ).encode("utf-8")
+                        )
+                    else:
+                        connection.send(
+                            f"Message with content '{message_content}' deleted successfully.".encode(
+                                "utf-8"
+                            )
+                        )
                     print("Message deleted from chatlog.")
                 else:
+                    # Error → keep the same
                     connection.send(
                         f"Message with content '{message_content}' not found.".encode(
                             "utf-8"
@@ -241,7 +322,6 @@ def client_handler(connection, address):
                     )
                 continue
 
-            # signals if the user wants to request more than the first 10 pending messages. the username argument is the RECIEVER of the pending messages, hence the different argument name from the function definition
             elif raw_message.lower() == "more":
                 if username in pending_messages and pending_messages[username]:
                     message_list = pending_messages[username]
@@ -251,9 +331,17 @@ def client_handler(connection, address):
                         for sender, message in message_limit:
                             full_message = f"{sender}: {message}\n"
                             more_message_info += full_message
-                        connection.send(more_message_info.encode("utf-8"))
 
-                        # save the 10 message chunk to all_messages_ever.txt for server records. then, delete this batch from the .txt file
+                        if JSON_MODE:
+                            data_to_send = {"type": "pending_messages", "messages": []}
+                            for sender, msg in message_limit:
+                                data_to_send["messages"].append(
+                                    {"sender": sender, "message": msg}
+                                )
+                            connection.send(json.dumps(data_to_send).encode("utf-8"))
+                        else:
+                            connection.send(more_message_info.encode("utf-8"))
+
                         create_message(sender, username, message, messages)
                         save_messages(MESSAGES_FILE_PATH, messages)
                         pending_messages[username] = message_list[:-10]
@@ -262,24 +350,40 @@ def client_handler(connection, address):
                         )
 
                         if not pending_messages[username]:
-                            #
-                            connection.send("No more messages.\n".encode("utf-8"))
+                            if JSON_MODE:
+                                connection.send(
+                                    json.dumps({"data": "No more messages."}).encode(
+                                        "utf-8"
+                                    )
+                                )
+                            else:
+                                connection.send("No more messages.\n".encode("utf-8"))
                             continue
                     else:
-                        connection.send("No more messages.\n".encode("utf-8"))
+                        if JSON_MODE:
+                            connection.send(
+                                json.dumps({"data": "No more messages."}).encode(
+                                    "utf-8"
+                                )
+                            )
+                        else:
+                            connection.send("No more messages.\n".encode("utf-8"))
                         continue
                 else:
-                    connection.send("No more messages.\n".encode("utf-8"))
+                    if JSON_MODE:
+                        connection.send(
+                            json.dumps({"data": "No more messages."}).encode("utf-8")
+                        )
+                    else:
+                        connection.send("No more messages.\n".encode("utf-8"))
                     continue
 
             elif raw_message.lower() == "done":
                 continue
 
-            # all other messages
             if ":" in raw_message:
                 recipient, msg = raw_message.split(":", 1)
                 send_message(recipient, username, msg)
-
             else:
                 # handle setting the recipient and tracking in the server
                 recipient = raw_message
@@ -287,16 +391,15 @@ def client_handler(connection, address):
                     active_clients[username]["recipient"] = recipient
                     print(f"{username} is messaging {recipient}.")
                 else:
-                    pass
+                    # Error → keep the same (commented out in original code)
                     # connection.send("Invalid recipient. Please enter a valid username.".encode('utf-8'))
+                    pass
 
     except Exception as e:
         print(f"Errors: {e}")
 
     finally:
         connection.close()
-        # if username in active_clients:
-        #     del active_clients[username]
         print(f"{username} has disconnected")
 
 
@@ -308,17 +411,13 @@ def start_server():
 
     """
 
-    # grab some globals at the very beginning on boot up. this holds information we need to keep on the server, like all the message and account data
-    global pending_messages  # everyone should be able to access this
+    global pending_messages
     load_pending_messages(PENDING_MESSAGES_FILE_PATH)
     print("Pending messages loaded...")
 
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(
-            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1
-        )  # this line guarantees that we can reuse the same port over and over again without having to change the number
-        # server_socket.bind(('0.0.0.0', 12345)) #listen on all network interfaces. if we actually text, we uncomment this line
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind(("localhost", 12345))
         server_socket.listen()
         print("Server is listening...")
@@ -328,13 +427,12 @@ def start_server():
                 client_socket, addr = server_socket.accept()
                 thread = threading.Thread(
                     target=client_handler, args=(client_socket, addr)
-                )  # in order to have multiple clients, i might model each of them as a thread. results pending on if this is a smart move or not
+                )
                 thread.start()
             except Exception as e:
                 print(f"Fatal error {e} with server")
 
     finally:
-        # on server shutdown, save any messages that might still be pending, and close the socket
         try:
             save_pending_messages(PENDING_MESSAGES_FILE_PATH, pending_messages)
             print("Pending messages saved...")
@@ -347,11 +445,7 @@ if __name__ == "__main__":
     FILE_PATH = "all_accounts_ever.txt"
     MESSAGES_FILE_PATH = "all_messages_ever.txt"
     PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
-    active_clients = (
-        {}
-    )  # map of all active client usernames to their sockets. this is a universal map, which i like. i hesitate to hardcode anything though
-    messages = (
-        {}
-    )  # dict of all messages sent through, with relevant user and reciever data
-    pending_messages = {}  # same format as messages, these are just pending
+    active_clients = {}
+    messages = {}
+    pending_messages = {}
     start_server()
