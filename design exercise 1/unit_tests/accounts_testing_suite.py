@@ -1,5 +1,4 @@
 import unittest 
-from unittest.mock import patch, MagicMock
 import os, sys
 import tempfile
 import random
