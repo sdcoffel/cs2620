@@ -31,6 +31,11 @@ def receive_messages(sock):
             else:
                 print("\nServer closed the connection.")
                 break
+
+    except socket.error as e:
+        if e.errno != 9:  # Suppress the "Bad file descriptor" error
+            print(f"Error receiving data: {e}")
+
     except Exception as e:
         print(f"Error receiving data: {e}")
     finally:
@@ -69,6 +74,11 @@ def send_messages(sock, username, recipient):
             elif message.lower().startswith('delete'):
                 sock.send(message.encode('utf-8'))
                 continue
+
+            elif message.lower() == 'logout':
+                sock.send(message.encode('utf-8'))
+                print("Logging out...")
+                break
             
 
             full_message = f"{recipient}:{message}"
@@ -76,7 +86,8 @@ def send_messages(sock, username, recipient):
 
 
     except socket.error as e:
-        print(f"Error sending message: {e}")
+        if e.errno != 9: 
+            print(f"Error sending message: {e}")
 
     except Exception as e:
         print(f"Some unexpected error {e} has occurred: Please contact system administrators Savanna and Ian")
@@ -191,6 +202,12 @@ def handle_action(client_socket, username):
         threading.Thread(target=receive_messages, args=(client_socket,)).start()
         send_messages(client_socket, username, recipient)
         return False
+    
+
+    elif action == 'logout':
+        client_socket.send(action.encode('utf-8'))
+        print("Logging out...")
+        False
 
     else:
         print("Invalid action. Please try again.")

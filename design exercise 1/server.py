@@ -164,6 +164,7 @@ def client_handler(connection, address):
                     
                     if confirmation == "yes":
                         delete_account(username, FILE_PATH)
+                        delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, len(pending_messages[username])) #deletes all pending messages
                         print(f"Account deletion requested by user {username}")
                         connection.send("Account deleted successfully.".encode('utf-8'))
                         break
@@ -230,6 +231,9 @@ def client_handler(connection, address):
             
             elif raw_message.lower() == 'done':
                 continue
+
+            elif raw_message.lower() == 'logout': 
+                print(f"{username} has logged out")
 
 
             #all other messages
