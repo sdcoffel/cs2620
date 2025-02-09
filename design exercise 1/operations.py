@@ -1,6 +1,8 @@
-#this will contain serialization and deserialization functions 
+# this will contain serialization and deserialization functions
 
-#we'll see if i want to keep using "|" to separate them. for now should be ok if its one long string
+
+# we'll see if i want to keep using "|" to separate them. for now should be ok if its one long string
+# TODO if we keep using | separation we need to validate that uuid, username, password do not contain |
 def serialize_account(account):
     """Serialize an account dictionary into a line for the accounts file."""
     return f"{account['uuid']}|{account['username']}|{account['password']}\n"
@@ -8,9 +10,5 @@ def serialize_account(account):
 
 def deserialize_account(line):
     """Deserialize a line from the accounts file into an account dictionary."""
-    uuid, username, password = line.strip().split('|')
-    return {
-        "uuid": uuid,
-        "username": username,
-        "password": password
-    }
+    uuid, username, password = line.strip().split("|")
+    return {"uuid": uuid, "username": username, "password": password}
