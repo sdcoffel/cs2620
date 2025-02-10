@@ -40,11 +40,11 @@ def send_message(recipient, sender, message):
 
         try:
             if JSON_MODE:
-                # Send as JSON data
+                # Send as JSON data - instead of custom formatting messages in the dict formation that we use for our custom wire protocol, we send as a JSON package
                 data_to_send = {"sender": sender, "message": message}
                 client_socket.send(json.dumps(data_to_send).encode("utf-8"))
             else:
-                # Existing (non-JSON) implementation
+                # Existing (non-JSON) implementation - we send this over as a string over the wire encoded as UTF-8. so the dict format of our messages is turned into a string, and serialized and sent over, as opposed to using JSON
                 full_message = f"{sender}: {message}".encode("utf-8")
                 client_socket.send(full_message)
 
@@ -407,6 +407,7 @@ def client_handler(connection, address):
         print(f"{username} has disconnected")
 
 
+
 def start_server():
     """Responsible for booting up the server.
 
@@ -422,7 +423,9 @@ def start_server():
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.bind(("localhost", 12345))
+
+
+        server_socket.bind(("localhost", 12345)) #we should not be hardcoding this. if i host the server on my laptop always, i need the actual ip address and port of my laptop?
         server_socket.listen()
         print("Server is listening...")
 
@@ -449,6 +452,7 @@ if __name__ == "__main__":
     FILE_PATH = "all_accounts_ever.txt"
     MESSAGES_FILE_PATH = "all_messages_ever.txt"
     PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
+    
     active_clients = {}
     messages = {}
     pending_messages = {}

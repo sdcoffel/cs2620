@@ -3,6 +3,7 @@ from tkinter import simpledialog, scrolledtext, messagebox
 from tkinter import font as tkfont
 from client import Client
 import threading
+import socket
 
 # these are the connection credentials for my laptop
 # host = 'localhost'
@@ -58,9 +59,7 @@ class ChatApp(tk.Tk):
         self.connect_button = tk.Button(
             self,
             text="Connect",
-            command=lambda: self.connect_to_server(
-                self.host_entry.get(), int(self.port_entry.get())
-            ),
+            command=self.attempt_connection,
             fg="black",
             font=button_font,
             relief=tk.RAISED,
@@ -70,15 +69,25 @@ class ChatApp(tk.Tk):
         )
         self.connect_button.pack(pady=20)
 
-    def connect_to_server(self, host, port):
-        # todo: make it so that the server doesn't crash when you supply an invalid host and port
-        self.client.start_client(host, port)
+    def attempt_connection(self):
+        host = self.host_entry.get()
+        port_text = self.port_entry.get()
 
-        self.connect_button.pack_forget()  # gets rid of it
-        self.setup_login_ui()  # prompt for login
+        try:
+            #the port number assigned for listening is currently hardcoded in. i don't know if this is bad or not.
+            #if you give it a good IP address but port that is not equal to the hardcoded version, it will crash
+            port = int(port_text) 
+            self.client.start_client(host, port)
+            self.setup_login_ui()
+
+        except Exception as e: 
+            messagebox.showerror("Connection Error", "Invalid host or port. Please try again.")
+
+
 
     def setup_login_ui(self):
         # Setup UI for login
+        self.connect_button.pack_forget()  # gets rid of it
         self.login_frame = tk.Frame(self, bg="light blue")
         self.login_frame.pack(padx=20, pady=20)
         label_font = tkfont.Font(family="Helvetica", size=14, weight="bold")

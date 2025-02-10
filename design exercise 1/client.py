@@ -364,6 +364,13 @@ class Client:
             host (str): The server IP or hostname
             port (int): The server port
         """
-        self.client_socket.connect((host, port))
-        self.connected = True
-        print("Connected to the server.")
+
+        try:
+            #todo: set this up so that i can connect to a host and port outside of my computer - should be ok with this current setup but need to sanity check
+            self.client_socket.connect((host, port))
+            self.connected = True
+            print("Connected to the server.")
+
+        except Exception as e: 
+            print("Socket error. Client needs to retry.")
+            
