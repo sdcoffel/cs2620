@@ -107,7 +107,9 @@ class Client:
     def get_pending_messages(self):
         #grab any pending messages
         pending_message_info = self.client_socket.recv(4096).decode('utf-8')
+        print(pending_message_info)
         return pending_message_info
+
 
 
     def grab_more_messages(self):

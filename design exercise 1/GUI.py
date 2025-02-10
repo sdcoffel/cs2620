@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import simpledialog, scrolledtext, messagebox
-from client import Client  # This would be your client class that handles network operations
+from client import Client 
 import threading
 
 
@@ -18,7 +18,7 @@ class ChatApp(tk.Tk):
         
    
     def connect_to_server(self):
-        host = 'localhost'  #use a dialog to get these values if needed
+        host = 'localhost'  #use a dialog to get these values if needed - TODO: set up connection by filling in the host and port
         port = 12345
         self.client.start_client(host, port)
     
@@ -53,8 +53,8 @@ class ChatApp(tk.Tk):
         
             
 
-    def handle_login(self, existing):
-        
+    def handle_login(self, existing): 
+        #todo: fix bug on duplicate username timeout
         username = self.username_entry.get()
         password = self.password_entry.get()
 
@@ -152,15 +152,18 @@ class ChatApp(tk.Tk):
 
 
     def delete_account(self): 
+
+        #todo: specify that it is up to the user to check if they want to read their messages or not
+        
+        confirmation = messagebox.askyesno("Delete Account", "Are you sure you want to delete your account? You may have unread messages!")
+        if not confirmation:
+            return
+
         server_message = self.client.delete_account()
         self.text_area.insert(tk.END, server_message + '\n')
         self.quit_app()
 
-        #if pending messages, user supplies confirmation
 
-            # confirmation = messagebox.askyesno("Do you really want to delete your account? (yes/no) \n")
-            # decision = client.confirm_deletion(self, server_message, confirmation)
-            # messagebox.showinfo(decision)
 
 
     def list_accounts(self): 
@@ -258,9 +261,6 @@ if __name__ == "__main__":
 #     client.handle_login()
 #     while client.handle_action(): 
 #         pass
-
-
-
 
 
 
