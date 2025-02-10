@@ -1,7 +1,4 @@
-# TODO:
-# - if i start the client before the server, the connection is refused. i should have a mechanism that continuously polls the server until it's online
 import socket
-import threading
 import hashlib
 import re
 import json  # <-- Added for JSON handling if JSON_MODE is True
@@ -40,52 +37,54 @@ class Client:
             terminates the connection.
         """
 
-        try:
-            message = self.client_socket.recv(4096).decode("utf-8")
-            if not message:
-                print("\nServer closed the connection.")
-                return ""
+        message = self.client_socket.recv(4096).decode("utf-8")
 
-            if JSON_MODE:
-                try:
-                    data = json.loads(message)
-                    # If the server sends a message with a "sender" field:
-                    if "sender" in data and "message" in data:
-                        print(
-                            f"\rReceived from {data['sender']}: {data['message']}\nYou: ",
-                            end="",
+
+        if JSON_MODE:
+            try:
+                data = json.loads(message)
+                # If the server sends a message with a "sender" field:
+                if "sender" in data and "message" in data:
+                    print(
+                        f"\rReceived from {data['sender']}: {data['message']}\nYou: ",
+                        end="",
+                    )
+                # If the server sends some generic data response:
+                elif "data" in data:
+                    print("\r" + data["data"] + "\nYou: ", end="")
+                # If the server sends pending messages or any other structured data:
+                elif "type" in data and data["type"] == "pending_messages":
+                    # data might have "messages" or "count"
+                    pending_str = ""
+                    if "count" in data:
+                        pending_str += (
+                            f"You have {data['count']} pending messages:\n"
                         )
-                    # If the server sends some generic data response:
-                    elif "data" in data:
-                        print("\r" + data["data"] + "\nYou: ", end="")
-                    # If the server sends pending messages or any other structured data:
-                    elif "type" in data and data["type"] == "pending_messages":
-                        # data might have "messages" or "count"
-                        pending_str = ""
-                        if "count" in data:
-                            pending_str += (
-                                f"You have {data['count']} pending messages:\n"
-                            )
-                        if "messages" in data:
-                            for msg_obj in data["messages"]:
-                                if "sender" in msg_obj and "message" in msg_obj:
-                                    pending_str += (
-                                        f"{msg_obj['sender']}: {msg_obj['message']}\n"
-                                    )
-                        print("\r" + pending_str + "\nYou: ", end="")
-                    else:
-                        # If there's some other JSON structure not handled above:
-                        print("\r" + str(data) + "\nYou: ", end="")
-                except json.JSONDecodeError:
-                    # If for some reason we failed to parse JSON, fallback to raw print
-                    print("\rReceived: " + message + "\nYou: ", end="")
-            else:
-                # Original non-JSON mode
+                    if "messages" in data:
+                        for msg_obj in data["messages"]:
+                            if "sender" in msg_obj and "message" in msg_obj:
+                                pending_str += (
+                                    f"{msg_obj['sender']}: {msg_obj['message']}\n"
+                                )
+                    print("\r" + pending_str + "\nYou: ", end="")
+                else:
+                    # If there's some other JSON structure not handled above:
+                    print("\r" + str(data) + "\nYou: ", end="")
+            except json.JSONDecodeError:
+                # If for some reason we failed to parse JSON, fallback to raw print
                 print("\rReceived: " + message + "\nYou: ", end="")
-            return message
-        except:
-            print("\nServer closed the connection.")
-            return ""
+
+        else:
+            # Original non-JSON mode
+            message = self.client_socket.recv(1024).decode('utf-8')
+            if message:
+                print("\rReceived: " + message + "\nYou: ", end="")
+            else:
+                print("\nServer closed the connection.")
+        
+        return message
+    
+        
 
     def send_messages(self, recipient, message):
         """Sends messages along the socket to the server. If an empty message is typed, the user has the power to
@@ -289,6 +288,7 @@ class Client:
                 return server_message
         else:
             return False
+        
 
     def list_accounts(self):
         """Requests from the server the list of all accounts.
@@ -313,11 +313,13 @@ class Client:
                     return [server_message]
             except json.JSONDecodeError:
                 return [server_message]
+        
         else:
             self.client_socket.send("list_accounts".encode("utf-8"))
             server_message = self.client_socket.recv(1024).decode("utf-8")
             accounts = server_message.split("\n")
             return accounts
+
 
     def wildcard(self, pattern, accounts):
         """Filter the list of accounts by a pattern.
@@ -340,6 +342,7 @@ class Client:
             return "No accounts match the given pattern."
 
         return filtered_accounts
+
 
     def set_recipient(self, recipient):
         """Sets the intended recipient for future messages.
