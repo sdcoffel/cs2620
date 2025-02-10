@@ -204,9 +204,18 @@ class ChatApp(tk.Tk):
 
 
 
+    def delete_message(self):
+        #grab text by lines 
+        text_content = self.text_area.get("1.0", tk.END).strip()
+        lines = text_content.split("\n")
+        last_message = lines[-1]
+        # print(last_message)
+        
+        self.client.delete_message(last_message)
+        self.text_area.delete("end-2l", "end-1l")
+    # else:
+    #     messagebox.showinfo("No Messages", "There are no messages to delete.")
 
-    def delete_message(self): 
-        print("test")
 
 
     def send_message(self, event=None):

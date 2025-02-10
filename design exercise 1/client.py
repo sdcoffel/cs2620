@@ -59,18 +59,24 @@ class Client:
         
         """
         
-        #try:
+        full_message = f"{recipient}:{message}"
+        self.client_socket.send(full_message.encode('utf-8'))
+
+       
+       
+    def delete_message(self, message):
+        
 
 
-                # #for message deletion
-                # elif message.lower().startswith('delete'):
-                #     self.client_socket.send(message.encode('utf-8'))
-                #     continue
+        # #for message deletion
+        # elif message.lower().startswith('delete'):
+        self.client_socket.send(('delete'+ message).encode('utf-8'))
+        server_message = self.client_socket.recv(1024).decode('utf-8')
+        print(server_message)
+            
 
                 
 
-        full_message = f"{recipient}:{message}"
-        self.client_socket.send(full_message.encode('utf-8'))
 
 
 

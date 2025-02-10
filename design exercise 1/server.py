@@ -12,8 +12,6 @@ from accounts import (
 from messages import *
 from settings import JSON_MODE
 
-# TODO: wildcard listing for the list accounts function
-
 
 def send_message(recipient, sender, message):
     """This function will send a message to a specific client. All clients that are currently using the server are stored in the 'active_clients' dict, which
