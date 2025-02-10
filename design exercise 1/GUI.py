@@ -15,24 +15,8 @@ class ChatApp(tk.Tk):
         self.connect_button = tk.Button(self, text="Connect", command=self.connect_to_server)
         self.connect_button.pack(padx=20, pady=5)
 
-
-        # # Message display area
-        # self.messages_frame = scrolledtext.ScrolledText(self)
-        # self.messages_frame.pack(padx=20, pady=20, fill=tk.BOTH, expand=True)
-
-        # self.msg_entry = tk.Entry(self, width=50)
-        # self.msg_entry.pack(padx=20, pady=5)
-        # self.msg_entry.bind("<Return>", self.send_message)
-
-
-        # self.send_button = tk.Button(self, text="Send", command=self.send_message)
-        # self.send_button.pack(padx=20, pady=5)
         
-        # self.quit_button = tk.Button(self, text="Quit", command=self.quit_app)
-        # self.quit_button.pack(padx=20, pady=5)
-        
-
-        
+   
     def connect_to_server(self):
         host = 'localhost'  #use a dialog to get these values if needed
         port = 12345
@@ -41,10 +25,6 @@ class ChatApp(tk.Tk):
         self.connect_button.pack_forget() #gets rid of it
         self.setup_login_ui() #prompt for login
         
-
-        # else:
-        #     tk.messagebox.showerror("Connection Failed", "Could not connect to the server.")
-
 
     def setup_login_ui(self):
         # Setup UI for login
@@ -62,30 +42,28 @@ class ChatApp(tk.Tk):
         self.password_entry = tk.Entry(self.login_frame, show="*")
         self.password_entry.pack()
 
-        self.login_button = tk.Button(self.login_frame, text="Login", command=self.handle_login)
+        self.login_button = tk.Button(self.login_frame, text="Login", command=lambda: self.handle_login(existing="yes"))
         self.login_button.pack()
 
-        self.message_label = tk.Label(self.login_frame, text = "")
+        self.create_account_button = tk.Button(self.login_frame, text="Create Account", command=lambda: self.handle_login(existing="no"))
+        self.create_account_button.pack()
+
+        self.message_label = tk.Label(self.login_frame, text="")
         self.message_label.pack()
         
             
 
-    def handle_login(self):
-        # Retrieve user input from the entry
+    def handle_login(self, existing):
+        
         username = self.username_entry.get()
         password = self.password_entry.get()
-        existing = "yes"
 
         if username and password: 
-            result, message = self.client.handle_login(username, password, existing)
-    
-            if result:
-                self.message_label.config(text=message) #'Success!' message
-                self.display_pending_messages()
-                #self.proceed_to_chat()
+            message = self.client.handle_login(username, password, existing)
+            self.message_label.config(text=message) 
+            self.display_pending_messages()
+        
 
-            else: 
-                messagebox.showerror("Login Error", "u fucked up")
 
 
     def display_pending_messages(self):
@@ -108,11 +86,6 @@ class ChatApp(tk.Tk):
         done_button = tk.Button(button_frame, text="Done", command=self.proceed_to_chat, width=10, height=2)  # Match the style
         done_button.pack(side=tk.RIGHT, padx=10, pady=10)
 
-        # delete_button = tk.Button(button_frame, text="Delete Account", command=self.delete_account, width=10, height=2)
-        # delete_button.pack(side=tk.LEFT, padx=10, pady=10)
-
-        # list_button = tk.Button(button_frame, text="List", command=self.list_accounts, width=10, height=2)
-        # list_button.pack(side=tk.LEFT, padx=10, pady=10)
 
         messages = self.client.get_pending_messages()
         self.text_area.insert(tk.END, messages)
@@ -158,12 +131,46 @@ class ChatApp(tk.Tk):
         self.send_button = tk.Button(self, text="Send", command=self.send_message, width=20, height=2)
         self.send_button.pack(padx=20, pady=5)
 
+        self.delete_button = tk.Button(self, text="Delete Account", command=self.delete_account, width=10, height=2)
+        self.delete_button.pack(side=tk.LEFT, padx=10, pady=10)
+
+        self.list_button = tk.Button(self, text="List", command=self.list_accounts, width=10, height=2)
+        self.list_button.pack(side=tk.LEFT, padx=10, pady=10)
+
+
+        self.delete_message_button = tk.Button(self, text="Delete message", command=self.delete_message, width=10, height=2)
+        self.delete_message_button.pack(side=tk.LEFT, padx=10, pady=10)
+
         #Quit/logout button
         self.quit_button = tk.Button(self, text="Logout", command=self.quit_app)
         self.quit_button.pack(padx=20, pady=5)
 
         # Start a thread to receive messages
         threading.Thread(target=self.receive_messages, daemon=True).start()
+
+
+
+
+
+    def delete_account(self): 
+        server_message = self.client.delete_account()
+        self.text_area.insert(tk.END, server_message + '\n')
+        self.quit_app()
+
+        #if pending messages, user supplies confirmation
+
+            # confirmation = messagebox.askyesno("Do you really want to delete your account? (yes/no) \n")
+            # decision = client.confirm_deletion(self, server_message, confirmation)
+            # messagebox.showinfo(decision)
+
+
+    def list_accounts(self): 
+        print("test")
+
+
+
+    def delete_message(self): 
+        print("test")
 
 
     def send_message(self, event=None):
@@ -181,13 +188,14 @@ class ChatApp(tk.Tk):
             self.text_area.insert(tk.END, "Recieved from: " + message + '\n')
 
 
-    def mainloop(self):
-        tk.mainloop()
-        
-
     def quit_app(self):
         self.client.close_connection()
         self.destroy()
+
+
+    def mainloop(self):
+        tk.mainloop()
+        
 
 
 if __name__ == "__main__":
