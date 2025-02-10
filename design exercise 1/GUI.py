@@ -151,7 +151,6 @@ class ChatApp(tk.Tk):
 
 
 
-
     def delete_account(self): 
         server_message = self.client.delete_account()
         self.text_area.insert(tk.END, server_message + '\n')
@@ -165,7 +164,44 @@ class ChatApp(tk.Tk):
 
 
     def list_accounts(self): 
-        print("test")
+        accounts = self.client.list_accounts()
+        accounts_window = tk.Toplevel(self)
+        accounts_window.title("List of users you can message:")
+        accounts_window.geometry("300x200")
+
+        accounts_text = scrolledtext.ScrolledText(accounts_window, wrap=tk.WORD)
+        accounts_text.pack(expand=True, fill=tk.BOTH)
+
+        for account in accounts:
+            accounts_text.insert(tk.END, account + "\n")
+
+        # Search entry and button
+        search_frame = tk.Frame(accounts_window)
+        search_frame.pack(pady=10)
+
+        search_label = tk.Label(search_frame, text="Search by pattern:")
+        search_label.pack(side=tk.LEFT, padx=5)
+
+        search_entry = tk.Entry(search_frame)
+        search_entry.pack(side=tk.LEFT, padx=5)
+        search_entry.bind("<Return>", lambda event: self.search_accounts(search_entry, accounts, search_frame))
+
+        
+    def search_accounts(self, search_entry, accounts, search_frame):
+        search_result = self.client.wildcard(search_entry.get(), accounts)
+        search_result_text = "\n".join(search_result)
+
+        if hasattr(self, 'result_text'):
+            self.result_text.delete(1.0, tk.END)
+        else:
+            result_label = tk.Label(search_frame, text="Search Results:")
+            result_label.pack(side=tk.LEFT, padx=5)
+
+            self.result_text = tk.Text(search_frame, height=5, width=30)
+            self.result_text.pack(side=tk.LEFT, padx=5)
+
+        self.result_text.insert(tk.END, search_result_text)
+
 
 
 

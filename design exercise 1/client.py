@@ -58,32 +58,15 @@ class Client:
         Continues until the connection is terminated, handles exceptions if the message cannot be sent.
         
         """
-        #this starts a communication thread with the reciever
-        #threading.Thread(target=self.receive_messages).start()
         
         #try:
-            #while True:
-                # #message = input("You: ") #this stops it every time i believe
-                # # message = message
-                # if message.lower() == 'quit':
-                #     print("Ending connection...")
-                #     break
 
-            #we will have buttons for these. save this code
-                # elif message.lower() == 'change':
-                #     recipient = input("Enter the recipient's username: ")
-                #     print(f"Now messaging {recipient}. Type 'quit' to end the session, 'change' to change the recipient, or 'delete' to delete any messages.")
-                #     continue
 
                 # #for message deletion
                 # elif message.lower().startswith('delete'):
                 #     self.client_socket.send(message.encode('utf-8'))
                 #     continue
 
-                # elif message.lower() == 'logout':
-                #     self.client_socket.send(message.encode('utf-8'))
-                #     print("Logging out...")
-                #     break
                 
 
         full_message = f"{recipient}:{message}"
@@ -96,17 +79,7 @@ class Client:
         If the user has any pending messages, these are handled at login and displayed for the client to see in bunches of 10 messages. The client can request to see another 10 messages 
         at a time if they wish to see more. 
         """
-        #existing = input("Welcome to the chat app! Do you already have an account? (yes/no): ").strip().lower()
 
-        # logged_in = False #boolean that switches depending on if the user is logged in or not
-        # while not logged_in: 
-        #     if existing == "no": 
-        #         username = input("Please choose your new username: ").strip()
-
-        #     elif existing == "yes":
-        #         username = input("Please enter your username: ").strip() 
-
-        #password = password
         hashed_password = self.hash_password(password) #hashes the password
 
 
@@ -123,20 +96,11 @@ class Client:
         self.username = username
         return server_message
 
-        # if "Success" in server_message or "Account created" in server_message:
-        #     logged_in = True
-        #     self.username = username
-        #     return True, server_message
-        # else: 
-        #     return False, server_message
-
 
 
     def get_pending_messages(self):
         #grab any pending messages
         pending_message_info = self.client_socket.recv(4096).decode('utf-8')
-        #print(pending_message_info)
-
         return pending_message_info
 
 
@@ -193,54 +157,23 @@ class Client:
         self.client_socket.send("list_accounts".encode('utf-8'))
         server_message = self.client_socket.recv(1024).decode('utf-8')
         accounts = server_message.split('\n')
-        
-        print("List of users you can message: \n")
-        print(server_message)
+        return accounts
 
-        while True:
-            pattern = input("Enter a wildcard pattern to filter accounts (or 'all' to list all accounts): ").strip()
-            if pattern.lower() == 'all':
-                filtered_accounts = accounts
-            else:
-                filtered_accounts = [account for account in accounts if re.search(pattern, account)]
-            
-            if not filtered_accounts:
-                print("No accounts match the given pattern.")
-            else:
-                for account in filtered_accounts:
-                    print(account)
-            
-            more = input("Do you want to filter again? (yes/no): ").strip().lower()
-            if more != 'yes':
-                break
-        
-        return True
-        
 
+    def wildcard(self, pattern, accounts):
+        if pattern.lower() == 'all':
+            filtered_accounts = accounts
+        else:
+            filtered_accounts = [account for account in accounts if re.search(pattern, account)]
+        
+        if not filtered_accounts:
+                return ("No accounts match the given pattern.")
+        
+        return filtered_accounts
+        
+        
     def set_recipient(self, recipient):
         self.client_socket.send(recipient.encode('utf-8'))
-
-
-
-
-    #def message(self):
-        #elif action == "message":
-        #recipient = input("Who do you want to message? ")
-        #self.client_socket.send(recipient.encode('utf-8'))
-        #print(f"Now messaging {recipient}. Type 'quit' to end the session or 'change' to select another recipient.")
-        # threading.Thread(target=self.receive_messages).start()
-        # self.send_messages(recipient)
-        # return False
-        
-
-        # elif action == 'logout':
-        #     self.client_socket.send(action.encode('utf-8'))
-        #     print("Logging out...")
-        #     False
-
-        # else:
-        #     print("Invalid action. Please try again.")
-        #     return True
 
 
 
@@ -250,7 +183,6 @@ class Client:
 
         """
         
-        #try:
         self.client_socket.connect((host, port))
 
         #this is for switching to LAN mode on harvard public wifi. ignore for now
@@ -258,8 +190,7 @@ class Client:
         self.connected = True
         print("Connected to the server.")
         
-        # #i will comment this out in the GUI fyi
-        # self.handle_login()
+    
 
 
 
