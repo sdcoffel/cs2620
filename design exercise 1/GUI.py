@@ -1,7 +1,12 @@
 import tkinter as tk
 from tkinter import simpledialog, scrolledtext, messagebox
+from tkinter import font as tkfont
 from client import Client 
 import threading
+
+#these are the connection credentials for my laptop
+#host = 'localhost'  
+#port = 12345
 
 
 class ChatApp(tk.Tk):
@@ -9,17 +14,37 @@ class ChatApp(tk.Tk):
         super().__init__()
         self.client = client
 
-        self.title("Chat Application")
-        self.geometry("400x400")
-        
-        self.connect_button = tk.Button(self, text="Connect", command=self.connect_to_server)
-        self.connect_button.pack(padx=20, pady=5)
+        self.title("Welcome to WallyChat!")
+        self.geometry("600x600")
+        self.configure(bg='light blue') 
 
+        # Styling variables
+        label_font = tkfont.Font(family="Helvetica", size=14, weight = "bold")
+        entry_font = tkfont.Font(family="Helvetica", size=14)
+        button_font = tkfont.Font(family="Helvetica", size=14, weight = "bold")
+
+        # Frame for connection settings
+        connection_frame = tk.Frame(self, bg='light blue', pady=40)
+        connection_frame.pack(fill=tk.X, padx=20)
+
+        self.host_label = tk.Label(connection_frame, text="Host:", font=label_font, bg='light blue')
+        self.host_label.pack(side=tk.LEFT, padx=10)
+        self.host_entry = tk.Entry(connection_frame, font=entry_font, highlightbackground="black", highlightthickness=1, highlightcolor="black")
+        self.host_entry.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=10)
+
+        self.port_label = tk.Label(connection_frame, text="Port:", font=label_font, bg='light blue')
+        self.port_label.pack(side=tk.LEFT, padx=10)
+        self.port_entry = tk.Entry(connection_frame, font=entry_font, highlightbackground="black", highlightthickness=1, highlightcolor="black")
+        self.port_entry.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=10)
         
+        # Connect button
+        self.connect_button = tk.Button(self, text="Connect", command=lambda: self.connect_to_server(self.host_entry.get(), int(self.port_entry.get())),
+                                        fg="black", font=button_font, relief=tk.RAISED, bd=5, width=20, height=2)
+        self.connect_button.pack(pady=20)
+
    
-    def connect_to_server(self):
-        host = 'localhost'  #use a dialog to get these values if needed - TODO: set up connection by filling in the host and port
-        port = 12345
+    def connect_to_server(self, host, port):
+        #todo: make it so that the server doesn't crash when you supply an invalid host and port
         self.client.start_client(host, port)
     
         self.connect_button.pack_forget() #gets rid of it
@@ -28,27 +53,32 @@ class ChatApp(tk.Tk):
 
     def setup_login_ui(self):
         # Setup UI for login
-        self.login_frame = tk.Frame(self)
+        self.login_frame = tk.Frame(self, bg = "light blue")
         self.login_frame.pack(padx=20, pady=20)
+        label_font = tkfont.Font(family="Helvetica", size=14, weight = "bold")
+        entry_font = tkfont.Font(family="Helvetica", size=14)
+        button_font = tkfont.Font(family="Helvetica", size=14, weight = "bold")
 
-        self.username_label = tk.Label(self.login_frame, text="Username:")
+        self.username_label = tk.Label(self.login_frame, text="Username:", font=label_font, bg = "light blue")
         self.username_label.pack()
-        self.username_entry = tk.Entry(self.login_frame)
+        self.username_entry = tk.Entry(self.login_frame, font=entry_font, highlightbackground="black", highlightthickness=1, highlightcolor="black")
         self.username_entry.pack()
         self.username_entry.focus_set() #hit tab to go to the next login screen
 
-        self.password_label = tk.Label(self.login_frame, text="Password:")
+        self.password_label = tk.Label(self.login_frame, text="Password:", font=label_font, bg = "light blue")
         self.password_label.pack()
-        self.password_entry = tk.Entry(self.login_frame, show="*")
+        self.password_entry = tk.Entry(self.login_frame, show="*", font=entry_font, highlightbackground="black", highlightthickness=1, highlightcolor="black")
         self.password_entry.pack()
 
-        self.login_button = tk.Button(self.login_frame, text="Login", command=lambda: self.handle_login(existing="yes"))
+        self.login_button = tk.Button(self.login_frame, text="Login", command=lambda: self.handle_login(existing="yes"),
+                          fg="black", font=button_font, relief=tk.RAISED, bd=5, width=20, height=2)
         self.login_button.pack()
 
-        self.create_account_button = tk.Button(self.login_frame, text="Create Account", command=lambda: self.handle_login(existing="no"))
+        self.create_account_button = tk.Button(self.login_frame, text="Create Account", command=lambda: self.handle_login(existing="no"),
+                               fg="black", font=button_font, relief=tk.RAISED, bd=5, width=20, height=2)
         self.create_account_button.pack()
 
-        self.message_label = tk.Label(self.login_frame, text="")
+        self.message_label = tk.Label(self.login_frame, text="", font=label_font, bg = "light blue")
         self.message_label.pack()
         
             
@@ -65,13 +95,12 @@ class ChatApp(tk.Tk):
         
 
 
-
     def display_pending_messages(self):
         message_frame = tk.Frame(self)
         message_frame.pack(padx=20, pady=20, fill=tk.BOTH, expand=True)
 
         # Text area for displaying messages
-        self.text_area = scrolledtext.ScrolledText(message_frame)
+        self.text_area = scrolledtext.ScrolledText(message_frame, font=("Helvetica", 14))
         self.text_area.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         # Button frame
@@ -112,10 +141,10 @@ class ChatApp(tk.Tk):
         self.text_area.delete(1.0, tk.END)  # Clear the text area
 
         # Prompt for selecting a user to message
-        self.recipient_label = tk.Label(self, text="Who would you like to message?")
+        self.recipient_label = tk.Label(self, text="Who would you like to message?", bg = "light blue")
         self.recipient_label.pack(padx=20, pady=5)
 
-        self.recipient_frame = tk.Frame(self, bd=2, relief=tk.SOLID, bg="blue")
+        self.recipient_frame = tk.Frame(self, bd=2, relief=tk.SOLID)
         self.recipient_frame.pack(padx=20, pady=5, fill=tk.X)
 
         self.recipient_entry = tk.Entry(self.recipient_frame, width=50)
@@ -124,26 +153,34 @@ class ChatApp(tk.Tk):
         
 
         # Entry box for typing messages
-        self.msg_entry = tk.Entry(self, width=50)
+
+        self.msg_frame = tk.Frame(self, bd=2, relief=tk.SOLID)
+        self.msg_frame.pack(padx=20, pady=5, fill=tk.X)
+
+        self.msg_entry = tk.Entry(self.msg_frame, width=50)
         self.msg_entry.pack(padx=20, pady=5)
 
         # Send button
-        self.send_button = tk.Button(self, text="Send", command=self.send_message, width=20, height=2)
+        button_font = tkfont.Font(family="Helvetica", size=14)
+
+        self.send_button = tk.Button(self, text="Send", command=self.send_message, width=20, height=2, font=button_font, highlightbackground="black", highlightcolor="black")
         self.send_button.pack(padx=20, pady=5)
 
-        self.delete_button = tk.Button(self, text="Delete Account", command=self.delete_account, width=10, height=2)
-        self.delete_button.pack(side=tk.LEFT, padx=10, pady=10)
+        button_frame = tk.Frame(self, bg = "light blue")
+        button_frame.pack(side=tk.BOTTOM, pady=10)
 
-        self.list_button = tk.Button(self, text="List", command=self.list_accounts, width=10, height=2)
-        self.list_button.pack(side=tk.LEFT, padx=10, pady=10)
+        self.delete_button = tk.Button(button_frame, text="Delete Account", command=self.delete_account, width=10, height=2, font=button_font, highlightbackground="black", highlightcolor="black")
+        self.delete_button.pack(side=tk.LEFT, padx=10)
 
+        self.list_button = tk.Button(button_frame, text="List", command=self.list_accounts, width=10, height=2, font=button_font, highlightbackground="black", highlightcolor="black")
+        self.list_button.pack(side=tk.LEFT, padx=10)
 
-        self.delete_message_button = tk.Button(self, text="Delete message", command=self.delete_message, width=10, height=2)
-        self.delete_message_button.pack(side=tk.LEFT, padx=10, pady=10)
+        self.delete_message_button = tk.Button(button_frame, text="Delete message", command=self.delete_message, width=10, height=2, font=button_font, highlightbackground="black", highlightcolor="black")
+        self.delete_message_button.pack(side=tk.LEFT, padx=10)
 
-        #Quit/logout button
-        self.quit_button = tk.Button(self, text="Logout", command=self.quit_app)
-        self.quit_button.pack(padx=20, pady=5)
+        # Quit/logout button
+        self.quit_button = tk.Button(button_frame, text="Logout", command=self.quit_app, width=10, height=2, font=button_font, highlightbackground="black", highlightcolor="black")
+        self.quit_button.pack(side=tk.LEFT, padx=10)
 
         # Start a thread to receive messages
         threading.Thread(target=self.receive_messages, daemon=True).start()
@@ -170,9 +207,12 @@ class ChatApp(tk.Tk):
         accounts = self.client.list_accounts()
         accounts_window = tk.Toplevel(self)
         accounts_window.title("List of users you can message:")
-        accounts_window.geometry("300x200")
+        accounts_window.geometry("600x400")
 
-        accounts_text = scrolledtext.ScrolledText(accounts_window, wrap=tk.WORD)
+        label_font = tkfont.Font(family="Helvetica", size=14, weight = "bold")
+        entry_font = tkfont.Font(family="Helvetica", size=14)
+
+        accounts_text = scrolledtext.ScrolledText(accounts_window, wrap=tk.WORD, font=entry_font)
         accounts_text.pack(expand=True, fill=tk.BOTH)
 
         for account in accounts:
@@ -182,25 +222,29 @@ class ChatApp(tk.Tk):
         search_frame = tk.Frame(accounts_window)
         search_frame.pack(pady=10)
 
-        search_label = tk.Label(search_frame, text="Search by pattern:")
+        search_label = tk.Label(search_frame, text="Search by pattern:", font=label_font)
         search_label.pack(side=tk.LEFT, padx=5)
 
-        search_entry = tk.Entry(search_frame)
+        search_entry = tk.Entry(search_frame, font=entry_font)
         search_entry.pack(side=tk.LEFT, padx=5)
         search_entry.bind("<Return>", lambda event: self.search_accounts(search_entry, accounts, search_frame))
 
         
+
     def search_accounts(self, search_entry, accounts, search_frame):
+        label_font = tkfont.Font(family="Helvetica", size=14, weight="bold")
+        entry_font = tkfont.Font(family="Helvetica", size=14)
+
         search_result = self.client.wildcard(search_entry.get(), accounts)
         search_result_text = "\n".join(search_result)
 
         if hasattr(self, 'result_text'):
             self.result_text.delete(1.0, tk.END)
         else:
-            result_label = tk.Label(search_frame, text="Search Results:")
+            result_label = tk.Label(search_frame, text="Search Results:", font=label_font)
             result_label.pack(side=tk.LEFT, padx=5)
 
-            self.result_text = tk.Text(search_frame, height=5, width=30)
+            self.result_text = tk.Text(search_frame, height=5, width=30, font=entry_font)
             self.result_text.pack(side=tk.LEFT, padx=5)
 
         self.result_text.insert(tk.END, search_result_text)
@@ -208,6 +252,7 @@ class ChatApp(tk.Tk):
 
 
     def delete_message(self):
+        #todo: fix the bug that will break if the user keep deleting messages if there are none. also, JSON might have broken this 
         #grab text by lines 
         text_content = self.text_area.get("1.0", tk.END).strip()
         lines = text_content.split("\n")

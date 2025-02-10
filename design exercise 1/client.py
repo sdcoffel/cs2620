@@ -113,6 +113,7 @@ class Client:
             self.client_socket.send(json.dumps(data_to_send).encode("utf-8"))
             server_message = self.client_socket.recv(1024).decode("utf-8")
             print(server_message)
+            
         else:
             self.client_socket.send(("delete" + message).encode("utf-8"))
             server_message = self.client_socket.recv(1024).decode("utf-8")
