@@ -146,15 +146,41 @@ class Client:
         server_message = self.client_socket.recv(1024).decode("utf-8")
         if JSON_MODE:
             try:
-                response = json.loads(server_message)
-                if "data" in response:
-                    print(response["data"])
-                    server_message = response["data"]
-                else:
-                    print(server_message)
+                response = json.loads(server_message)  # Attempt to parse as JSON
             except json.JSONDecodeError:
+                # If the response is not valid JSON, handle it as a fallback. give the server message to the GUI
+                print("Server message was not valid JSON:", server_message)
+                return False, server_message
+
+
+            if "data" in response:
+                print(response["data"])
+                server_message = response["data"]
+                print(server_message)
+
+                if "Username already exists" in server_message: 
+                    #this is a duplicate. tell the client to try again
+                    print("Duplicate username. Client needs to try again.")
+                    return False, server_message
+                
+                elif "This username/password is not registered with us" in server_message: 
+                    print("Bad username. Client needs to try again.")
+                    return False, server_message
+                
+                else: 
+                    #proceed as normal
+                    print(server_message)
+                    self.username = username
+                    return True, server_message
+
+            else:
+                print(server_message)
+                return False, server_message
+
+            if json.JSONDecodeError:
                 # fallback if somehow not JSON
                 print(server_message)
+
         else:
             #print(server_message)
             if "Username already exists" in server_message: 
@@ -182,11 +208,13 @@ class Client:
         """
         pending_message_info = self.client_socket.recv(4096).decode("utf-8")
         if JSON_MODE:
+            #pending_str = ""
             try:
                 data = json.loads(pending_message_info)
                 # Could be a "data" or "type":"pending_messages"
                 if "data" in data:
                     print(data["data"])
+                    return(data["data"])
                 elif "type" in data and data["type"] == "pending_messages":
                     pending_str = ""
                     if "count" in data:
@@ -198,15 +226,24 @@ class Client:
                                     f"{msg_obj['sender']}: {msg_obj['message']}\n"
                                 )
                     print(pending_str)
+                    return pending_str
+
                 else:
                     # Fallback
                     print(pending_message_info)
+                    return pending_message_info
+                    
             except json.JSONDecodeError:
                 # fallback to raw text
                 print(pending_message_info)
+                return pending_message_info
+            
+            return pending_message_info
+        
         else:
             print(pending_message_info)
         return pending_message_info
+        
 
     def grab_more_messages(self):
         """Requests more messages from the server if the user wants to see the next batch of 10.

@@ -15,7 +15,7 @@ class ChatApp(tk.Tk):
         super().__init__()
         self.client = client
 
-        self.title("Welcome to WallyChat!")
+        self.title("Welcome to CCP (Computer Communication Protocol)!")
         self.minsize(600, 800)
         # self.geometry("600x600")
         self.configure(bg="light blue")
@@ -153,7 +153,6 @@ class ChatApp(tk.Tk):
         self.message_label.pack()
 
     def handle_login(self, existing):
-        # todo: fix bug on duplicate username timeout
         username = self.username_entry.get()
         password = self.password_entry.get()
 
@@ -207,6 +206,7 @@ class ChatApp(tk.Tk):
         done_button.pack(side=tk.RIGHT, padx=10, pady=10)
 
         messages = self.client.get_pending_messages()
+        print("recieved messages:", messages)
         self.text_area.insert(tk.END, messages)
 
     def request_more_messages(self):
@@ -385,6 +385,7 @@ class ChatApp(tk.Tk):
             self.result_text.pack(side=tk.LEFT, padx=5)
 
         self.result_text.insert(tk.END, search_result_text)
+
 
     def delete_message(self):
         # todo: fix the bug that will break if the user keep deleting messages if there are none. also, JSON might have broken this

@@ -1,1 +1,1 @@
-JSON_MODE = False
+JSON_MODE = True
