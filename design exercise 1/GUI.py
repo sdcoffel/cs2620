@@ -335,10 +335,7 @@ class ChatApp(tk.Tk):
 
     def delete_account(self):
         #we specify that it is up to the user to check if they want to read their messages or not
-        confirmation = messagebox.askyesno(
-            "Delete Account",
-            "Are you sure you want to delete your account? You may have unread messages!",
-        )
+        confirmation = messagebox.askyesno("Delete Account", "Are you sure you want to delete your account? You may have unread messages!")
         if not confirmation:
             return
 
@@ -388,7 +385,7 @@ class ChatApp(tk.Tk):
         entry_font = tkfont.Font(family="Helvetica", size=14)
 
         search_result = self.client.wildcard(search_entry.get(), accounts)
-        
+
         if isinstance(search_result, list):
             # A list of matching usernames -> join with newlines
             search_result_text = "\n".join(search_result)

@@ -1,7 +1,7 @@
 import socket
 import hashlib
 import re
-import json  # <-- Added for JSON handling if JSON_MODE is True
+import json  
 
 from settings import JSON_MODE
 

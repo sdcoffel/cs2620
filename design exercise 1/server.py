@@ -22,6 +22,7 @@ def send_message(recipient, sender, message):
     If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client. Instead we move on to another messaging attempt.
     """
 
+    #save the message internally to our records for future referencing
     create_message(sender, recipient, message, messages)
     save_messages(MESSAGES_FILE_PATH, messages)
     print("Message from {sender} to {recipient} saved to chatlog.")
@@ -31,12 +32,12 @@ def send_message(recipient, sender, message):
 
         try:
             if JSON_MODE:
-                # Send as JSON data - instead of custom formatting messages in the dict formation that we use for our custom wire protocol, we send as a JSON package
+                #send as JSON data - instead of custom formatting messages in the dict formation that we use for our custom wire protocol, we send as a JSON package
                 data_to_send = {"sender": sender, "message": message}
                 client_socket.send(json.dumps(data_to_send).encode("utf-8"))
 
             else:
-                # Existing (non-JSON) implementation - we send this over as a string over the wire encoded as UTF-8. so the dict format of our messages is turned into a string, and serialized and sent over, as opposed to using JSON
+                #existing (non-JSON) implementation - we send this over as a string over the wire encoded as UTF-8. so the dict format of our messages is turned into a string, and serialized and sent over, as opposed to using JSON
                 full_message = f"{sender}: {message}".encode("utf-8")
                 client_socket.send(full_message)
 
@@ -57,7 +58,23 @@ def send_message(recipient, sender, message):
 
 
 def login_protocol(connection, accounts): 
-    #one and done thing, so i want it out of the main while loop in the client handler and its own separate function
+    """This function handles the login protocol for the client. Duplicate/bad usernames that don't match with our internal databases send a warning message to the client.
+
+    If the client is creating a new account, we check for usernames that already exist in our database. If the client provides a dupe, we tell them. If the client 
+    provides a good username, we save the newly created account to our records and let them in. 
+
+    If the client is logging in, we check that the username they provide is a username in our database, and we validate the password with what we have stored. 
+    Our passwords are all hashed, so the hashed password comes in from the client side, and that is what we cross-check with our records.
+
+    On bad login attempts, users can attempt to log in as many times as necessary. Succesful logins take you to the pending messages board. 
+
+    Args: 
+        connection (socket.socket()): socket associated with the client
+        accounts: the dict of all accounts that are registered on the server, for cross-validation
+    
+    """
+    
+    #grab credentials that came over from the client
     while True:
         if not JSON_MODE:
             credentials = connection.recv(1024).decode().strip().split(",")
@@ -74,6 +91,7 @@ def login_protocol(connection, accounts):
             existing = data["existing"]
 
         try:
+            #if the user is trying to create a new account
             if existing == "no":
                 if username in accounts:
                     connection.send("Username already exists. Please try again.\n".encode("utf-8"))
@@ -89,6 +107,7 @@ def login_protocol(connection, accounts):
 
                     return username
 
+            #if the user is logging into a preexisting account 
             elif existing == "yes":
                 if (username in accounts and password == accounts[username]["password"]):
                     if JSON_MODE:
@@ -111,22 +130,30 @@ def login_protocol(connection, accounts):
 
 
 def handle_pending_messages(connection, username): 
-        """Handle pending messages."""
+        """This function displays the most recent 10 pending messages for the user on login. If JSON_MODE is off, 
+        the messages are processed on the server and then sent over the wire to the client as a string, which the client will then decode. 
+        Otherwise, it is sent in JSON format.
+        """
+
         pending_messages = load_pending_messages(PENDING_MESSAGES_FILE_PATH)
 
         if username in pending_messages:
+            #grab the first 10 messages to send to the client
             message_list = pending_messages[username]
             num_pending_messages = len(message_list)
             message_limit = message_list[-10:]
 
+            #prepare the message for sending and update our internal database
             pending_message_info = (f"You have {num_pending_messages} pending messages: \n")
             for sender, message in message_limit:
                 full_message = f"{sender}: {message}\n"
                 pending_message_info += full_message
-                create_message(sender, username, message, messages)
+                create_message(sender, username, message, messages) 
 
+            #save the messages to our internal database after removing them from the pending_messages logs 
             save_messages(MESSAGES_FILE_PATH, messages)
 
+            #send messages over to the client in the chosen format
             if JSON_MODE:
                 #send everything encoded in JSON
                 data_to_send = {
@@ -141,6 +168,7 @@ def handle_pending_messages(connection, username):
             else:
                 connection.send(pending_message_info.encode("utf-8"))
 
+            
             if len(message_list) > 10:
                 pending_messages[username] = message_list[:-10]
 
@@ -158,6 +186,14 @@ def handle_pending_messages(connection, username):
 
 
 def delete_message_handler(connection, message_content):
+    """This function deletes messages from the server's internal database, and sends a message to the client confirming message deletion. It is mostly for our recordkeeping,
+    as the messages are erased from the GUI using GUI-specific magic. 
+
+    Args: 
+        connection (socket.socket()): socket associated with the client
+        message_content: the message that the client wants to delete
+    """
+
     if delete_message(message_content, MESSAGES_FILE_PATH):
         if JSON_MODE:
             connection.send(
@@ -173,6 +209,15 @@ def delete_message_handler(connection, message_content):
 
 
 def handle_more_messages(connection, username):
+    """If there are more than 10 pending messages, the user can request to see the rest of them in chunks of 10 on login by clicking the 'more' button on the GUI.
+    That button will call this function. This function will grab the next 10 messages from the pending queue, send them over to the client, and store those messages in our 
+    internal database by moving them from the pending_messages file to all_messages_ever. 
+
+    Args: 
+        connection (socket.socket()): socket associated with the client
+        username: the client's chosen username
+    """
+
     if username in pending_messages and pending_messages[username]:
         message_list = pending_messages[username]
         if message_list:
@@ -221,32 +266,40 @@ def handle_more_messages(connection, username):
 
 
 def handle_account_deletion(connection, username):
-    if username in pending_messages and pending_messages[username]:
+    """This function allows users to delete their accounts. The user is prompted for a confirmation, and if the user says yes, the function calls delete_account()
+    which deletes the user's account from the database and sends a message to the client. On the GUI, the window is also promptly closed. 
+    If the user chooses not to delete their account, nothing happens, and we proceed as normal. 
 
+    Args: 
+        (socket.socket()): socket associated with the client
+        username: the client's chosen username
+    """
+
+    if username in pending_messages and pending_messages[username]:
         if JSON_MODE:
             connection.send(
                 json.dumps({"data": "You have unread messages. Are you sure you want to delete your account?"}).encode("utf-8"))
             
         else:
-            connection.send(
-                "You have unread messages. Are you sure you want to delete your account?".encode("utf-8"))
+            connection.send("You have unread messages. Are you sure you want to delete your account?".encode("utf-8"))
         confirmation = connection.recv(1024).decode().strip().lower()
 
+        #user has decided to delete their account
         if confirmation == "yes":
             delete_account(username, FILE_PATH)
-            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, len(pending_messages[username]))  # deletes all pending messages
+            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, len(pending_messages[username]))  #deletes all pending messages as well as the account itself
             print(f"Account deletion successful for user {username}")
 
         else:
             #the user has decided not to delete their account in the GUI
             print(f"{username} aborted deletion")
-            #in case the user decides NOT to delete their account because they have unread messages
             if JSON_MODE:
                 connection.send(json.dumps({"data": "Account deletion aborted."}).encode("utf-8"))
 
             else:
                 connection.send("Account deletion aborted.".encode("utf-8"))
 
+    #if the account has no associated pending messages, delete. there will still be a prompt on the GUI, but no need to do operations serverside here
     delete_account(username, FILE_PATH)
     print(f"Account deletion requested by user {username}")
     if JSON_MODE:
