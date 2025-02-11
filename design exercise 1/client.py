@@ -76,7 +76,6 @@ class Client:
 
         else:
             # Original non-JSON mode
-            message = self.client_socket.recv(1024).decode('utf-8')
             if message:
                 print("\rReceived: " + message + "\nYou: ", end="")
             else:
@@ -112,12 +111,13 @@ class Client:
             data_to_send = {"raw_message": "delete " + message}
             self.client_socket.send(json.dumps(data_to_send).encode("utf-8"))
             server_message = self.client_socket.recv(1024).decode("utf-8")
-            print(server_message)
+            #print(server_message)
             
         else:
             self.client_socket.send(("delete" + message).encode("utf-8"))
             server_message = self.client_socket.recv(1024).decode("utf-8")
-            print(server_message)
+            #print(server_message)
+
 
     def handle_login(self, username, password, existing):
         """Handles the login process for the client. This prompts the user for their login data, and sends it to the server for credential validation.
@@ -146,20 +146,58 @@ class Client:
         server_message = self.client_socket.recv(1024).decode("utf-8")
         if JSON_MODE:
             try:
-                response = json.loads(server_message)
-                if "data" in response:
-                    print(response["data"])
-                    server_message = response["data"]
-                else:
-                    print(server_message)
+                response = json.loads(server_message)  # Attempt to parse as JSON
             except json.JSONDecodeError:
+                # If the response is not valid JSON, handle it as a fallback. give the server message to the GUI
+                print("Server message was not valid JSON:", server_message)
+                return False, server_message
+
+
+            if "data" in response:
+                print(response["data"])
+                server_message = response["data"]
+                print(server_message)
+
+                if "Username already exists" in server_message: 
+                    #this is a duplicate. tell the client to try again
+                    print("Duplicate username. Client needs to try again.")
+                    return False, server_message
+                
+                elif "This username/password is not registered with us" in server_message: 
+                    print("Bad username. Client needs to try again.")
+                    return False, server_message
+                
+                else: 
+                    #proceed as normal
+                    print(server_message)
+                    self.username = username
+                    return True, server_message
+
+            else:
+                print(server_message)
+                return False, server_message
+
+            if json.JSONDecodeError:
                 # fallback if somehow not JSON
                 print(server_message)
-        else:
-            print(server_message)
 
-        self.username = username
-        return server_message
+        else:
+            #print(server_message)
+            if "Username already exists" in server_message: 
+                #this is a duplicate. tell the client to try again
+                print("Duplicate username. Client needs to try again.")
+                return False, server_message
+            
+            elif "This username/password is not registered with us" in server_message: 
+                print("Bad username. Client needs to try again.")
+                return False, server_message
+            else: 
+                #proceed as normal
+                print(server_message)
+                self.username = username
+                return True, server_message
+        
+        #return server_message - this says success! you are now logged in 
 
     def get_pending_messages(self):
         """Grab any pending messages after login. The server automatically sends these right after login.
@@ -170,11 +208,13 @@ class Client:
         """
         pending_message_info = self.client_socket.recv(4096).decode("utf-8")
         if JSON_MODE:
+            #pending_str = ""
             try:
                 data = json.loads(pending_message_info)
                 # Could be a "data" or "type":"pending_messages"
                 if "data" in data:
                     print(data["data"])
+                    return(data["data"])
                 elif "type" in data and data["type"] == "pending_messages":
                     pending_str = ""
                     if "count" in data:
@@ -186,15 +226,24 @@ class Client:
                                     f"{msg_obj['sender']}: {msg_obj['message']}\n"
                                 )
                     print(pending_str)
+                    return pending_str
+
                 else:
                     # Fallback
                     print(pending_message_info)
+                    return pending_message_info
+                    
             except json.JSONDecodeError:
                 # fallback to raw text
                 print(pending_message_info)
+                return pending_message_info
+            
+            return pending_message_info
+        
         else:
             print(pending_message_info)
         return pending_message_info
+        
 
     def grab_more_messages(self):
         """Requests more messages from the server if the user wants to see the next batch of 10.
@@ -364,6 +413,13 @@ class Client:
             host (str): The server IP or hostname
             port (int): The server port
         """
-        self.client_socket.connect((host, port))
-        self.connected = True
-        print("Connected to the server.")
+
+        try:
+            #todo: set this up so that i can connect to a host and port outside of my computer - should be ok with this current setup but need to sanity check
+            self.client_socket.connect((host, port))
+            self.connected = True
+            print("Connected to the server.")
+
+        except Exception as e: 
+            print("Socket error. Client needs to retry.")
+            

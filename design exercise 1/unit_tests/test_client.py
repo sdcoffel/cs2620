@@ -201,5 +201,31 @@ class TestChatClient(unittest.TestCase):
         self.assertEqual(filtered, "No accounts match the given pattern.")
 
 
+
+
+
+class CustomTestRunner(unittest.TextTestRunner):
+    """This is the package's custom test runner class. You can customize the output of the test results
+    however you want. Increasing the verbosity gives you more information about the tests that were run.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def run(self, test):
+        result = super().run(test)
+        print("\n\nTest Summary")
+        print("-------------------")
+        print(f"{result.testsRun} tests run in total.")
+        if not result.wasSuccessful():
+            print(f"{len(result.failures) + len(result.errors)} tests failed.")
+        else:
+            print("All tests passed!")
+        return result
+
+
 if __name__ == "__main__":
-    unittest.main()
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestChatClient)
+    runner = CustomTestRunner(verbosity=2)
+    runner.run(suite)

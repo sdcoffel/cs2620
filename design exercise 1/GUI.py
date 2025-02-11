@@ -3,6 +3,7 @@ from tkinter import simpledialog, scrolledtext, messagebox
 from tkinter import font as tkfont
 from client import Client
 import threading
+import socket
 
 # these are the connection credentials for my laptop
 # host = 'localhost'
@@ -14,7 +15,7 @@ class ChatApp(tk.Tk):
         super().__init__()
         self.client = client
 
-        self.title("Welcome to WallyChat!")
+        self.title("Welcome to CCP (Computer Communication Protocol)!")
         self.minsize(600, 800)
         # self.geometry("600x600")
         self.configure(bg="light blue")
@@ -58,27 +59,34 @@ class ChatApp(tk.Tk):
         self.connect_button = tk.Button(
             self,
             text="Connect",
-            command=lambda: self.connect_to_server(
-                self.host_entry.get(), int(self.port_entry.get())
-            ),
+            command=self.attempt_connection,
             fg="black",
             font=button_font,
             relief=tk.RAISED,
             bd=5,
             width=20,
-            height=2,
-        )
+            height=2)
         self.connect_button.pack(pady=20)
 
-    def connect_to_server(self, host, port):
-        # todo: make it so that the server doesn't crash when you supply an invalid host and port
-        self.client.start_client(host, port)
+    def attempt_connection(self):
+        host = self.host_entry.get()
+        port_text = self.port_entry.get()
 
-        self.connect_button.pack_forget()  # gets rid of it
-        self.setup_login_ui()  # prompt for login
+        try:
+            #the port number assigned for listening is currently hardcoded in. i don't know if this is bad or not.
+            #if you give it a good IP address but port that is not equal to the hardcoded version, it will crash
+            port = int(port_text) 
+            self.client.start_client(host, port)
+            self.setup_login_ui()
+
+        except Exception as e: 
+            messagebox.showerror("Connection Error", "Invalid host or port. Please try again.")
+
+
 
     def setup_login_ui(self):
         # Setup UI for login
+        self.connect_button.pack_forget()  # gets rid of it
         self.login_frame = tk.Frame(self, bg="light blue")
         self.login_frame.pack(padx=20, pady=20)
         label_font = tkfont.Font(family="Helvetica", size=14, weight="bold")
@@ -145,14 +153,28 @@ class ChatApp(tk.Tk):
         self.message_label.pack()
 
     def handle_login(self, existing):
-        # todo: fix bug on duplicate username timeout
         username = self.username_entry.get()
         password = self.password_entry.get()
 
-        if username and password:
-            message = self.client.handle_login(username, password, existing)
+
+        # Make sure we have both username and password before proceeding
+        if not username or not password:
+            self.message_label.config(text="Please enter both username and password.")
+            return
+
+        # Attempt to log in (or create account) via the client
+        success_flag, message = self.client.handle_login(username, password, existing)
+
+        if success_flag: 
             self.message_label.config(text=message)
             self.display_pending_messages()
+
+        else:
+            # If the login was unsuccessful, clear fields and inform the user to try again
+            self.username_entry.delete(0, 'end')
+            self.password_entry.delete(0, 'end')
+            self.message_label.config(text=message)
+
 
     def display_pending_messages(self):
         message_frame = tk.Frame(self)
@@ -184,6 +206,7 @@ class ChatApp(tk.Tk):
         done_button.pack(side=tk.RIGHT, padx=10, pady=10)
 
         messages = self.client.get_pending_messages()
+        print("recieved messages:", messages)
         self.text_area.insert(tk.END, messages)
 
     def request_more_messages(self):
@@ -296,8 +319,7 @@ class ChatApp(tk.Tk):
 
     def delete_account(self):
 
-        # todo: specify that it is up to the user to check if they want to read their messages or not
-
+        #we specify that it is up to the user to check if they want to read their messages or not
         confirmation = messagebox.askyesno(
             "Delete Account",
             "Are you sure you want to delete your account? You may have unread messages!",
@@ -364,19 +386,36 @@ class ChatApp(tk.Tk):
 
         self.result_text.insert(tk.END, search_result_text)
 
+
     def delete_message(self):
         # todo: fix the bug that will break if the user keep deleting messages if there are none. also, JSON might have broken this
-        # grab text by lines
+        # Retrieve all text from the text area
         text_content = self.text_area.get("1.0", tk.END).strip()
+        
+        # If there is no content, show a message and return early
+        if not text_content:
+            messagebox.showinfo("No Messages", "There are no messages to delete.")
+            return
+        
+        # Split the content by lines and find the last line
         lines = text_content.split("\n")
-        last_message = lines[-1]
-        # print(last_message)
 
+        if len(lines) <= 1: #this would just be the line that tells you who you are messaging
+            messagebox.showinfo("No Messages", "There are no messages to delete.")
+            return
+        
+        last_message = lines[-1] if lines else ""
+        
+        #if lines are empty, show 'no messages'
+        if not last_message:
+            messagebox.showinfo("No Messages", "There are no messages to delete.")
+            return
+
+        #sends request to the server to delete the message
         self.client.delete_message(last_message)
+        #deletes the last line from the ScrolledText widget
         self.text_area.delete("end-2l", "end-1l")
 
-    # else:
-    #     messagebox.showinfo("No Messages", "There are no messages to delete.")
 
     def send_message(self, event=None):
         recipient = self.recipient_entry.get()
