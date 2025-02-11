@@ -175,13 +175,7 @@ class ChatApp(tk.Tk):
             self.username_entry.delete(0, 'end')
             self.password_entry.delete(0, 'end')
             self.message_label.config(text=message)
-        # if username and password:
-        #     message = self.client.handle_login(username, password, existing) #currently this is the success message
-        #     self.message_label.config(text=message)
 
-
-
-            #self.display_pending_messages()
 
     def display_pending_messages(self):
         message_frame = tk.Frame(self)
@@ -394,17 +388,33 @@ class ChatApp(tk.Tk):
 
     def delete_message(self):
         # todo: fix the bug that will break if the user keep deleting messages if there are none. also, JSON might have broken this
-        # grab text by lines
+        # Retrieve all text from the text area
         text_content = self.text_area.get("1.0", tk.END).strip()
+        
+        # If there is no content, show a message and return early
+        if not text_content:
+            messagebox.showinfo("No Messages", "There are no messages to delete.")
+            return
+        
+        # Split the content by lines and find the last line
         lines = text_content.split("\n")
-        last_message = lines[-1]
-        # print(last_message)
 
+        if len(lines) <= 1: #this would just be the line that tells you who you are messaging
+            messagebox.showinfo("No Messages", "There are no messages to delete.")
+            return
+        
+        last_message = lines[-1] if lines else ""
+        
+        #if lines are empty, show 'no messages'
+        if not last_message:
+            messagebox.showinfo("No Messages", "There are no messages to delete.")
+            return
+
+        #sends request to the server to delete the message
         self.client.delete_message(last_message)
+        #deletes the last line from the ScrolledText widget
         self.text_area.delete("end-2l", "end-1l")
 
-    # else:
-    #     messagebox.showinfo("No Messages", "There are no messages to delete.")
 
     def send_message(self, event=None):
         recipient = self.recipient_entry.get()

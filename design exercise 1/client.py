@@ -111,12 +111,13 @@ class Client:
             data_to_send = {"raw_message": "delete " + message}
             self.client_socket.send(json.dumps(data_to_send).encode("utf-8"))
             server_message = self.client_socket.recv(1024).decode("utf-8")
-            print(server_message)
+            #print(server_message)
             
         else:
             self.client_socket.send(("delete" + message).encode("utf-8"))
             server_message = self.client_socket.recv(1024).decode("utf-8")
-            print(server_message)
+            #print(server_message)
+
 
     def handle_login(self, username, password, existing):
         """Handles the login process for the client. This prompts the user for their login data, and sends it to the server for credential validation.
