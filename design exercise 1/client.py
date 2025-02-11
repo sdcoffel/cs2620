@@ -16,15 +16,21 @@ class Client:
         self.username = None
         self.connected = False
 
+
+
     def close_connection(self):
         if self.client_socket:
             self.client_socket.close()
             print("Connection closed.")
 
+
+
     @staticmethod
     def hash_password(password):
         """Hash a password for storing. This uses hashlib to hash the password and then send it over the network."""
         return hashlib.sha256(password.encode()).hexdigest()
+
+
 
     def receive_messages(self):
         """This function is in charge of receiving messages that have been forwarded from the server.
@@ -119,6 +125,7 @@ class Client:
             #print(server_message)
 
 
+
     def handle_login(self, username, password, existing):
         """Handles the login process for the client. This prompts the user for their login data, and sends it to the server for credential validation.
         If the user has any pending messages, these are handled at login and displayed for the client to see in bunches of 10 messages. The client can request to see another 10 messages
@@ -199,6 +206,8 @@ class Client:
         
         #return server_message - this says success! you are now logged in 
 
+
+
     def get_pending_messages(self):
         """Grab any pending messages after login. The server automatically sends these right after login.
 
@@ -245,6 +254,7 @@ class Client:
         return pending_message_info
         
 
+
     def grab_more_messages(self):
         """Requests more messages from the server if the user wants to see the next batch of 10.
 
@@ -277,6 +287,8 @@ class Client:
             more_messages = self.client_socket.recv(4096).decode("utf-8")
             return more_messages
 
+
+
     def delete_account(self):
         """Sends a request to the server to delete the user's account.
 
@@ -306,6 +318,8 @@ class Client:
             server_message = self.client_socket.recv(1024).decode("utf-8")
             print(server_message)
             return server_message
+
+
 
     def confirm_deletion(self, server_message, confirmation):
         """Handles the confirmation step when the server notifies the user they have unread messages
@@ -340,6 +354,7 @@ class Client:
             return False
         
 
+
     def list_accounts(self):
         """Requests from the server the list of all accounts.
 
@@ -371,6 +386,7 @@ class Client:
             return accounts
 
 
+
     def wildcard(self, pattern, accounts):
         """Filter the list of accounts by a pattern.
 
@@ -394,6 +410,7 @@ class Client:
         return filtered_accounts
 
 
+
     def set_recipient(self, recipient):
         """Sets the intended recipient for future messages.
 
@@ -406,6 +423,8 @@ class Client:
         else:
             self.client_socket.send(recipient.encode("utf-8"))
 
+
+
     def start_client(self, host, port):
         """Responsible for booting up the client and establishing the first connection to the server. Connects to the server on a localhost port.
 
@@ -413,9 +432,7 @@ class Client:
             host (str): The server IP or hostname
             port (int): The server port
         """
-
         try:
-            #todo: set this up so that i can connect to a host and port outside of my computer - should be ok with this current setup but need to sanity check
             self.client_socket.connect((host, port))
             self.connected = True
             print("Connected to the server.")

@@ -1,16 +1,12 @@
 import tkinter as tk
+import threading
 from tkinter import simpledialog, scrolledtext, messagebox
 from tkinter import font as tkfont
 from client import Client
-import threading
-import socket
-
-# these are the connection credentials for my laptop
-# host = 'localhost'
-# port = 12345
 
 
 class ChatApp(tk.Tk):
+
     def __init__(self, client):
         super().__init__()
         self.client = client
@@ -68,13 +64,15 @@ class ChatApp(tk.Tk):
             height=2)
         self.connect_button.pack(pady=20)
 
+
+
     def attempt_connection(self):
         host = self.host_entry.get()
         port_text = self.port_entry.get()
 
         try:
             #the port number assigned for listening is currently hardcoded in. i don't know if this is bad or not.
-            #if you give it a good IP address but port that is not equal to the hardcoded version, it will crash
+            #WARNGIN: configuration might be needed: if you give it a good IP address but port that is not equal to the hardcoded version, it has unexpected behavior (infinite timeout)
             port = int(port_text) 
             self.client.start_client(host, port)
             self.setup_login_ui()
@@ -147,10 +145,10 @@ class ChatApp(tk.Tk):
         )
         self.create_account_button.pack()
 
-        self.message_label = tk.Label(
-            self.login_frame, text="", font=label_font, bg="light blue"
-        )
+        self.message_label = tk.Label(self.login_frame, text="", font=label_font, bg="light blue")
         self.message_label.pack()
+
+
 
     def handle_login(self, existing):
         username = self.username_entry.get()
@@ -176,55 +174,58 @@ class ChatApp(tk.Tk):
             self.message_label.config(text=message)
 
 
-    def display_pending_messages(self):
-        message_frame = tk.Frame(self)
-        message_frame.pack(padx=20, pady=20, fill=tk.BOTH, expand=True)
 
-        # Text area for displaying messages
-        self.text_area = scrolledtext.ScrolledText(
-            message_frame, font=("Helvetica", 14)
-        )
+    def display_pending_messages(self):
+        # Frame dedicated solely to displaying messages
+        self.message_frame = tk.Frame(self)
+        self.message_frame.pack(padx=20, pady=20, fill=tk.BOTH, expand=True)
+
+        # Text area for pending messages
+        self.text_area = scrolledtext.ScrolledText(self.message_frame, font=("Helvetica", 14))
         self.text_area.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # Button frame
-        button_frame = tk.Frame(message_frame)
-        button_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        # Separate frame dedicated to buttons only
+        self.button_frame = tk.Frame(self)
+        self.button_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # 'More' button on the left
-        more_button = tk.Button(
-            button_frame,
+        # "More" button
+        self.more_button = tk.Button(
+            self.button_frame,
             text="More",
             command=self.request_more_messages,
             width=10,
-            height=2,
+            height=2
         )
-        more_button.pack(side=tk.LEFT, padx=10, pady=10)
+        self.more_button.pack(side=tk.LEFT, padx=10, pady=10)
 
-        done_button = tk.Button(
-            button_frame, text="Done", command=self.proceed_to_chat, width=10, height=2
-        )  # Match the style
-        done_button.pack(side=tk.RIGHT, padx=10, pady=10)
+        # "Done" button
+        self.done_button = tk.Button(
+            self.button_frame,
+            text="Done",
+            command=self.proceed_to_chat,
+            width=10,
+            height=2
+        )
+        self.done_button.pack(side=tk.RIGHT, padx=10, pady=10)
+
 
         messages = self.client.get_pending_messages()
-        print("recieved messages:", messages)
         self.text_area.insert(tk.END, messages)
+
+
 
     def request_more_messages(self):
         """Sends request for more messages and updates the text area."""
         more_messages = self.client.grab_more_messages()
         self.text_area.insert(tk.END, more_messages + "\n")
 
-    def set_recipient(self, event=None):
-        recipient = self.recipient_entry.get()
-        if recipient:
-            self.client.set_recipient(
-                recipient
-            )  # Ensure this method is implemented in your client class
-            self.text_area.insert(tk.END, f"Now messaging: {recipient}\n")
+
 
     def proceed_to_chat(self):
         self.login_frame.pack_forget()  # Remove the login frame
         self.text_area.delete(1.0, tk.END)  # Clear the text area
+
+        
 
         # Prompt for selecting a user to message
         self.recipient_label = tk.Label(
@@ -314,11 +315,25 @@ class ChatApp(tk.Tk):
         )
         self.quit_button.pack(side=tk.LEFT, padx=10)
 
+        self.more_button.pack_forget()
+        self.done_button.pack_forget()
+
         # Start a thread to receive messages
         threading.Thread(target=self.receive_messages, daemon=True).start()
 
-    def delete_account(self):
 
+
+    def set_recipient(self, event=None):
+        recipient = self.recipient_entry.get()
+        if recipient:
+            self.client.set_recipient(
+                recipient
+            )  # Ensure this method is implemented in your client class
+            self.text_area.insert(tk.END, f"Now messaging: {recipient}\n")
+
+
+
+    def delete_account(self):
         #we specify that it is up to the user to check if they want to read their messages or not
         confirmation = messagebox.askyesno(
             "Delete Account",
@@ -330,6 +345,8 @@ class ChatApp(tk.Tk):
         server_message = self.client.delete_account()
         self.text_area.insert(tk.END, server_message + "\n")
         self.quit_app()
+
+
 
     def list_accounts(self):
         accounts = self.client.list_accounts()
@@ -364,12 +381,20 @@ class ChatApp(tk.Tk):
             lambda event: self.search_accounts(search_entry, accounts, search_frame),
         )
 
+
+
     def search_accounts(self, search_entry, accounts, search_frame):
         label_font = tkfont.Font(family="Helvetica", size=14, weight="bold")
         entry_font = tkfont.Font(family="Helvetica", size=14)
 
         search_result = self.client.wildcard(search_entry.get(), accounts)
-        search_result_text = "\n".join(search_result)
+        
+        if isinstance(search_result, list):
+            # A list of matching usernames -> join with newlines
+            search_result_text = "\n".join(search_result)
+        else:
+            # A single string, e.g. "No accounts match the given pattern"
+            search_result_text = search_result
 
         if hasattr(self, "result_text"):
             self.result_text.delete(1.0, tk.END)
@@ -387,8 +412,8 @@ class ChatApp(tk.Tk):
         self.result_text.insert(tk.END, search_result_text)
 
 
+
     def delete_message(self):
-        # todo: fix the bug that will break if the user keep deleting messages if there are none. also, JSON might have broken this
         # Retrieve all text from the text area
         text_content = self.text_area.get("1.0", tk.END).strip()
         
@@ -417,6 +442,7 @@ class ChatApp(tk.Tk):
         self.text_area.delete("end-2l", "end-1l")
 
 
+
     def send_message(self, event=None):
         recipient = self.recipient_entry.get()
         message = self.msg_entry.get()
@@ -424,17 +450,22 @@ class ChatApp(tk.Tk):
         self.text_area.insert(tk.END, "You: " + message + "\n")
         self.client.send_messages(
             recipient, message
-        )  # Ensure this method is adapted to handle GUI
+        )  
+
+
 
     def receive_messages(self):
         while self.client.connected:
             message = self.client.receive_messages()
-
             self.text_area.insert(tk.END, "Recieved from: " + message + "\n")
+
+
 
     def quit_app(self):
         self.client.close_connection()
         self.destroy()
+
+
 
     def mainloop(self):
         tk.mainloop()
@@ -445,20 +476,3 @@ if __name__ == "__main__":
     app = ChatApp(client)
     app.mainloop()
 
-
-# #this works
-# if __name__ == "__main__":
-#     host = 'localhost'
-#     port = 12345
-#     client = Client()
-#     client.start_client(host, port)
-#     client.handle_login()
-#     while client.handle_action():
-#         pass
-
-
-# if we ever want to connect over harvard public wifi, uncomment this here and in server code
-# if __name__ == "__main__":
-#     # server_ip = input("Enter the server IP address: ")
-#     # start_client(server_ip)
-#     start_client()
