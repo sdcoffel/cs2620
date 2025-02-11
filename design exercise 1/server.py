@@ -151,7 +151,7 @@ def client_handler(connection, address):
                     else:
                         # Error message → Keep the same
                         connection.send(
-                            "Invalid username/password. Please try again.\n".encode(
+                            "This username/password is not registered with us! Please try again.\n".encode(
                                 "utf-8"
                             )
                         )

@@ -76,7 +76,6 @@ class Client:
 
         else:
             # Original non-JSON mode
-            message = self.client_socket.recv(1024).decode('utf-8')
             if message:
                 print("\rReceived: " + message + "\nYou: ", end="")
             else:
@@ -156,10 +155,22 @@ class Client:
                 # fallback if somehow not JSON
                 print(server_message)
         else:
-            print(server_message)
-
-        self.username = username
-        return server_message
+            #print(server_message)
+            if "Username already exists" in server_message: 
+                #this is a duplicate. tell the client to try again
+                print("Duplicate username. Client needs to try again.")
+                return False, server_message
+            
+            elif "This username/password is not registered with us" in server_message: 
+                print("Bad username. Client needs to try again.")
+                return False, server_message
+            else: 
+                #proceed as normal
+                print(server_message)
+                self.username = username
+                return True, server_message
+        
+        #return server_message - this says success! you are now logged in 
 
     def get_pending_messages(self):
         """Grab any pending messages after login. The server automatically sends these right after login.

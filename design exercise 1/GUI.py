@@ -65,8 +65,7 @@ class ChatApp(tk.Tk):
             relief=tk.RAISED,
             bd=5,
             width=20,
-            height=2,
-        )
+            height=2)
         self.connect_button.pack(pady=20)
 
     def attempt_connection(self):
@@ -158,10 +157,31 @@ class ChatApp(tk.Tk):
         username = self.username_entry.get()
         password = self.password_entry.get()
 
-        if username and password:
-            message = self.client.handle_login(username, password, existing)
+
+        # Make sure we have both username and password before proceeding
+        if not username or not password:
+            self.message_label.config(text="Please enter both username and password.")
+            return
+
+        # Attempt to log in (or create account) via the client
+        success_flag, message = self.client.handle_login(username, password, existing)
+
+        if success_flag: 
             self.message_label.config(text=message)
             self.display_pending_messages()
+
+        else:
+            # If the login was unsuccessful, clear fields and inform the user to try again
+            self.username_entry.delete(0, 'end')
+            self.password_entry.delete(0, 'end')
+            self.message_label.config(text=message)
+        # if username and password:
+        #     message = self.client.handle_login(username, password, existing) #currently this is the success message
+        #     self.message_label.config(text=message)
+
+
+
+            #self.display_pending_messages()
 
     def display_pending_messages(self):
         message_frame = tk.Frame(self)
@@ -305,8 +325,7 @@ class ChatApp(tk.Tk):
 
     def delete_account(self):
 
-        # todo: specify that it is up to the user to check if they want to read their messages or not
-
+        #we specify that it is up to the user to check if they want to read their messages or not
         confirmation = messagebox.askyesno(
             "Delete Account",
             "Are you sure you want to delete your account? You may have unread messages!",
