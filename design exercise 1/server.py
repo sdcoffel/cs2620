@@ -424,10 +424,11 @@ def start_server():
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-
-        server_socket.bind(("localhost", 12345)) #we should not be hardcoding this. if i host the server on my laptop always, i need the actual ip address and port of my laptop?
+        port = 12345
+        server_socket.bind(('0.0.0.0', port)) #listens on all interfaces for the client
+        #server_socket.bind(("localhost", 12345)) #we should not be hardcoding this. if i host the server on my laptop always, i need the actual ip address and port of my laptop?
         server_socket.listen()
-        print("Server is listening...")
+        print(f"Server is listening on port {port}")
 
         while True:
             try:
