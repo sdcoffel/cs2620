@@ -15,7 +15,7 @@ class ChatApp(tk.Tk):
         super().__init__()
         self.client = client
 
-        self.title("Welcome to CCP (Computer Communication Protocol)!")
+        self.title("Welcome to CCP (Computer Communication Protocol)!!!1!!!")
         self.minsize(600, 800)
         # self.geometry("600x600")
         self.configure(bg="light blue")
