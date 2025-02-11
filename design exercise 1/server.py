@@ -12,6 +12,13 @@ from accounts import (
 from messages import *
 from settings import JSON_MODE
 
+FILE_PATH = "all_accounts_ever.txt"
+MESSAGES_FILE_PATH = "all_messages_ever.txt"
+PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
+active_clients = {}
+messages = {}
+pending_messages = {}
+
 
 def send_message(recipient, sender, message):
     """This function will send a message to a specific client. All clients that are currently using the server are stored in the 'active_clients' dict, which
@@ -247,7 +254,11 @@ def client_handler(connection, address):
 
                     if confirmation == "yes":
                         delete_account(username, FILE_PATH)
-                        delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, len(pending_messages[username])) #deletes all pending messages
+                        delete_pending_messages(
+                            PENDING_MESSAGES_FILE_PATH,
+                            username,
+                            len(pending_messages[username]),
+                        )  # deletes all pending messages
                         print(f"Account deletion requested by user {username}")
                         if JSON_MODE:
                             connection.send(
@@ -380,13 +391,12 @@ def client_handler(connection, address):
             elif raw_message.lower() == "done":
                 continue
 
-            elif raw_message.lower() == 'logout': 
+            elif raw_message.lower() == "logout":
                 print(f"{username} has logged out")
 
-
-            #all other messages
-            if ':' in raw_message:
-                recipient, msg = raw_message.split(':', 1)
+            # all other messages
+            if ":" in raw_message:
+                recipient, msg = raw_message.split(":", 1)
                 send_message(recipient, username, msg)
             else:
                 # handle setting the recipient and tracking in the server
@@ -450,11 +460,4 @@ def start_server():
 
 
 if __name__ == "__main__":
-    FILE_PATH = "all_accounts_ever.txt"
-    MESSAGES_FILE_PATH = "all_messages_ever.txt"
-    PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
-    
-    active_clients = {}
-    messages = {}
-    pending_messages = {}
     start_server()
