@@ -460,14 +460,4 @@ def start_server():
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-=======
-    FILE_PATH = "all_accounts_ever.txt"
-    MESSAGES_FILE_PATH = "all_messages_ever.txt"
-    PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
-    
-    active_clients = {}
-    messages = {}
-    pending_messages = {}
->>>>>>> aae7283a118ba5b4676a97e34165ad958dd6d532
     start_server()
