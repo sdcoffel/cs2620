@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
 
-
 def is_valid_message(message):
     """
     Check if the given message dictionary is valid.
@@ -12,10 +11,12 @@ def is_valid_message(message):
         - 'receiver'
         - 'content'
     """
+
     required_keys = {"uuid", "datetime", "sender", "receiver", "content"}
     if not isinstance(message, dict):
         return False
     return set(message.keys()) == required_keys
+
 
 
 def create_message(sender, receiver, content, messages):
@@ -33,8 +34,9 @@ def create_message(sender, receiver, content, messages):
     Raises:
         ValueError: If the message object is invalid.
     """
+
     new_uuid = str(uuid.uuid4())
-    # Capture the current time upon message creation
+    #capture the current time 
     timestamp = datetime.now().isoformat()
 
     message_object = {
@@ -45,13 +47,14 @@ def create_message(sender, receiver, content, messages):
         "content": content,
     }
 
-    # Validate the message object
+    #validate the message object
     if not is_valid_message(message_object):
         raise ValueError("Invalid message object structure.")
 
-    # Store the message
+    #store the message
     messages[new_uuid] = message_object
     return message_object
+
 
 
 def delete_message(content, file_path):
@@ -65,10 +68,11 @@ def delete_message(content, file_path):
     Returns:
         bool: True if the message was found and deleted, False otherwise.
     """
+
     messages = []
     message_found = False
 
-    # Read all messages from the file
+    #read all messages from the file
     try:
         with open(file_path, 'r') as file:
             for line in file:
@@ -82,12 +86,13 @@ def delete_message(content, file_path):
     except FileNotFoundError:
         return False
 
-    # Write the remaining messages back to the file
+    #write the messages back to the file
     with open(file_path, 'w') as file:
         for message in messages:
             file.write(message)
 
     return message_found
+
 
 
 def list_messages(messages, sender = None, receiver= None):
@@ -102,20 +107,23 @@ def list_messages(messages, sender = None, receiver= None):
     Returns:
         list: A list of message objects.
     """
+
     if sender and receiver:
         filtered_messages = [
             msg for msg in messages.values()
             if (msg['sender'] == sender and msg['receiver'] == receiver) or
-               (msg['sender'] == receiver and msg['receiver'] == sender)
-        ]
-        # Sort messages by datetime
+               (msg['sender'] == receiver and msg['receiver'] == sender)]
+        
+        #sort messages by datetime
         filtered_messages.sort(key=lambda x: x['datetime'])
         return filtered_messages
+    
     else:
-        # Return all messages sorted by datetime
+        #return all messages sorted
         all_messages = list(messages.values())
         all_messages.sort(key=lambda x: x['datetime'])
         return all_messages
+
 
 
 def format_datetime(dt_str):
@@ -128,12 +136,15 @@ def format_datetime(dt_str):
     Returns:
         str: The formatted datetime string.
     """
+
     dt = datetime.fromisoformat(dt_str)
     return dt.strftime("%Y-%m-%d %H:%M")
 
 
+
 def load_messages(file_path):
-    """Load messages from a file. These would have previously been serialized and written to disk"""
+    """Load messages from a file. These would have previously been serialized and written to disk."""
+
     messages = {}
     try:
         with open(file_path, 'r') as file:
@@ -162,6 +173,7 @@ def save_messages(file_path, messages):
             file.write(line)
 
 
+
 def has_pending_messages(username, file_path):
     """This function checks if there are pending messages for the user. Used when invoking account deletion.
      Returns True if there are unread messages
@@ -171,12 +183,13 @@ def has_pending_messages(username, file_path):
     return username in pending_messages and len(pending_messages[username]) > 0
 
 
+
 def save_pending_messages(file_path, recipient, sender, message):
     """Append a single pending message to the file. One at a time."""
+
     with open(file_path, 'a') as file:
-        # Ensure the message is saved in the correct format
         if isinstance(message, dict):
-            # Extract the actual message from the dictionary
+            #extract the actual message from the dictionary
             for key, value in message.items():
                 if isinstance(value, list) and len(value) > 0 and isinstance(value[0], tuple):
                     message = value[0][1]
@@ -185,8 +198,10 @@ def save_pending_messages(file_path, recipient, sender, message):
         file.write(line)
 
 
+
 def load_pending_messages(file_path):
     """Load pending messages from a file."""
+
     pending_messages = {}
     try:
         with open(file_path, 'r') as file:
@@ -197,16 +212,19 @@ def load_pending_messages(file_path):
                     if recipient not in pending_messages:
                         pending_messages[recipient] = []
                     pending_messages[recipient].append((sender, message))
+                    
     except FileNotFoundError:
         pass
     return pending_messages
 
 
+
 def delete_pending_messages(file_path, recipient, num_messages):
     """Delete the most recent num_messages pending messages for a recipient from the file. In the server script, this is in units of 10, but it can be changed upon request."""
+
     pending_messages = load_pending_messages(file_path)
     if recipient in pending_messages:
-        # Keep only the messages that are not the most recent num_messages
+        #keep only the messages that are not the most recent num_messages
         pending_messages[recipient] = pending_messages[recipient][:-num_messages]
         with open(file_path, 'w') as file:
             for rec, messages in pending_messages.items():

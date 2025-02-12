@@ -2,7 +2,6 @@ import os
 import uuid
 from operations import *
 
-
 def load_accounts(FILE_PATH):
     """Load the accounts dictionary from a text file. The password must be the already hashed password.
 
@@ -10,6 +9,7 @@ def load_accounts(FILE_PATH):
         dict: A dictionary of accounts loaded from the txtfile.
               If the file does not exist, returns an empty dictionary.
     """
+
     accounts = {}
     try:
         with open(FILE_PATH, "r") as f:
@@ -21,6 +21,7 @@ def load_accounts(FILE_PATH):
     return accounts
 
 
+
 def save_accounts(accounts, FILE_PATH):
     """Save the given dictionary of accounts to a serialized form.
 
@@ -30,6 +31,7 @@ def save_accounts(accounts, FILE_PATH):
     with open(FILE_PATH, "w") as f:
         for account in accounts.values():
             f.write(serialize_account(account))
+
 
 
 def is_valid_account(account):
@@ -45,10 +47,12 @@ def is_valid_account(account):
         bool: True if `account` is valid (i.e., contains 'uuid', 'username',
               and 'hashed_password'), False otherwise.
     """
+
     required_keys = {"uuid", "username", "hashed_password"}
     if not isinstance(account, dict):
         return False
     return set(account.keys()) == required_keys
+
 
 
 def create_account(username, password, FILE_PATH):
@@ -69,6 +73,7 @@ def create_account(username, password, FILE_PATH):
     Raises:
         ValueError: If the username already exists or if the new account is invalid.
     """
+
     accounts = load_accounts(FILE_PATH)
 
     if username in accounts:
@@ -76,10 +81,11 @@ def create_account(username, password, FILE_PATH):
     account = {
         "uuid": str(uuid.uuid4()),
         "username": username,
-        "password": password #fix this later
+        "password": password 
     }
     accounts[username] = account
     save_accounts(accounts, FILE_PATH)
+
 
 
 def delete_account(username, FILE_PATH):
@@ -98,12 +104,14 @@ def delete_account(username, FILE_PATH):
     save_accounts(accounts, FILE_PATH)
 
 
+
 def list_accounts(FILE_PATH):
     """List all accounts currently stored.
 
     Returns:
         list: A list of all account objects. I modified this so that every entry is on a new line, for readability
     """
+
     accounts = load_accounts(FILE_PATH)
     return "\n".join(accounts.keys())
 
