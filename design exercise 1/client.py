@@ -8,8 +8,7 @@ from settings import JSON_MODE
 class Client:
 
     def __init__(self):
-        """Initialize the client.
-        """
+        """Initialize the client."""
 
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.username = None
@@ -18,8 +17,7 @@ class Client:
 
 
     def close_connection(self):
-        """Close the connection with the server by closing the socket.
-        """
+        """Close the connection with the server by closing the socket."""
 
         if self.client_socket:
             self.client_socket.close()
@@ -29,8 +27,7 @@ class Client:
 
     @staticmethod
     def hash_password(password):
-        """Hash a password for storing. This uses hashlib to hash the password and then send it over the network.
-        """
+        """Hash a password for storing. This uses hashlib to hash the password and then send it over the network."""
         return hashlib.sha256(password.encode()).hexdigest()
 
 
