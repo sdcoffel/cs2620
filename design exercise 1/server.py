@@ -6,7 +6,6 @@ from messages import *
 from settings import JSON_MODE
 
 
-
 def send_message(recipient, sender, message):
     """This function will send a message to a specific client. All clients that are currently using the server are stored in the 'active_clients' dict, which
     maps active clients to their respective sockets on the server. This is how the server knows to mediate messages to intended clients.

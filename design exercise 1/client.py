@@ -7,13 +7,13 @@ from settings import JSON_MODE
 
 class Client:
 
+
     def __init__(self):
         """Initialize the client."""
 
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.username = None
         self.connected = False
-
 
 
     def close_connection(self):
@@ -98,8 +98,10 @@ class Client:
         if JSON_MODE:
             data_to_send = {"raw_message": full_message}
             self.client_socket.send(json.dumps(data_to_send).encode("utf-8"))
+
         else:
             self.client_socket.send(full_message.encode("utf-8"))
+            
 
 
 
