@@ -20,7 +20,7 @@ Our application supports communication in both our custom wire protocol as well 
 
 Changing the value of `JSON_MODE` will switch communication for both the client and the server. In our implementation, both must communicate in the same wire protocol --- i.e., you cannot have the server communicate in JSON and the client communicate in the custom wire protocol or vice versa.
 
-For more information about our specifc custom wire protocol, see the engineering notebook files under `engineering_notebooks`. These contain both of our engineering notebooks.
+For more information about our specifc custom wire protocol, see the engineering notebook files under `engineering_notebooks\`. These contain both of our engineering notebooks.
 
 ### Versioning
 
