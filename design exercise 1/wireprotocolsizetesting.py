@@ -138,6 +138,7 @@ class CustomTestRunner(unittest.TextTestRunner):
         return result
 
 
+#these don't include TCP/IP headers, which don't change much between the methods, but they would add like +40 bytes of overhead
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestChatClient)
     runner = CustomTestRunner(verbosity=2)
