@@ -1,6 +1,6 @@
 import tkinter as tk
 import threading
-from tkinter import simpledialog, scrolledtext, messagebox
+from tkinter import scrolledtext, messagebox
 from tkinter import font as tkfont
 from client import Client
 
@@ -437,6 +437,7 @@ class ChatApp(tk.Tk):
 
         #sends request to the server to delete the message and #deletes the last line
         self.client.delete_message(last_message)
+        print("Made it here")
         self.text_area.delete("end-2l", "end-1l")
 
 

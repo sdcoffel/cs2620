@@ -7,6 +7,7 @@ import socket
 
 sys.path.append("../")
 
+import settings
 from settings import JSON_MODE
 from client import Client
 from server import start_server
@@ -357,4 +358,10 @@ def test_10_more_messages(self):
 
 
 if __name__ == "__main__":
+    FILE_PATH = "all_accounts_ever.txt"
+    MESSAGES_FILE_PATH = "all_messages_ever.txt"
+    PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
+    active_clients = {}
+    messages = {}
+    pending_messages = {}
     unittest.main()

@@ -5,15 +5,6 @@ from accounts import *
 from messages import *
 from settings import JSON_MODE
 
-# since these are globally scoped and should be accessible to everyone, i think we should have these in main, ian.
-# i also think this is the convention altho could be wrong about that
-# @savanna these have to be on top for unittests to work
-FILE_PATH = "all_accounts_ever.txt"
-MESSAGES_FILE_PATH = "all_messages_ever.txt"
-PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
-active_clients = {}
-messages = {}
-pending_messages = {}
 
 
 def send_message(recipient, sender, message):
@@ -514,4 +505,13 @@ def start_server():
 
 
 if __name__ == "__main__":
+
+    #globally scoped, leave in main
+    FILE_PATH = "all_accounts_ever.txt"
+    MESSAGES_FILE_PATH = "all_messages_ever.txt"
+    PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
+    active_clients = {}
+    messages = {}
+    pending_messages = {}
+    #fire up the server
     start_server()

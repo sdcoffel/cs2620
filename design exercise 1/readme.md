@@ -6,11 +6,11 @@ This system is built to run on Python 3.13.2. There are no package requirements 
 
 ## Running the Server
 
-From this directory, run `python server.py` and the server will boot. The server runs on port `12345`.
+From this directory, run `python server.py` and the server will boot. The server runs on port `12345`. Note that if you do not run the server first, you will encounter a socket error and will not be able to connect. Always run the server before firing up the GUI.
 
 ## Running the Client GUI
 
-From this directory, run `python gui.py` and the GUI application will load. Again, the server runs on port `12345` so input that port as well as the IP address of the computer running the server into the client to connect. If the client and the server are on the same computer, you can use `localhost` to connect.
+From this directory, run `python GUI.py` and the GUI application will load. Again, the server runs on port `12345` so input that port as well as the IP address of the computer running the server into the client to connect. If the client and the server are on the same computer, you can use `localhost` to connect. Note that eduroam and harvard secure are a bit too encrypted to just send anything over the network, so you need to be on 'Harvard University' -- the public wifi, in order to talk across multiple machines. 
 
 ## Wire Protocols
 
@@ -20,11 +20,15 @@ Our application supports communication in both our custom wire protocol as well 
 
 Changing the value of `JSON_MODE` will switch communication for both the client and the server. In our implementation, both must communicate in the same wire protocol --- i.e., you cannot have the server communicate in JSON and the client communicate in the custom wire protocol or vice versa.
 
+For more information about our specifc custom wire protocol, see the engineering notebook files. 
+
 ### Versioning
 
 Our current implementation uses version `v0` of our wire protocol. Any future change to the wire protocol will require a new version identifier be implemented and screened for.
 
 ## Design Notes
+
+Note that we do not consider the deletion of pending messages, as it wasn't part of the specification. Because only the reciever can delete messages, we do not need to worry about adding functionality to deleting pending messages. Once the reciever reads the pending messages, they are stored on the server and the reciever can no longer interact with them.
 
 ### Persistent Storage
 
