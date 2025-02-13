@@ -5,6 +5,14 @@ from accounts import *
 from messages import *
 from settings import JSON_MODE
 
+#globally scoped, leave in main
+FILE_PATH = "all_accounts_ever.txt"
+MESSAGES_FILE_PATH = "all_messages_ever.txt"
+PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
+active_clients = {}
+messages = {}
+pending_messages = {}
+
 
 def send_message(recipient, sender, message):
     """This function will send a message to a specific client. All clients that are currently using the server are stored in the 'active_clients' dict, which
@@ -164,7 +172,7 @@ def handle_pending_messages(connection, username):
         message_limit = message_list[-10:]
 
         # prepare the message for sending and update our internal database
-        pending_message_info = f"You have {num_pending_messages} pending messages: \n"
+        pending_message_info = f"You have pending messages: \n"
         for sender, message in message_limit:
             full_message = f"{sender}: {message}\n"
             pending_message_info += full_message
@@ -191,8 +199,8 @@ def handle_pending_messages(connection, username):
         if len(message_list) > 10:
             pending_messages[username] = message_list[:-10]
 
-        else:
-            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, 10)
+        
+        delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, 10) #for some reason this stuff is not getting deleted 
 
         print(f"Pending messages for {username} sent to {username}.")
     else:
@@ -467,6 +475,7 @@ def start_server():
     This ensures that we can have multiple clients running together, all on separate threads.
     """
 
+
     global pending_messages
     load_pending_messages(PENDING_MESSAGES_FILE_PATH)
     print("Pending messages loaded...")
@@ -505,12 +514,13 @@ def start_server():
 
 if __name__ == "__main__":
 
-    #globally scoped, leave in main
-    FILE_PATH = "all_accounts_ever.txt"
-    MESSAGES_FILE_PATH = "all_messages_ever.txt"
-    PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
-    active_clients = {}
-    messages = {}
-    pending_messages = {}
+    # call all globally scoped vars, leave in main
+    FILE_PATH 
+    MESSAGES_FILE_PATH 
+    PENDING_MESSAGES_FILE_PATH
+    active_clients 
+    messages 
+    pending_messages 
+
     #fire up the server
     start_server()

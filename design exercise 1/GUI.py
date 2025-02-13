@@ -231,8 +231,9 @@ class ChatApp(tk.Tk):
         """Takes the user from the pending messages screen to the main chat screen."""
 
         #clear the login screen 
+        self.text_area.delete("1.0", tk.END)
         self.login_frame.pack_forget()  
-        self.text_area.delete(1.0, tk.END)  
+        #self.text_area.delete(1.0, tk.END)  
 
         #recipient styling 
         self.recipient_label = tk.Label(self, text="Who would you like to message?", bg="light blue")

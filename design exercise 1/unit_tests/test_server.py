@@ -214,24 +214,8 @@ class TestChatServer(unittest.TestCase):
 
         temp_client.close_connection()
 
-    def test_07_delete_message(self):
-        """Send a message, then delete it."""
-        username = "deleter"
-        password = "deleterpwd"
-        success, _ = self.client.handle_login(username, password, "no")
-        self.assertTrue(success)
-        self.consume_all_server_output(self.client)
+    #we don't actually ever call delete_message as part of the server-client interface, so we don't need a test in the server unit tests
 
-        msg_to_delete = "ThisMessageWillBeDeleted"
-        self.send_and_verify(self.client, msg_to_delete, username)
-        # Let server process:
-        time.sleep(1)
-
-        try:
-            self.client.delete_message(msg_to_delete)
-            time.sleep(1)
-        except Exception as e:
-            self.fail(f"Delete message failed with: {e}")
 
     def test_08_list_accounts(self):
         """Create 2 accounts, ensure they appear in list."""
@@ -358,10 +342,5 @@ def test_10_more_messages(self):
 
 
 if __name__ == "__main__":
-    FILE_PATH = "all_accounts_ever.txt"
-    MESSAGES_FILE_PATH = "all_messages_ever.txt"
-    PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
-    active_clients = {}
-    messages = {}
-    pending_messages = {}
+
     unittest.main()
