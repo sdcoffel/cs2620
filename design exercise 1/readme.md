@@ -42,6 +42,8 @@ Some important limitations:
 
 - Usernames and passwords are case sensitive.
 
+- Clients can delete however many messages they want, and once they are deleted, they are lost forever to the client (satisfying the point on the rubric that clients cannot recover deleted messages.) However, the server keeps a log of every message ever sent across the service for our own debugging purposes. Again, this is not accessbile to the client, so this is not an issue, but we wanted to clear this up for the graders in case they get confused.
+
 See also the notes below on security.
 
 ## Code Organization
@@ -76,3 +78,8 @@ We have comprehensive unit tests that cover all components and methods of our di
 We have worked to make the application as secure as is reasonably possible, but we need to make note of some critical weaknesses:
 
 - Passwords are hashed before they are stored/persisted, so cleartext passwords are _never_ stored. However, we are reliant on the security of the network in transmitting hashed passwords from client to server. So, if a communication between client and server containing a hashed password is intercepted, it can be used for unauthorized access/forged communications. In short, passwords are secure at rest by design, but for security in transit we critically assume the security of the network. (Using a simple hash for transmitting passwords was approved by the course staff on Ed.)
+
+
+## Wire Protocol Comparison: JSON vs our custom protocol
+
+Full documentation of the comparison is covered across the engineering notebooks in the engineering notebooks folder. Unsurprisingly, our protocol is more compact than JSON; we send fewer bytes over the network on every send/recieve call over the network. 

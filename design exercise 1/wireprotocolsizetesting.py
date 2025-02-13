@@ -13,6 +13,15 @@ class TestChatClient(unittest.TestCase):
     Test suite that tracks:
       - JSON vs. Non-JSON modes
       - Send vs. Receive byte counts
+
+    Rather than bastardizing the server and client code, I'd rather keep everything organized, so I will test each of the protocols here. 
+    Since I'm interested in what the client is sending/recieving over the network, I'll bounce everything off a mock server (I could have also simulated
+    this with a mock client and actual server, but this approach is much easier given the stucture of the Client class), and measure the byte size of those messages. 
+
+    These tests call the client's sending and recieving messages functions and keep track of the size of the messages sent in both JSON and our custom protocol. 
+
+    Critically, I am assuming that the TCP/IP overhead is about the same for both methods, and that there are no bytes lost over the network between server and client 
+    (i.e., all bytes that the server sends over are recieved by the client, and vice versa).
     """
 
     custom_send_bytes = 0

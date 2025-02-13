@@ -435,9 +435,6 @@ class ChatApp(tk.Tk):
             messagebox.showinfo("No Messages", "There are no messages to delete.")
             return
 
-        #sends request to the server to delete the message and #deletes the last line
-        self.client.delete_message(last_message)
-        print("Made it here")
         self.text_area.delete("end-2l", "end-1l")
 
 
