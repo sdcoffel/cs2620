@@ -15,7 +15,7 @@ From this directory, run `python GUI.py` and the GUI application will load. Agai
 ## How to Use the App
 
 - When firing up the app, you'll be prompted for host and port info. You'll need to supply the IP address of whatever network you're on (if you're testing it on your own computer without other people), and the port `12345`. If you're testing with other people, you'll need to be on a public network like Harvard University; Eduroam and Harvard Secure are too encrypted to send just anything over the network. 
-- Afterwards, you'll supply username and login information. Click the `login` or `create account` button, respectively.
+- Afterwards, you'll supply username and login information. Hit `tab` after supplying a username to access the password input. Click the `login` or `create account` button, respectively.
 - This will take you to the initial screen, where you can see any pending messages that other users might have left for you. If you're creating a new account, there will be no pending messages. Click the `done` button to continue to the main message board.
 - At the main message board, you can list/delete accounts, delete messages, and logout. To choose a user to send a message to, type the recipient's username into the first box below the "Who would you like to message?" prompt. Hit `enter` on your keyboard once you've typed the username in, and you'll get text on the message board telling you that you are now messaging that user.
 - Enter your message into the second box, and click the `send` button to send the message. Now you're chatting!
