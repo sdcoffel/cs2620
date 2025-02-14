@@ -82,4 +82,4 @@ We have worked to make the application as secure as is reasonably possible, but 
 
 ## Wire Protocol Comparison: JSON vs our custom protocol
 
-Full documentation of the comparison is covered across the engineering notebooks in the engineering notebooks folder. Unsurprisingly, our protocol is more compact than JSON; we send fewer bytes over the network on every send/recieve call over the network. 
+Full documentation of the comparison is covered across the engineering notebooks in the engineering notebooks folder. Unsurprisingly, our protocol is more compact than JSON; we send fewer bytes over the network on every send/recieve call over the network. But, we note that improvement is possible on this front by serializing our messages further. Something to look forward to!
