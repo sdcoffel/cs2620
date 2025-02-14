@@ -12,6 +12,15 @@ From this directory, run `python server.py` and the server will boot. The server
 
 From this directory, run `python GUI.py` and the GUI application will load. Again, the server runs on port `12345` so input that port as well as the IP address of the computer running the server into the client to connect. If the client and the server are on the same computer, you can use `localhost` to connect. Note that eduroam and harvard secure are a bit too encrypted to just send anything over the network, so you need to be on 'Harvard University' -- the public wifi, in order to talk across multiple machines. 
 
+## How to Use the App
+
+- When firing up the app, you'll be prompted for host and port info. You'll need to supply the IP address of whatever network you're on (if you're testing it on your own computer without other people), and the port `12345`. If you're testing with other people, you'll need to be on a public network like Harvard University; Eduroam and Harvard Secure are too encrypted to send just anything over the network. 
+- Afterwards, you'll supply username and login information. Hit `tab` after supplying a username to access the password input. Click the `login` or `create account` button, respectively.
+- This will take you to the initial screen, where you can see any pending messages that other users might have left for you. If you're creating a new account, there will be no pending messages. Click the `done` button to continue to the main message board.
+- At the main message board, you can list/delete accounts, delete messages, and logout. To choose a user to send a message to, type the recipient's username into the first box below the "Who would you like to message?" prompt. Hit `enter` on your keyboard once you've typed the username in, and you'll get text on the message board telling you that you are now messaging that user.
+- Enter your message into the second box, and click the `send` button to send the message. Now you're chatting!
+- The list button has a wildcard feature available through the search box in the window. Depending on what laptop you're using, you might have to expand this window to see the search box. 
+
 ## Wire Protocols
 
 In `settings.py` we have a constant named `JSON_MODE`.
