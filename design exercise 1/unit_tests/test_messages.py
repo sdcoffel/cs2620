@@ -6,6 +6,7 @@ import string, random
 from datetime import datetime
 
 sys.path.append("../")  #for local testing
+import messages
 from messages import *
 
 

@@ -5,6 +5,7 @@ import random
 import string
 
 sys.path.append("../")  #for local testing 
+import accounts
 from accounts import *
 
 
