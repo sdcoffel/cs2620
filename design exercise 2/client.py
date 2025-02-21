@@ -13,18 +13,7 @@ class Client:
 
         self.channel = None
         self.stub = None
-
-        #self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.username = None
-        #self.connected = False
-
-
-    # def close_connection(self):
-    #     """Close the connection with the server by closing the socket."""
-
-    #     if self.client_socket:
-    #         self.client_socket.close()
-    #         print("Connection closed.")
 
 
     @staticmethod
@@ -84,44 +73,38 @@ class Client:
 
         If the user is creating a new account, 'existing' is marked as no. If they are logging into a preexisting account, 'existing' is marked as yes. 
 
-        If the user has any pending messages, these are handled at login and displayed for the client to see in bunches of 10 messages. The client can request to see another 10 messages
-        at a time if they wish to see more by calling relevant functions in the server.
-
         Args:
             username (str): The username to log in with
             password (str): The password to log in with
             existing (str): "yes" or "no", indicating if the account already exists
         """
 
-        hashed_password = self.hash_password(password)  
-        credentials = f"{username},{hashed_password},{existing}"
-        self.client_socket.send(credentials.encode("utf-8"))
+        #password gets hashed
+        hashed_password = self.hash_password(password)
 
-        # wait for server confirmation to validate credentials
-        server_message = self.client_socket.recv(1024).decode("utf-8")
-
-        if "Username already exists" in server_message: 
-            #this is a duplicate. tell the client to try again
-            print("Duplicate username. Client needs to try again.")
-            return False, server_message
+        #convert the "existing" flag: if user inputs "no", then is_new is True which triggers the create new account cond. in server
+        is_new = True if existing.lower() == "no" else False
         
-        elif "This username/password is not registered with us" in server_message: 
-            print("Bad username. Client needs to try again.")
-            return False, server_message
+        #create the LoginRequest message 
+        login_request = chatapp_pb2.LoginRequest(username=username, password=hashed_password, is_new=is_new)
         
-        else: 
-            #proceed as normal
-            print(server_message)
+        #call the Login RPC
+        response = self.stub.Login(login_request)
+        print("Server response:", response.message)
+        
+        #store username and move on 
+        if response.success:
             self.username = username
-            return True, server_message
+        return response.success, response.message
         
 
     def get_pending_messages(self):
         """Grab any pending messages after login. The server automatically sends these right after login.
+        If the user has any pending messages, these are handled at login and displayed for the client to see in bunches of 10 messages. 
+        The client can request to see another 10 messages at a time if they wish to see more by calling relevant functions in the server.
 
         Returns:
-            A string representation (in non-JSON mode) or the raw string from the server if not JSON,
-            or a textual summary if in JSON mode.
+            The pending messages as a string for the GUI to display
         """
 
         pending_message_info = self.client_socket.recv(4096).decode("utf-8")

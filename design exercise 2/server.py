@@ -1,4 +1,3 @@
-#import socket
 import grpc 
 from concurrent import futures 
 import time 
@@ -61,7 +60,7 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             print(f"Message from {sender} to {recipient} saved as a pending message by the server.")
 
 
-    def login_protocol(connection, accounts):
+    def Login(self, request, context):
         """This function handles the login protocol for the client. Duplicate/bad usernames that don't match with our internal databases send a warning message to the client.
 
         If the client is creating a new account, we check for usernames that already exist in our database. If the client provides a dupe, we tell them. If the client
@@ -77,40 +76,35 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             accounts: the dict of all accounts that are registered on the server, for cross-validation
 
         """
-
         # grab credentials that came over from the client
         while True:
-            credentials = connection.recv(1024).decode().strip().split(",")
-            username, password, existing = (
-                credentials[0],
-                credentials[1],
-                credentials[2],
-            )
+            #grab credentials 
+            accounts = load_accounts(FILE_PATH)
+            username = request.username
+            password = request.password  
+            is_new = request.is_new
 
             try:
                 # if the user is trying to create a new account
-                if existing == "no":
+                if is_new:
                     if username in accounts:
-                        connection.send("Username already exists. Please try again.\n".encode("utf-8"))
-
+                        return chatapp_pb2.LoginResponse(success=False, message="Username already exists. Please try again.")
+                    
                     else:
                         create_account(username, password, FILE_PATH)
-                        connection.send("Account created! You are now logged in.\n".encode("utf-8"))
-
-                        return username
+                        return chatapp_pb2.LoginResponse(success=True, message="Account created! You are now logged in.")
 
                 # if the user is logging into a preexisting account
-                elif existing == "yes":
+                else:
                     if username in accounts and password == accounts[username]["password"]:
-                        connection.send("Success! You are now logged in.\n".encode("utf-8"))
-                        return username
-
+                        return chatapp_pb2.LoginResponse(success=True, message="Success! You are now logged in.")
+                    
                     else:
-                        connection.send("This username/password is not registered with us! Please try again.\n".encode("utf-8"))
-                        continue
+                        return chatapp_pb2.LoginResponse(success=False, message="This username/password is not registered with us!")
+
 
             except ValueError as e:
-                connection.send(f"Account creation failed: {e}. Please try again.\n".encode("utf-8"))
+                print(f"Client log: Account creation failed. Try again")
                 continue
 
 
@@ -235,94 +229,94 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
         connection.send("Account deleted successfully.".encode("utf-8"))
 
 
-    def client_handler(connection, address):
-        """Establishes a connection with the client, prompts for login info, and prompts for the recipient of any messages.
-        There are a few supported options here. Clients can:
-            -make a new account/delete an account
-            -login to preexisting accounts (with validation criteria)
-            -delete messages that have been sent in the chat
-            -request to see pending messages from when they were offline, or continue without viewing those messages
-            -list all the accounts that are registered on the server
-            -change which account they are messaging in-chat
+    # def client_handler(connection, address):
+    #     """Establishes a connection with the client, prompts for login info, and prompts for the recipient of any messages.
+    #     There are a few supported options here. Clients can:
+    #         -make a new account/delete an account
+    #         -login to preexisting accounts (with validation criteria)
+    #         -delete messages that have been sent in the chat
+    #         -request to see pending messages from when they were offline, or continue without viewing those messages
+    #         -list all the accounts that are registered on the server
+    #         -change which account they are messaging in-chat
 
-        Args:
-            connection (socket.socket()): socket associated with the client
-            address: IP address and port number of the client
-        """
+    #     Args:
+    #         connection (socket.socket()): socket associated with the client
+    #         address: IP address and port number of the client
+    #     """
 
-        username = None  # initially set to None, filled in upon login when user supplies their credentials
-        try:
-            print(f"Connected with {address}")
+    #     username = None  # initially set to None, filled in upon login when user supplies their credentials
+    #     try:
+    #         print(f"Connected with {address}")
 
-            """Login protocols."""
+    #         """Login protocols."""
 
-            accounts = load_accounts(FILE_PATH)
-            username = login_protocol(connection, accounts)
-            active_clients[username] = {"socket": connection}
-            print(f"{username} has connected.\n")
+    #         accounts = load_accounts(FILE_PATH)
+    #         username = login_protocol(connection, accounts)
+    #         active_clients[username] = {"socket": connection}
+    #         print(f"{username} has connected.\n")
 
-            handle_pending_messages(connection, username)
+    #         #handle_pending_messages(connection, username)
 
-            """Main message loop. Keywords come through for special commands - since everything is passed through as strings in our custom wire protocol, the server will listen for 
-                these specific keywords from the client/GUI and do specific operations if it hears them. The message that gets sent over the wire is stored in 'raw_message'."""
+    #         """Main message loop. Keywords come through for special commands - since everything is passed through as strings in our custom wire protocol, the server will listen for 
+    #             these specific keywords from the client/GUI and do specific operations if it hears them. The message that gets sent over the wire is stored in 'raw_message'."""
 
-            while True:
-                raw_message = connection.recv(1024).decode().strip()
+            # while True:
+            #     raw_message = connection.recv(1024).decode().strip()
 
-                if not raw_message:
-                    break
+            #     if not raw_message:
+            #         break
 
-                # handle account deletions
-                if raw_message.lower() == "delete_account":
-                    handle_account_deletion(connection, username)
+            #     # handle account deletions
+            #     if raw_message.lower() == "delete_account":
+            #         handle_account_deletion(connection, username)
 
-                # list accounts by wildcard
-                elif raw_message.lower() == "list_accounts":
-                    print(f"List requested by user {username}")
-                    all_clients = list_accounts(FILE_PATH)
-                    connection.send(all_clients.encode("utf-8"))
-                    continue
+            #     # list accounts by wildcard
+            #     elif raw_message.lower() == "list_accounts":
+            #         print(f"List requested by user {username}")
+            #         all_clients = list_accounts(FILE_PATH)
+            #         connection.send(all_clients.encode("utf-8"))
+            #         continue
 
-                # delete a message, or set of messages
-                elif raw_message.lower().startswith("delete"):
-                    _, message_content = raw_message.split(" ", 1)
-                    delete_message_handler(connection, message_content)
-                    continue
+            #     # delete a message, or set of messages
+            #     elif raw_message.lower().startswith("delete"):
+            #         _, message_content = raw_message.split(" ", 1)
+            #         delete_message_handler(connection, message_content)
+            #         continue
 
-                # see if there are more pending messages that need to be displayed
-                elif raw_message.lower() == "more":
-                    handle_more_messages(connection, username)
+            #     # see if there are more pending messages that need to be displayed
+            #     elif raw_message.lower() == "more":
+            #         handle_more_messages(connection, username)
 
-                # proceed to the messaging screen on the GUI
-                elif raw_message.lower() == "done":
-                    continue
+            #     # proceed to the messaging screen on the GUI
+            #     elif raw_message.lower() == "done":
+            #         continue
 
-                # we don't need this, but its good to know server-side who is logging on or off
-                elif raw_message.lower() == "logout":
-                    print(f"{username} has logged out")
+            #     # we don't need this, but its good to know server-side who is logging on or off
+            #     elif raw_message.lower() == "logout":
+            #         print(f"{username} has logged out")
 
-                # all other messages that don't have special command associated with them (i.e. messages that the user intends to send as messages) go through here
-                if ":" in raw_message:
-                    recipient, msg = raw_message.split(":", 1)
-                    send_message(recipient, username, msg)
+            #     # all other messages that don't have special command associated with them (i.e. messages that the user intends to send as messages) go through here
+            #     if ":" in raw_message:
+            #         recipient, msg = raw_message.split(":", 1)
+            #         send_message(recipient, username, msg)
 
-                else:
-                    # handle setting the recipient and tracking in the server
-                    recipient = raw_message
+            #     else:
+            #         # handle setting the recipient and tracking in the server
+            #         recipient = raw_message
 
-                    if recipient in accounts:
-                        active_clients[username]["recipient"] = recipient
-                        print(f"{username} is messaging {recipient}.")
+            #         if recipient in accounts:
+            #             active_clients[username]["recipient"] = recipient
+            #             print(f"{username} is messaging {recipient}.")
 
-                    else:
-                        pass
+            #         else:
+            #             pass
 
-        except Exception as e:
-            print(f"Errors: {e}")
+        # except Exception as e:
+        #     print(f"Errors: {e}")
 
-        finally:
-            connection.close()
-            print(f"{username} has disconnected")
+        # finally:
+        #     connection.close()
+        #     print(f"{username} has disconnected")
 
 
 

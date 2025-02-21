@@ -449,7 +449,7 @@ class ChatApp(tk.Tk):
     def quit_app(self):
         """Shuts down the GUI."""
 
-        self.client.close_connection()
+        #self.client.close_connection() #maybe redo this 
         self.destroy()
 
 
