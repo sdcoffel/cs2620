@@ -1,8 +1,6 @@
 #import socket
 import grpc
 import hashlib
-import re
-
 import chatapp_pb2
 import chatapp_pb2_grpc
 
