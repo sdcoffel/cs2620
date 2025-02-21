@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rchatapp.proto\x12\x04\x63hat\"B\n\x0cLoginRequest\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\x12\x0e\n\x06is_new\x18\x03 \x01(\x08\"1\n\rLoginResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"D\n\x0eMessageRequest\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x11\n\trecipient\x18\x02 \x01(\t\x12\x0f\n\x07message\x18\x03 \x01(\t\"5\n\x0fMessageResponse\x12\x11\n\tdelivered\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"*\n\x16PendingMessagesRequest\x12\x10\n\x08username\x18\x01 \x01(\t\"1\n\x0ePendingMessage\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"R\n\x17PendingMessagesResponse\x12&\n\x08messages\x18\x01 \x03(\x0b\x32\x14.chat.PendingMessage\x12\x0f\n\x07message\x18\x02 \x01(\t\"\'\n\x13MoreMessagesRequest\x12\x10\n\x08username\x18\x01 \x01(\t\"O\n\x14MoreMessagesResponse\x12&\n\x08messages\x18\x01 \x03(\x0b\x32\x14.chat.PendingMessage\x12\x0f\n\x07message\x18\x02 \x01(\t\"/\n\x14\x44\x65leteMessageRequest\x12\x17\n\x0fmessage_content\x18\x01 \x01(\t\"9\n\x15\x44\x65leteMessageResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"9\n\x14\x44\x65leteAccountRequest\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x0f\n\x07\x63onfirm\x18\x02 \x01(\x08\"9\n\x15\x44\x65leteAccountResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"%\n\x13ListAccountsRequest\x12\x0e\n\x06\x66ilter\x18\x01 \x01(\t\"9\n\x14ListAccountsResponse\x12\x10\n\x08\x61\x63\x63ounts\x18\x01 \x03(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2\xf0\x03\n\x0b\x43hatService\x12\x30\n\x05Login\x12\x12.chat.LoginRequest\x1a\x13.chat.LoginResponse\x12:\n\x0bSendMessage\x12\x14.chat.MessageRequest\x1a\x15.chat.MessageResponse\x12Q\n\x12GetPendingMessages\x12\x1c.chat.PendingMessagesRequest\x1a\x1d.chat.PendingMessagesResponse\x12\x45\n\x0cMoreMessages\x12\x19.chat.MoreMessagesRequest\x1a\x1a.chat.MoreMessagesResponse\x12H\n\rDeleteMessage\x12\x1a.chat.DeleteMessageRequest\x1a\x1b.chat.DeleteMessageResponse\x12H\n\rDeleteAccount\x12\x1a.chat.DeleteAccountRequest\x1a\x1b.chat.DeleteAccountResponse\x12\x45\n\x0cListAccounts\x12\x19.chat.ListAccountsRequest\x1a\x1a.chat.ListAccountsResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rchatapp.proto\x12\x04\x63hat\"B\n\x0cLoginRequest\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\x12\x0e\n\x06is_new\x18\x03 \x01(\x08\"1\n\rLoginResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"D\n\x0eMessageRequest\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x11\n\trecipient\x18\x02 \x01(\t\x12\x0f\n\x07message\x18\x03 \x01(\t\"5\n\x0fMessageResponse\x12\x11\n\tdelivered\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"*\n\x16PendingMessagesRequest\x12\x10\n\x08username\x18\x01 \x01(\t\"1\n\x0ePendingMessage\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"R\n\x17PendingMessagesResponse\x12&\n\x08messages\x18\x01 \x03(\x0b\x32\x14.chat.PendingMessage\x12\x0f\n\x07message\x18\x02 \x01(\t\"\'\n\x13MoreMessagesRequest\x12\x10\n\x08username\x18\x01 \x01(\t\"O\n\x14MoreMessagesResponse\x12&\n\x08messages\x18\x01 \x03(\x0b\x32\x14.chat.PendingMessage\x12\x0f\n\x07message\x18\x02 \x01(\t\"A\n\x0b\x43hatMessage\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x11\n\trecipient\x18\x02 \x01(\t\x12\x0f\n\x07message\x18\x03 \x01(\t\"H\n\x12SendMessageRequest\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x11\n\trecipient\x18\x02 \x01(\t\x12\x0f\n\x07message\x18\x03 \x01(\t\"9\n\x13SendMessageResponse\x12\x11\n\tdelivered\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"*\n\x16ReceiveMessagesRequest\x12\x10\n\x08username\x18\x01 \x01(\t\"6\n\x13\x43hatMessageResponse\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"/\n\x14\x44\x65leteMessageRequest\x12\x17\n\x0fmessage_content\x18\x01 \x01(\t\"9\n\x15\x44\x65leteMessageResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"9\n\x14\x44\x65leteAccountRequest\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x0f\n\x07\x63onfirm\x18\x02 \x01(\x08\"9\n\x15\x44\x65leteAccountResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"%\n\x13ListAccountsRequest\x12\x0e\n\x06\x66ilter\x18\x01 \x01(\t\"9\n\x14ListAccountsResponse\x12\x10\n\x08\x61\x63\x63ounts\x18\x01 \x03(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2\xbe\x04\n\x0b\x43hatService\x12\x30\n\x05Login\x12\x12.chat.LoginRequest\x1a\x13.chat.LoginResponse\x12:\n\x0bSendMessage\x12\x14.chat.MessageRequest\x1a\x15.chat.MessageResponse\x12L\n\x0fReceiveMessages\x12\x1c.chat.ReceiveMessagesRequest\x1a\x19.chat.ChatMessageResponse0\x01\x12Q\n\x12GetPendingMessages\x12\x1c.chat.PendingMessagesRequest\x1a\x1d.chat.PendingMessagesResponse\x12\x45\n\x0cMoreMessages\x12\x19.chat.MoreMessagesRequest\x1a\x1a.chat.MoreMessagesResponse\x12H\n\rDeleteMessage\x12\x1a.chat.DeleteMessageRequest\x1a\x1b.chat.DeleteMessageResponse\x12H\n\rDeleteAccount\x12\x1a.chat.DeleteAccountRequest\x1a\x1b.chat.DeleteAccountResponse\x12\x45\n\x0cListAccounts\x12\x19.chat.ListAccountsRequest\x1a\x1a.chat.ListAccountsResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -49,18 +49,28 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_MOREMESSAGESREQUEST']._serialized_end=485
   _globals['_MOREMESSAGESRESPONSE']._serialized_start=487
   _globals['_MOREMESSAGESRESPONSE']._serialized_end=566
-  _globals['_DELETEMESSAGEREQUEST']._serialized_start=568
-  _globals['_DELETEMESSAGEREQUEST']._serialized_end=615
-  _globals['_DELETEMESSAGERESPONSE']._serialized_start=617
-  _globals['_DELETEMESSAGERESPONSE']._serialized_end=674
-  _globals['_DELETEACCOUNTREQUEST']._serialized_start=676
-  _globals['_DELETEACCOUNTREQUEST']._serialized_end=733
-  _globals['_DELETEACCOUNTRESPONSE']._serialized_start=735
-  _globals['_DELETEACCOUNTRESPONSE']._serialized_end=792
-  _globals['_LISTACCOUNTSREQUEST']._serialized_start=794
-  _globals['_LISTACCOUNTSREQUEST']._serialized_end=831
-  _globals['_LISTACCOUNTSRESPONSE']._serialized_start=833
-  _globals['_LISTACCOUNTSRESPONSE']._serialized_end=890
-  _globals['_CHATSERVICE']._serialized_start=893
-  _globals['_CHATSERVICE']._serialized_end=1389
+  _globals['_CHATMESSAGE']._serialized_start=568
+  _globals['_CHATMESSAGE']._serialized_end=633
+  _globals['_SENDMESSAGEREQUEST']._serialized_start=635
+  _globals['_SENDMESSAGEREQUEST']._serialized_end=707
+  _globals['_SENDMESSAGERESPONSE']._serialized_start=709
+  _globals['_SENDMESSAGERESPONSE']._serialized_end=766
+  _globals['_RECEIVEMESSAGESREQUEST']._serialized_start=768
+  _globals['_RECEIVEMESSAGESREQUEST']._serialized_end=810
+  _globals['_CHATMESSAGERESPONSE']._serialized_start=812
+  _globals['_CHATMESSAGERESPONSE']._serialized_end=866
+  _globals['_DELETEMESSAGEREQUEST']._serialized_start=868
+  _globals['_DELETEMESSAGEREQUEST']._serialized_end=915
+  _globals['_DELETEMESSAGERESPONSE']._serialized_start=917
+  _globals['_DELETEMESSAGERESPONSE']._serialized_end=974
+  _globals['_DELETEACCOUNTREQUEST']._serialized_start=976
+  _globals['_DELETEACCOUNTREQUEST']._serialized_end=1033
+  _globals['_DELETEACCOUNTRESPONSE']._serialized_start=1035
+  _globals['_DELETEACCOUNTRESPONSE']._serialized_end=1092
+  _globals['_LISTACCOUNTSREQUEST']._serialized_start=1094
+  _globals['_LISTACCOUNTSREQUEST']._serialized_end=1131
+  _globals['_LISTACCOUNTSRESPONSE']._serialized_start=1133
+  _globals['_LISTACCOUNTSRESPONSE']._serialized_end=1190
+  _globals['_CHATSERVICE']._serialized_start=1193
+  _globals['_CHATSERVICE']._serialized_end=1767
 # @@protoc_insertion_point(module_scope)

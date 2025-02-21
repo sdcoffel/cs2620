@@ -441,9 +441,9 @@ class ChatApp(tk.Tk):
     def receive_messages(self):
         """Recieves messages that the server has forwarded."""
 
-        while self.client.connected:
-            message = self.client.receive_messages()
-            self.text_area.insert(tk.END, "Recieved from: " + message + "\n")
+        for msg in self.client.ReceiveMessages():
+            self.text_area.insert(tk.END, msg + "\n")
+            self.text_area.see(tk.END)
 
 
     def quit_app(self):

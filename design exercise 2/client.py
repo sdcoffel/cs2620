@@ -22,51 +22,6 @@ class Client:
         return hashlib.sha256(password.encode()).hexdigest()
 
 
-    def receive_messages(self):
-        """This function is in charge of receiving messages that have been forwarded from the server.
-
-        Returns:
-            Will return with an exception if the connection between the server and the client goes down. Else will continue until either the client or server
-            terminates the connection. Depending on whether JSON_MODE is turned on or off, data will be sent either as encoded strings or under the JSON protocol.
-        """
-
-        message = self.client_socket.recv(4096).decode("utf-8")
-        if message:
-            print("\rReceived: " + message + "\nYou: ", end="")
-
-        else:
-            print("\nServer closed the connection.")
-        
-        return message
-    
-
-    def send_messages(self, recipient, message):
-        """Sends messages along the socket to the server. If an empty message is typed, the user has the power to
-        terminate the connection when prompted. Different error handling mechanisms are at the bottom of the function.
-        The user can exit the chat by typing 'quit', change the intended recipient by typing 'change', or delete a message that was sent during that session by typing 'delete'.
-
-        Args:
-            recipient (str): The recipient username
-            message (str): The message content
-        """
-
-        full_message = f"{recipient}:{message}"
-        self.client_socket.send(full_message.encode("utf-8"))
-            
-
-    def delete_message(self, message):
-        """Sends a request to delete a message from the server.
-
-        Args:
-            message (str): The content (or partial content) of the message to be deleted.
-        """
-
-        #good for client-side awareness: printing the server message to confirm things are working as they should 
-        self.client_socket.send(("delete" + message).encode("utf-8"))
-        server_message = self.client_socket.recv(1024).decode("utf-8")
-        print(server_message)
-
-
     def handle_login(self, username, password, existing):
         """Handles the login process for the client. This prompts the user for their login data, and sends it to the server for credential validation. The password is 
         hashed client-side and then sent over the network for the server to store and reference later. 
@@ -85,10 +40,8 @@ class Client:
         #convert the "existing" flag: if user inputs "no", then is_new is True which triggers the create new account cond. in server
         is_new = True if existing.lower() == "no" else False
         
-        #create the LoginRequest message 
+        #create the LoginRequest message and call the RPC
         login_request = chatapp_pb2.LoginRequest(username=username, password=hashed_password, is_new=is_new)
-        
-        #call the Login RPC
         response = self.stub.Login(login_request)
         print("Server response:", response.message)
         
@@ -107,14 +60,9 @@ class Client:
             The pending messages as a string for the GUI to display
         """
 
-        # pending_message_info = self.client_socket.recv(4096).decode("utf-8")
-        # print(pending_message_info)
-        # return pending_message_info
-
         request = chatapp_pb2.PendingMessagesRequest(username=self.username)
         response = self.stub.GetPendingMessages(request)
         
-        # Combine the structured messages into a single string for display, if desired.
         if response.messages:
             display_text = "\n".join([f"{msg.sender}: {msg.message}" for msg in response.messages])
         else:
@@ -131,12 +79,61 @@ class Client:
             The server's response, either JSON or plain text. The response is the next 10 messages if they exist, otherwise it will say 'no more messages'.
         """
 
-        # self.client_socket.send("more".encode("utf-8"))
-        # more_messages = self.client_socket.recv(4096).decode("utf-8")
-        # return more_messages
         request = chatapp_pb2.MoreMessagesRequest(username=self.username)
         response = self.stub.MoreMessages(request)
         return response.message
+    
+
+    def set_recipient(self, recipient):
+        """Stores the default recipient locally so that future send_messages calls can use it."""
+        
+        self.recipient = recipient
+        print(f"Default recipient set to {recipient}")
+
+
+    def ReceiveMessages(self):
+        """
+        Opens a streaming RPC to receive messages in real time.
+        This method blocks and yields messages as they arrive.
+        """
+
+        request = chatapp_pb2.ReceiveMessagesRequest(username=self.username)
+        try:
+            for chat_msg in self.stub.ReceiveMessages(request):
+                message_str = f"Received from {chat_msg.sender}: {chat_msg.message}"
+                print(message_str) #so i can debug from terminal lol
+                yield message_str
+        except grpc.RpcError as e:
+            print("Message stream closed:", e)
+    
+
+    def send_messages(self, recipient, message):
+        """
+        Sends a message by calling the SendMessage RPC.
+        """
+
+        #if the recipient doesn't exist yet 
+        if not hasattr(self, "recipient") or not self.recipient:
+            print("No recipient set.")
+            return False
+    
+        request = chatapp_pb2.SendMessageRequest(sender=self.username, recipient=recipient, message=message)
+        response = self.stub.SendMessage(request)
+        print("Server response:", response.message)
+        return response.delivered
+            
+
+    def delete_message(self, message):
+        """Sends a request to delete a message from the server.
+
+        Args:
+            message (str): The content (or partial content) of the message to be deleted.
+        """
+
+        #good for client-side awareness: printing the server message to confirm things are working as they should 
+        self.client_socket.send(("delete" + message).encode("utf-8"))
+        server_message = self.client_socket.recv(1024).decode("utf-8")
+        print(server_message)
 
 
     def delete_account(self):
@@ -211,16 +208,6 @@ class Client:
         return filtered_accounts
 
 
-    def set_recipient(self, recipient):
-        """Sets the intended recipient for future messages The server will process this and assign the recipient to a socket that the server will manage.
-
-        Args:
-            recipient (str): The username of the recipient.
-        """
-
-        self.client_socket.send(recipient.encode("utf-8"))
-
-
     def start_client(self, host, port):
         """Responsible for booting up the client and establishing the first connection to the server. Connects to the server on a localhost port.
 
@@ -232,8 +219,6 @@ class Client:
         try:
             self.channel = grpc.insecure_channel(f'{host}:{port}')
             self.stub = chatapp_pb2_grpc.ChatServiceStub(self.channel)
-            # self.client_socket.connect((host, port))
-            # self.connected = True
             print("Connected to the server.")
 
         except Exception as e: 

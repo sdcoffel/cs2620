@@ -1,6 +1,7 @@
 import grpc 
 from concurrent import futures 
 import time 
+import queue
 
 import chatapp_pb2
 import chatapp_pb2_grpc
@@ -17,46 +18,6 @@ messages = {}
 pending_messages = {}
 
 class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
-    def send_message(recipient, sender, message):
-        """This function will send a message to a specific client. All clients that are currently using the server are stored in the 'active_clients' dict, which
-        maps active clients to their respective sockets on the server. This is how the server knows to mediate messages to intended clients.
-
-        All messages that are sent through are stored on the internal database (currently, this is a .txt file containing all messages ever sent).
-        If a message is being sent to a user that is not online, it gets saved to the 'pending_messages.txt' file, which holds the messages until the relevant client logs back on.
-
-        Args:
-            message: The incoming message from the client.
-            sender: The socket that belongs to the sender.
-            recipient: The socket that belongs to the recipient. This is where message is being rerouted to
-
-        If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client. Instead we move on to another messaging attempt.
-        """
-
-        # save the message internally to our records for future referencing
-        create_message(sender, recipient, message, messages)
-        save_messages(MESSAGES_FILE_PATH, messages)
-        print("Message from {sender} to {recipient} saved to chatlog.")
-
-        if recipient in active_clients and "socket" in active_clients[recipient]:
-            client_socket = active_clients[recipient]["socket"]
-
-            try:
-                # existing implementation - we send this over as a string over the wire encoded as UTF-8. so the dict format of our messages is turned into a string, and serialized and sent over, as opposed to using JSON
-                full_message = f"{sender}: {message}".encode("utf-8")
-                client_socket.send(full_message)
-
-                print(f"Message from {sender} to {recipient} delivered.")
-
-            except Exception as e:
-                print(f"Failed to send message from {sender} to {recipient}: {e}")
-
-        else:
-            if recipient not in messages:
-                pending_messages[recipient] = []
-
-            pending_messages[recipient].append((sender, message))
-            save_pending_messages(PENDING_MESSAGES_FILE_PATH, recipient, sender, pending_messages)
-            print(f"Message from {sender} to {recipient} saved as a pending message by the server.")
 
 
     def Login(self, request, context):
@@ -84,7 +45,7 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             is_new = request.is_new
 
             try:
-                # if the user is trying to create a new account
+                #if the user is trying to create a new account
                 if is_new:
                     if username in accounts:
                         return chatapp_pb2.LoginResponse(success=False, message="Username already exists. Please try again.")
@@ -93,7 +54,7 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
                         create_account(username, password, FILE_PATH)
                         return chatapp_pb2.LoginResponse(success=True, message="Account created! You are now logged in.")
 
-                # if the user is logging into a preexisting account
+                #if the user is logging into a preexisting account
                 else:
                     if username in accounts and password == accounts[username]["password"]:
                         return chatapp_pb2.LoginResponse(success=True, message="Success! You are now logged in.")
@@ -147,22 +108,6 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             return chatapp_pb2.PendingMessagesResponse(messages=[], message = "You have 0 pending messages.\n")
 
 
-    def delete_message_handler(connection, message_content):
-        """This function deletes messages from the server's internal database, and sends a message to the client confirming message deletion. It is mostly for our recordkeeping,
-        as the messages are erased from the GUI using GUI-specific magic.
-
-        Args:
-            connection (socket.socket()): socket associated with the client
-            message_content: the message that the client wants to delete
-        """
-
-        if delete_message(message_content, MESSAGES_FILE_PATH): 
-            connection.send(f"Message with content '{message_content}' deleted successfully.".encode("utf-8"))
-            print("Message deleted from chatlog.")
-
-        else:
-            connection.send(f"Message with content '{message_content}' not found.".encode("utf-8"))
-
 
     def MoreMessages(self, request, context):
         """If there are more than 10 pending messages, the user can request to see the rest of them in chunks of 10 on login by clicking the 'more' button on the GUI.
@@ -199,6 +144,91 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
                 return chatapp_pb2.MoreMessagesResponse(messages=[], message="No more messages.\n")
         else:
             return chatapp_pb2.MoreMessagesResponse(messages=[], message="No more messages.\n")
+
+
+    def SendMessage(self, request, context):
+        """This function will send a message to a specific client. All clients that are currently using the server are stored in the 'active_clients' dict, which
+        maps [update this ]
+
+        All messages that are sent through are stored on the internal database (currently, this is a .txt file containing all messages ever sent).
+        If a message is being sent to a user that is not online, it gets saved to the 'pending_messages.txt' file, which holds the messages until the relevant client logs back on.
+
+        Args:
+            to be updated 
+
+        If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client. Instead we move on to another messaging attempt.
+        """
+
+        # save the message internally to our records for future referencing
+        create_message(request.sender, request.recipient, request.message, messages)
+        save_messages(MESSAGES_FILE_PATH, messages)
+        print(f"Message from {request.sender} to {request.recipient} saved to chatlog.")
+
+
+        #if the recipient is online, i.e., their queue is active, deliver in real time.
+        if request.recipient in active_clients:
+            client_queue = active_clients[request.recipient]
+            client_queue.put((request.sender, request.message))
+
+            print(f"Message from {request.sender} to {request.recipient} delivered via queue.")
+            return chatapp_pb2.SendMessageResponse(delivered=True, message="Message delivered.")
+        
+        else:
+            #store to pending messages if intended recipient is not online
+            if request.recipient not in pending_messages:
+                pending_messages[request.recipient] = []
+
+            pending_messages[request.recipient].append((request.sender, request.message))
+            save_pending_messages(PENDING_MESSAGES_FILE_PATH, request.recipient, request.sender, pending_messages)
+
+            print(f"Message from {request.sender} to {request.recipient} saved as pending.")
+            return chatapp_pb2.SendMessageResponse(delivered=False, message="Recipient offline. Message saved as pending.")
+
+
+
+    def ReceiveMessages(self, request, context):
+        """
+        A server-streaming RPC that continuously yields new messages for the given user.
+        It first pushes any pending messages into the client's queue. Otherwise, it's forwarded immediately.
+        """
+
+        #make sure the user's queue is actually there
+        if request.username not in active_clients:
+            active_clients[request.username] = queue.Queue()
+        client_queue = active_clients[request.username]
+
+        #pending messages get added to the queue
+        if request.username in pending_messages:
+            for sender, msg in pending_messages[request.username]:
+                client_queue.put((sender, msg))
+            pending_messages[request.username] = []
+            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, request.username, 10)  # Adjust as needed.
+
+        #stream messages to the client in real time
+        while True:
+            try:
+                sender, msg = client_queue.get(timeout=0) #immediate - although i want to clean this up a lot
+                yield chatapp_pb2.ChatMessageResponse(sender=sender, message=msg)
+            except queue.Empty:
+                #keep waiting
+                continue
+
+
+    def delete_message_handler(connection, message_content):
+        """This function deletes messages from the server's internal database, and sends a message to the client confirming message deletion. It is mostly for our recordkeeping,
+        as the messages are erased from the GUI using GUI-specific magic.
+
+        Args:
+            connection (socket.socket()): socket associated with the client
+            message_content: the message that the client wants to delete
+        """
+
+        if delete_message(message_content, MESSAGES_FILE_PATH): 
+            connection.send(f"Message with content '{message_content}' deleted successfully.".encode("utf-8"))
+            print("Message deleted from chatlog.")
+
+        else:
+            connection.send(f"Message with content '{message_content}' not found.".encode("utf-8"))
 
 
     def handle_account_deletion(connection, username):
@@ -269,7 +299,7 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             #     if raw_message.lower() == "delete_account":
             #         handle_account_deletion(connection, username)
 
-            #     # list accounts by wildcard
+            #     # list accounts by wildcard -- this needs its own function 
             #     elif raw_message.lower() == "list_accounts":
             #         print(f"List requested by user {username}")
             #         all_clients = list_accounts(FILE_PATH)
@@ -335,22 +365,7 @@ def start_server():
                 time.sleep(86400) #this is the only way to keep the while loop running for a long time- has to be a better way than this
         except KeyboardInterrupt: 
             server.stop(0)
-        # server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        # port = 12345
-        # server_socket.bind(("0.0.0.0", port))  # listens on all interfaces for the client
-        # server_socket.listen()
-        # print(f"Server is listening on port {port}")
-
-        # while True:
-        #     try:
-        #         client_socket, addr = server_socket.accept()
-        #         thread = threading.Thread(target=client_handler, args=(client_socket, addr))
-        #         thread.start()
-
-        #     except Exception as e:
-        #         print(f"Fatal error {e} with server")
 
     except Exception as e: 
         print(f"Fatal error {e} with server")

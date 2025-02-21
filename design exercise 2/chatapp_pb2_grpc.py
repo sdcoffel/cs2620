@@ -47,6 +47,11 @@ class ChatServiceStub(object):
                 request_serializer=chatapp__pb2.MessageRequest.SerializeToString,
                 response_deserializer=chatapp__pb2.MessageResponse.FromString,
                 _registered_method=True)
+        self.ReceiveMessages = channel.unary_stream(
+                '/chat.ChatService/ReceiveMessages',
+                request_serializer=chatapp__pb2.ReceiveMessagesRequest.SerializeToString,
+                response_deserializer=chatapp__pb2.ChatMessageResponse.FromString,
+                _registered_method=True)
         self.GetPendingMessages = channel.unary_unary(
                 '/chat.ChatService/GetPendingMessages',
                 request_serializer=chatapp__pb2.PendingMessagesRequest.SerializeToString,
@@ -89,6 +94,13 @@ class ChatServiceServicer(object):
 
     def SendMessage(self, request, context):
         """send a message from one user to another
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ReceiveMessages(self, request, context):
+        """RPC to receive messages as a stream.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -141,6 +153,11 @@ def add_ChatServiceServicer_to_server(servicer, server):
                     servicer.SendMessage,
                     request_deserializer=chatapp__pb2.MessageRequest.FromString,
                     response_serializer=chatapp__pb2.MessageResponse.SerializeToString,
+            ),
+            'ReceiveMessages': grpc.unary_stream_rpc_method_handler(
+                    servicer.ReceiveMessages,
+                    request_deserializer=chatapp__pb2.ReceiveMessagesRequest.FromString,
+                    response_serializer=chatapp__pb2.ChatMessageResponse.SerializeToString,
             ),
             'GetPendingMessages': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPendingMessages,
@@ -225,6 +242,33 @@ class ChatService(object):
             '/chat.ChatService/SendMessage',
             chatapp__pb2.MessageRequest.SerializeToString,
             chatapp__pb2.MessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ReceiveMessages(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/chat.ChatService/ReceiveMessages',
+            chatapp__pb2.ReceiveMessagesRequest.SerializeToString,
+            chatapp__pb2.ChatMessageResponse.FromString,
             options,
             channel_credentials,
             insecure,

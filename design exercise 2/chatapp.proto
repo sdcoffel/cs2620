@@ -13,6 +13,9 @@ service ChatService {
   //send a message from one user to another
   rpc SendMessage (MessageRequest) returns (MessageResponse);
 
+  // RPC to receive messages as a stream.
+  rpc ReceiveMessages (ReceiveMessagesRequest) returns (stream ChatMessageResponse);
+
   //get the most recent pending messages
   rpc GetPendingMessages (PendingMessagesRequest) returns (PendingMessagesResponse);
 
@@ -86,6 +89,34 @@ message MoreMessagesResponse {
   repeated PendingMessage messages = 1;
   string message = 2;
 }
+
+//messages that are forwarded over by the server 
+message ChatMessage {
+  string sender = 1;
+  string recipient = 2;
+  string message = 3;
+}
+
+message SendMessageRequest {
+  string sender = 1;
+  string recipient = 2;
+  string message = 3;
+}
+
+message SendMessageResponse {
+  bool delivered = 1;
+  string message = 2;
+}
+
+message ReceiveMessagesRequest {
+  string username = 1;
+}
+
+message ChatMessageResponse {
+  string sender = 1;
+  string message = 2;
+}
+
 
 //request to delete a message 
 message DeleteMessageRequest {
