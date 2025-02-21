@@ -74,13 +74,13 @@ def login_protocol(connection, accounts):
 
     # grab credentials that came over from the client
     while True:
-        if not JSON_MODE:
-            credentials = connection.recv(1024).decode().strip().split(",")
-            username, password, existing = (
-                credentials[0],
-                credentials[1],
-                credentials[2],
-            )
+        
+        credentials = connection.recv(1024).decode().strip().split(",")
+        username, password, existing = (
+            credentials[0],
+            credentials[1],
+            credentials[2],
+        )
 
         try:
             # if the user is trying to create a new account
