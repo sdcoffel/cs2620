@@ -2,7 +2,7 @@ import grpc
 from concurrent import futures 
 import time 
 import queue
-
+import re
 import chatapp_pb2
 import chatapp_pb2_grpc
 
@@ -52,15 +52,18 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
                     
                     else:
                         create_account(username, password, FILE_PATH)
+                        print(f"{username} has connected.")
                         return chatapp_pb2.LoginResponse(success=True, message="Account created! You are now logged in.")
 
                 #if the user is logging into a preexisting account
                 else:
                     if username in accounts and password == accounts[username]["password"]:
+                        print(f"{username} has connected.")
                         return chatapp_pb2.LoginResponse(success=True, message="Success! You are now logged in.")
                     
                     else:
                         return chatapp_pb2.LoginResponse(success=False, message="This username/password is not registered with us!")
+                    
 
 
             except ValueError as e:
@@ -159,18 +162,14 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
         If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client. Instead we move on to another messaging attempt.
         """
 
-        # save the message internally to our records for future referencing
-        create_message(request.sender, request.recipient, request.message, messages)
-        save_messages(MESSAGES_FILE_PATH, messages)
-        print(f"Message from {request.sender} to {request.recipient} saved to chatlog.")
-
-
         #if the recipient is online, i.e., their queue is active, deliver in real time.
         if request.recipient in active_clients:
             client_queue = active_clients[request.recipient]
             client_queue.put((request.sender, request.message))
 
-            print(f"Message from {request.sender} to {request.recipient} delivered via queue.")
+            print(f"{request.sender} is messaging {request.recipient}.")
+            print(f"Message from {request.sender} to {request.recipient} delivered.")
+
             return chatapp_pb2.SendMessageResponse(delivered=True, message="Message delivered.")
         
         else:
@@ -183,7 +182,6 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
 
             print(f"Message from {request.sender} to {request.recipient} saved as pending.")
             return chatapp_pb2.SendMessageResponse(delivered=False, message="Recipient offline. Message saved as pending.")
-
 
 
     def ReceiveMessages(self, request, context):
@@ -214,24 +212,7 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
                 continue
 
 
-    def delete_message_handler(connection, message_content):
-        """This function deletes messages from the server's internal database, and sends a message to the client confirming message deletion. It is mostly for our recordkeeping,
-        as the messages are erased from the GUI using GUI-specific magic.
-
-        Args:
-            connection (socket.socket()): socket associated with the client
-            message_content: the message that the client wants to delete
-        """
-
-        if delete_message(message_content, MESSAGES_FILE_PATH): 
-            connection.send(f"Message with content '{message_content}' deleted successfully.".encode("utf-8"))
-            print("Message deleted from chatlog.")
-
-        else:
-            connection.send(f"Message with content '{message_content}' not found.".encode("utf-8"))
-
-
-    def handle_account_deletion(connection, username):
+    def DeleteAccount(self, request, context):
         """This function allows users to delete their accounts. The user is prompted for a confirmation, and if the user says yes, the function calls delete_account()
         which deletes the user's account from the database and sends a message to the client. On the GUI, the window is also promptly closed.
         If the user chooses not to delete their account, nothing happens, and we proceed as normal.
@@ -241,105 +222,51 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             username: the client's chosen username
         """
 
-        if username in pending_messages and pending_messages[username]:
+        username = request.username
+        confirm = request.confirm
+        pending = load_pending_messages(PENDING_MESSAGES_FILE_PATH)
 
-            connection.send("You have unread messages. Are you sure you want to delete your account?".encode("utf-8"))
-            confirmation = connection.recv(1024).decode().strip().lower()
-
-            # user has decided to delete their account
-            if confirmation == "yes":
-                delete_account(username, FILE_PATH)
-                delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, len(pending_messages[username]))  # deletes all pending messages as well as the account itself
-                print(f"Account deletion successful for user {username}")
-
+        #if there are pending messages, let the user know before they proceed with deleting the account
+        if username in pending and pending[username]:
+            #if there are unread messages and the user hasn't committed to deleting yet
+            if not confirm:
+                return chatapp_pb2.DeleteAccountResponse(success=False, message="You have unread messages. Confirm deletion to proceed.")
+            
             else:
-                # the user has decided not to delete their account in the GUI
-                print(f"{username} aborted deletion") 
-                connection.send("Account deletion aborted.".encode("utf-8"))
-
-        # if the account has no associated pending messages, delete. there will still be a prompt on the GUI, but no need to do operations serverside here
-        delete_account(username, FILE_PATH)
-        print(f"Account deletion requested by user {username}")
-        connection.send("Account deleted successfully.".encode("utf-8"))
-
-
-    # def client_handler(connection, address):
-    #     """Establishes a connection with the client, prompts for login info, and prompts for the recipient of any messages.
-    #     There are a few supported options here. Clients can:
-    #         -make a new account/delete an account
-    #         -login to preexisting accounts (with validation criteria)
-    #         -delete messages that have been sent in the chat
-    #         -request to see pending messages from when they were offline, or continue without viewing those messages
-    #         -list all the accounts that are registered on the server
-    #         -change which account they are messaging in-chat
-
-    #     Args:
-    #         connection (socket.socket()): socket associated with the client
-    #         address: IP address and port number of the client
-    #     """
-
-    #     username = None  # initially set to None, filled in upon login when user supplies their credentials
-    #     try:
-    #         print(f"Connected with {address}")
-
-            #i feel like i still need these....
-    #         accounts = load_accounts(FILE_PATH)
-    #         username = login_protocol(connection, accounts)
-    #         active_clients[username] = {"socket": connection} #this could be a problem later....
-    #         print(f"{username} has connected.\n")
+                #continue with deleting the account and all the pending messages
+                delete_account(username, FILE_PATH)
+                delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, len(pending[username]))
+                print(f"Account deletion successful for user {username}")
+                return chatapp_pb2.DeleteAccountResponse(success=True, message="Account deletion successful.")
+            
+        else:
+            #go ahead and delete the account
+            delete_account(username, FILE_PATH)
+            print(f"Account deletion requested by user {username}")
+            return chatapp_pb2.DeleteAccountResponse(success=True, message="Account deleted successfully.")
 
 
-            # while True:
-            #     raw_message = connection.recv(1024).decode().strip()
-
-            #     if not raw_message:
-            #         break
-
-            #     # handle account deletions
-            #     if raw_message.lower() == "delete_account":
-            #         handle_account_deletion(connection, username)
-
-            #     # list accounts by wildcard -- this needs its own function 
-            #     elif raw_message.lower() == "list_accounts":
-            #         print(f"List requested by user {username}")
-            #         all_clients = list_accounts(FILE_PATH)
-            #         connection.send(all_clients.encode("utf-8"))
-            #         continue
-
-            #     # delete a message, or set of messages
-            #     elif raw_message.lower().startswith("delete"):
-            #         _, message_content = raw_message.split(" ", 1)
-            #         delete_message_handler(connection, message_content)
-            #         continue
-
-
-            #     # we don't need this, but its good to know server-side who is logging on or off
-            #     elif raw_message.lower() == "logout":
-            #         print(f"{username} has logged out")
-
-            #     # all other messages that don't have special command associated with them (i.e. messages that the user intends to send as messages) go through here
-            #     if ":" in raw_message:
-            #         recipient, msg = raw_message.split(":", 1)
-            #         send_message(recipient, username, msg)
-
-            #     else:
-            #         # handle setting the recipient and tracking in the server -- i feel like i still need this 
-            #         recipient = raw_message
-
-            #         if recipient in accounts:
-            #             active_clients[username]["recipient"] = recipient
-            #             print(f"{username} is messaging {recipient}.")
-
-            #         else:
-            #             pass
-
-        # except Exception as e:
-        #     print(f"Errors: {e}")
-
-        # finally:
-        #     connection.close()
-        #     print(f"{username} has disconnected")
-
+    def ListAccounts(self, request, context):
+        """
+        Retrieves a list of all registered accounts, optionally filtering them by a regex pattern.
+        """
+       
+        all_accounts = list_accounts(FILE_PATH)
+        accounts = [acct for acct in all_accounts.split("\n") if acct.strip() != ""]
+        
+        #if we want to wildcard filter, do that here
+        if request.filter and request.filter.lower() != "all":
+            try:
+                filtered_accounts = [acct for acct in accounts if re.search(request.filter, acct)]
+            except re.error as err:
+                #if there's no matching regex, return invalid message
+                return chatapp_pb2.ListAccountsResponse(
+                    accounts=[], message=f"No users match this pattern: {err}")
+            
+        else:
+            filtered_accounts = accounts
+        
+        return chatapp_pb2.ListAccountsResponse(accounts=filtered_accounts, message="Accounts listed successfully.")       
 
 
 def start_server():
@@ -373,9 +300,8 @@ def start_server():
 
     finally:
         try:
-            #save_pending_messages(PENDING_MESSAGES_FILE_PATH, pending_messages)
+            save_pending_messages(PENDING_MESSAGES_FILE_PATH, pending_messages)
             print("Pending messages saved...")
-            #server_socket.close()
 
         except Exception as e:
             print(f"Failed to exit server properly! : {e}")

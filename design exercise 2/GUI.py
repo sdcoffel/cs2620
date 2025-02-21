@@ -374,23 +374,19 @@ class ChatApp(tk.Tk):
 
         search_entry = tk.Entry(search_frame, font=entry_font)
         search_entry.pack(side=tk.LEFT, padx=5)
-        search_entry.bind("<Return>", lambda event: self.search_accounts(search_entry, accounts, search_frame))
+        search_entry.bind("<Return>", lambda event: self.search_accounts(search_entry, search_frame))
 
 
-    def search_accounts(self, search_entry, accounts, search_frame):
+    def search_accounts(self, search_entry, search_frame):
         """Allows for wildcard searching through registered accounts."""
 
         #result styling 
         label_font = tkfont.Font(family="Helvetica", size=14, weight="bold")
         entry_font = tkfont.Font(family="Helvetica", size=14)
-        search_result = self.client.wildcard(search_entry.get(), accounts)
 
-        if isinstance(search_result, list):
-            search_result_text = "\n".join(search_result)
-
-        else:
-            search_result_text = search_result
-
+        pattern = search_entry.get()
+        filtered_accounts = self.client.list_accounts(filter=pattern)
+    
         #refresh each attempt on repeated searches 
         if hasattr(self, "result_text"):
             self.result_text.delete(1.0, tk.END)
@@ -401,11 +397,12 @@ class ChatApp(tk.Tk):
             self.result_text = tk.Text(search_frame, height=5, width=30, font=entry_font)
             self.result_text.pack(side=tk.LEFT, padx=5)
 
-        self.result_text.insert(tk.END, search_result_text)
+        self.result_text.insert(tk.END, "\n".join(filtered_accounts))
 
 
     def delete_message(self):
-        """Deletes messages for the user and removes it from the chat box. Also sends a request to the server to remove the message from its database."""
+        """Deletes messages for the user and removes it from the chat box. Note that in this update I have stopped having the server keep track of messages, 
+        so there is no need to delete from the server database. We only erase from the GUI."""
 
         #grab text
         text_content = self.text_area.get("1.0", tk.END).strip()

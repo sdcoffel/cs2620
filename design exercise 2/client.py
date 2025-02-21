@@ -123,19 +123,6 @@ class Client:
         return response.delivered
             
 
-    def delete_message(self, message):
-        """Sends a request to delete a message from the server.
-
-        Args:
-            message (str): The content (or partial content) of the message to be deleted.
-        """
-
-        #good for client-side awareness: printing the server message to confirm things are working as they should 
-        self.client_socket.send(("delete" + message).encode("utf-8"))
-        server_message = self.client_socket.recv(1024).decode("utf-8")
-        print(server_message)
-
-
     def delete_account(self):
         """Sends a request to the server to delete the user's account. The operation is done on the serverside, 
         and the confirmation is sent to the client for a sanity check.
@@ -145,67 +132,23 @@ class Client:
         """
 
         #print the deletion confirmation to console for a sanity check
-        self.client_socket.send("delete_account".encode("utf-8"))
-        server_message = self.client_socket.recv(1024).decode("utf-8")
-        print(server_message)
-        return server_message
+        request = chatapp_pb2.DeleteAccountRequest(username=self.username, confirm=True)
+        response = self.stub.DeleteAccount(request)
+        print("Server response:", response.message)
+        return response.message
 
 
-    def confirm_deletion(self, server_message, confirmation):
-        """Handles the confirmation step in the GUI when the server notifies the user they have unread messages
-        and asks if they're sure about deleting the account. The server waits for the confirmation before the account is removed from the database.
-
-        Args:
-            server_message (str): The server's initial message (which may mention unread messages).
-            confirmation (str): The user's response ("yes" or "no").
-
-        Returns:
-            The server response after confirmation, and a boolean indicating a successful deletion or not. 
-        """
-
-        if "You have unread messages" in server_message:
-            #confirm the account deletion request 
-            self.client_socket.send(confirmation.encode("utf-8"))
-            server_message = self.client_socket.recv(1024).decode("utf-8")
-            return server_message
-        
-        else:
-            return False
-        
-
-    def list_accounts(self):
+    def list_accounts(self, filter = "all"):
         """Requests from the server the list of all accounts.
 
         Returns:
-            The list of accounts (as plain text or JSON-parsed list).
+            The list of accounts.
         """
 
-        self.client_socket.send("list_accounts".encode("utf-8"))
-        server_message = self.client_socket.recv(1024).decode("utf-8")
-        accounts = server_message.split("\n")
-        return accounts
-
-
-    def wildcard(self, pattern, accounts):
-        """Filter the list of accounts by a pattern.
-
-        Args:
-            pattern (str): The pattern to match ("all" or a regex).
-            accounts (list): The list of accounts.
-
-        Returns:
-            A filtered list of accounts or a string if none match.
-        """
-        
-        if pattern.lower() == "all":
-            filtered_accounts = accounts
-        else:
-            filtered_accounts = [account for account in accounts if re.search(pattern, account)]
-
-        if not filtered_accounts:
-            return "No accounts match the given pattern."
-
-        return filtered_accounts
+        request = chatapp_pb2.ListAccountsRequest(filter=filter)
+        response = self.stub.ListAccounts(request)
+        print("Server message:", response.message)
+        return response.accounts
 
 
     def start_client(self, host, port):
