@@ -107,10 +107,22 @@ class Client:
             The pending messages as a string for the GUI to display
         """
 
-        pending_message_info = self.client_socket.recv(4096).decode("utf-8")
-        print(pending_message_info)
-        return pending_message_info
+        # pending_message_info = self.client_socket.recv(4096).decode("utf-8")
+        # print(pending_message_info)
+        # return pending_message_info
+
+        request = chatapp_pb2.PendingMessagesRequest(username=self.username)
+        response = self.stub.GetPendingMessages(request)
         
+        # Combine the structured messages into a single string for display, if desired.
+        if response.messages:
+            display_text = "\n".join([f"{msg.sender}: {msg.message}" for msg in response.messages])
+        else:
+            display_text = response.message  #"You have 0 pending messages."
+        
+        print(f"For client records: {display_text}")
+        return display_text
+
 
     def grab_more_messages(self):
         """Requests more messages from the server if the user wants to see the next batch of 10 pending messages. 
@@ -119,9 +131,12 @@ class Client:
             The server's response, either JSON or plain text. The response is the next 10 messages if they exist, otherwise it will say 'no more messages'.
         """
 
-        self.client_socket.send("more".encode("utf-8"))
-        more_messages = self.client_socket.recv(4096).decode("utf-8")
-        return more_messages
+        # self.client_socket.send("more".encode("utf-8"))
+        # more_messages = self.client_socket.recv(4096).decode("utf-8")
+        # return more_messages
+        request = chatapp_pb2.MoreMessagesRequest(username=self.username)
+        response = self.stub.MoreMessages(request)
+        return response.message
 
 
     def delete_account(self):

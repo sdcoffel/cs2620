@@ -5,7 +5,6 @@ import time
 import chatapp_pb2
 import chatapp_pb2_grpc
 
-#import threading
 from accounts import *
 from messages import *
 
@@ -108,40 +107,44 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
                 continue
 
 
-    def handle_pending_messages(connection, username):
-        """This function displays the most recent 10 pending messages for the user on login. If JSON_MODE is off,
-        the messages are processed on the server and then sent over the wire to the client as a string, which the client will then decode.
+    def GetPendingMessages(self, request, context):
+        """This function displays the most recent 10 pending messages for the user on login. 
         """
 
-        pending_messages = load_pending_messages(PENDING_MESSAGES_FILE_PATH)
+        pending = load_pending_messages(PENDING_MESSAGES_FILE_PATH)
+        messages_list = []
+        if request.username in pending:
 
-        if username in pending_messages:
-            # grab the first 10 messages to send to the client
-            message_list = pending_messages[username]
-            num_pending_messages = len(message_list)
+            #grab most recent 10 messages
+            message_list = pending[request.username]
             message_limit = message_list[-10:]
+            pending_message_info = "You have pending messages: \n"
+            
+            for sender, msg in message_limit:
+                pending_message_info += f"{sender}: {msg}\n"
 
-            # prepare the message for sending and update our internal database
-            pending_message_info = f"You have pending messages: \n"
-            for sender, message in message_limit:
-                full_message = f"{sender}: {message}\n"
-                pending_message_info += full_message
-                create_message(sender, username, message, messages)
-
-            # save the messages to our internal database after removing them from the pending_messages logs
+                #save to records
+                create_message(sender, request.username, msg, messages)
+                #add to pending messages database
+                messages_list.append(chatapp_pb2.PendingMessage(sender=sender, message=msg))
+            
+            #save updates
             save_messages(MESSAGES_FILE_PATH, messages)
-
-            # send messages over to the client in the chosen format
-            connection.send(pending_message_info.encode("utf-8"))
-
+            
+            #remove the sent messages from the pending database
             if len(message_list) > 10:
-                pending_messages[username] = message_list[:-10]
-
-            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, 10) #for some reason this stuff is not getting deleted 
-            print(f"Pending messages for {username} sent to {username}.")
-
+                pending[request.username] = message_list[:-10]
+            else:
+                pending[request.username] = []
+            
+            #delete pending messages from the database -- am i double deleting here??? 
+            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, request.username, 10)
+            print(f"Pending messages for {request.username} sent to {request.username}.")
+            return chatapp_pb2.PendingMessagesResponse(messages=messages_list, message=pending_message_info)
+        
         else:
-            connection.send("You have 0 pending messages.\n".encode("utf-8"))
+            #if there are no pending messages:
+            return chatapp_pb2.PendingMessagesResponse(messages=[], message = "You have 0 pending messages.\n")
 
 
     def delete_message_handler(connection, message_content):
@@ -161,7 +164,7 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             connection.send(f"Message with content '{message_content}' not found.".encode("utf-8"))
 
 
-    def handle_more_messages(connection, username):
+    def MoreMessages(self, request, context):
         """If there are more than 10 pending messages, the user can request to see the rest of them in chunks of 10 on login by clicking the 'more' button on the GUI.
         That button will call this function. This function will grab the next 10 messages from the pending queue, send them over to the client, and store those messages in our
         internal database by moving them from the pending_messages file to all_messages_ever.
@@ -171,30 +174,31 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             username: the client's chosen username
         """
 
-        if username in pending_messages and pending_messages[username]:
-            message_list = pending_messages[username]
+        if request.username in pending_messages and pending_messages[request.username]:
+            message_list = pending_messages[request.username]
             if message_list:
+                #get most recent 10 messages
                 message_limit = message_list[-10:]
-                more_message_info = ""
+                messages_list = []
+                for sender, msg in message_limit:
+                    messages_list.append(chatapp_pb2.PendingMessage(sender=sender, message=msg))
 
-                for sender, message in message_limit:
-                    #full_message = f"{sender}: {message}\n"
-                    more_message_info += f"{sender}: {message}\n"
-
-                connection.send(more_message_info.encode("utf-8"))
-                create_message(sender, username, message, messages)
+                #log messages
+                for sender, msg in message_limit:
+                    create_message(sender, request.username, msg, messages)
                 save_messages(MESSAGES_FILE_PATH, messages)
-                pending_messages[username] = message_list[:-10]
-                delete_pending_messages(PENDING_MESSAGES_FILE_PATH, username, 10)
 
-                if not pending_messages[username]:
-                    connection.send("No more messages.\n".encode("utf-8"))
+                #remove messages from pending list
+                pending_messages[request.username] = message_list[:-10] #do i need this???
+                delete_pending_messages(PENDING_MESSAGES_FILE_PATH, request.username, 10)
 
+                #return the retrieved messages.
+                return chatapp_pb2.MoreMessagesResponse(messages=messages_list, message="More messages retrieved.")
+            
             else:
-                connection.send("No more messages.\n".encode("utf-8"))
-
+                return chatapp_pb2.MoreMessagesResponse(messages=[], message="No more messages.\n")
         else:
-            connection.send("No more messages.\n".encode("utf-8"))
+            return chatapp_pb2.MoreMessagesResponse(messages=[], message="No more messages.\n")
 
 
     def handle_account_deletion(connection, username):
@@ -248,17 +252,12 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
     #     try:
     #         print(f"Connected with {address}")
 
-    #         """Login protocols."""
-
+            #i feel like i still need these....
     #         accounts = load_accounts(FILE_PATH)
     #         username = login_protocol(connection, accounts)
-    #         active_clients[username] = {"socket": connection}
+    #         active_clients[username] = {"socket": connection} #this could be a problem later....
     #         print(f"{username} has connected.\n")
 
-    #         #handle_pending_messages(connection, username)
-
-    #         """Main message loop. Keywords come through for special commands - since everything is passed through as strings in our custom wire protocol, the server will listen for 
-    #             these specific keywords from the client/GUI and do specific operations if it hears them. The message that gets sent over the wire is stored in 'raw_message'."""
 
             # while True:
             #     raw_message = connection.recv(1024).decode().strip()
@@ -283,13 +282,6 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             #         delete_message_handler(connection, message_content)
             #         continue
 
-            #     # see if there are more pending messages that need to be displayed
-            #     elif raw_message.lower() == "more":
-            #         handle_more_messages(connection, username)
-
-            #     # proceed to the messaging screen on the GUI
-            #     elif raw_message.lower() == "done":
-            #         continue
 
             #     # we don't need this, but its good to know server-side who is logging on or off
             #     elif raw_message.lower() == "logout":
@@ -301,7 +293,7 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             #         send_message(recipient, username, msg)
 
             #     else:
-            #         # handle setting the recipient and tracking in the server
+            #         # handle setting the recipient and tracking in the server -- i feel like i still need this 
             #         recipient = raw_message
 
             #         if recipient in accounts:
