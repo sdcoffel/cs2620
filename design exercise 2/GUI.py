@@ -68,7 +68,6 @@ class ChatApp(tk.Tk):
         self.connect_button.pack(pady=20)
 
 
-
     def attempt_connection(self):
         """Tries user supplied connection info against the server's socket. If it fails, user is prompted to try again."""
         host = self.host_entry.get()
@@ -81,7 +80,6 @@ class ChatApp(tk.Tk):
 
         except Exception as e: 
             messagebox.showerror("Connection Error", "Invalid host or port. Please try again.")
-
 
 
     def setup_login_ui(self):
@@ -153,7 +151,6 @@ class ChatApp(tk.Tk):
         self.message_label.pack()
 
 
-
     def handle_login(self, existing):
         """Grabs the user-supplied login credentials and ships them off to the server for validation."""
 
@@ -176,7 +173,6 @@ class ChatApp(tk.Tk):
             self.username_entry.delete(0, 'end')
             self.password_entry.delete(0, 'end')
             self.message_label.config(text=message)
-
 
 
     def display_pending_messages(self):
@@ -218,13 +214,11 @@ class ChatApp(tk.Tk):
         self.text_area.insert(tk.END, messages)
 
 
-
     def request_more_messages(self):
         """Sends request for more messages and updates the text area."""
 
         more_messages = self.client.grab_more_messages()
         self.text_area.insert(tk.END, more_messages + "\n")
-
 
 
     def proceed_to_chat(self):
@@ -340,7 +334,6 @@ class ChatApp(tk.Tk):
             self.text_area.insert(tk.END, f"Now messaging: {recipient}\n")
 
 
-
     def delete_account(self):
         """Manage account deletion semantics. Give the user the option to delete their account or not, if they have unread messages."""
     
@@ -352,7 +345,6 @@ class ChatApp(tk.Tk):
         server_message = self.client.delete_account()
         self.text_area.insert(tk.END, server_message + "\n")
         self.quit_app()
-
 
 
     def list_accounts(self):
@@ -385,7 +377,6 @@ class ChatApp(tk.Tk):
         search_entry.bind("<Return>", lambda event: self.search_accounts(search_entry, accounts, search_frame))
 
 
-
     def search_accounts(self, search_entry, accounts, search_frame):
         """Allows for wildcard searching through registered accounts."""
 
@@ -413,7 +404,6 @@ class ChatApp(tk.Tk):
         self.result_text.insert(tk.END, search_result_text)
 
 
-
     def delete_message(self):
         """Deletes messages for the user and removes it from the chat box. Also sends a request to the server to remove the message from its database."""
 
@@ -439,7 +429,6 @@ class ChatApp(tk.Tk):
         self.text_area.delete("end-2l", "end-1l")
 
 
-
     def send_message(self, event=None):
         """Sends the message to the server for forwarding."""
 
@@ -447,7 +436,6 @@ class ChatApp(tk.Tk):
         message = self.msg_entry.get()
         self.text_area.insert(tk.END, "You: " + message + "\n")
         self.client.send_messages(recipient, message)  
-
 
 
     def receive_messages(self):
@@ -458,13 +446,11 @@ class ChatApp(tk.Tk):
             self.text_area.insert(tk.END, "Recieved from: " + message + "\n")
 
 
-
     def quit_app(self):
         """Shuts down the GUI."""
 
         self.client.close_connection()
         self.destroy()
-
 
 
     def mainloop(self):
@@ -476,7 +462,7 @@ class ChatApp(tk.Tk):
 if __name__ == "__main__":
     """Assigns the client, GUI, and runs the main loop."""
 
-    client = Client()
+    client = Client(host = 'localhost', port = 50051)
     app = ChatApp(client)
     app.mainloop()
 
