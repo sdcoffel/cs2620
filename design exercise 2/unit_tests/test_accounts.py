@@ -8,7 +8,7 @@ sys.path.append("../")  #for local testing
 import accounts
 from accounts import *
 
-
+#these should not change no matter what wire protocol we are using - keep these tests the same 
 
 class TestAccountManager(unittest.TestCase):
     """This is a suite of tests designed to really attack accounts.py.
@@ -22,12 +22,10 @@ class TestAccountManager(unittest.TestCase):
         self.accounts = {}
 
 
-
     def tearDown(self):
         """This will get rid of the file after testing."""
         if os.path.exists(self.test_file_path):
             os.remove(self.test_file_path)
-
 
 
     def generate_random_string(self, length=8):
@@ -36,7 +34,6 @@ class TestAccountManager(unittest.TestCase):
         """
         letters = string.ascii_lowercase
         return "".join(random.choice(letters) for i in range(length))
-
 
 
     def test_create_account(self):
@@ -58,7 +55,6 @@ class TestAccountManager(unittest.TestCase):
             self.assertEqual(account["password"], password)  
 
 
-
     def test_duplicate_username(self):
         """Makes sure that we handle dupes properly,"""
     
@@ -70,7 +66,6 @@ class TestAccountManager(unittest.TestCase):
             #creates a new account with the same info; we should trigger the value error here
             with self.assertRaises(ValueError) as context:
                 create_account(username, password, self.test_file_path)  
-
 
 
     def test_delete_account(self):
@@ -92,14 +87,12 @@ class TestAccountManager(unittest.TestCase):
             self.assertNotIn(username, accounts)  
 
 
-
     def test_invalid_account(self):
         """Test the validation of account structures."""
 
         for _ in range(5):
             invalid_account = {"username": "user", "uuid": "someuuid"}
             self.assertFalse(is_valid_account(invalid_account))
-
 
 
     def test_list_accounts(self):
@@ -117,7 +110,6 @@ class TestAccountManager(unittest.TestCase):
 
 
 
-
 class CustomTestRunner(unittest.TextTestRunner):
     """This is the package's custom test runner class. Increasing the verbosity gives you more information about the tests that were run. 
     I personally put it on 2 because I like having information but not being overwhelmed.
@@ -127,7 +119,6 @@ class CustomTestRunner(unittest.TextTestRunner):
         """Initialize."""
 
         super().__init__(*args, **kwargs)
-
 
 
     def run(self, test):
@@ -143,7 +134,6 @@ class CustomTestRunner(unittest.TextTestRunner):
         else:
             print("All tests passed!")
         return result
-
 
 
 

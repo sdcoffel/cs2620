@@ -9,11 +9,11 @@ sys.path.append("../")  #for local testing
 import messages
 from messages import *
 
+#similarly to the accounts test, these should not change at all. we should still pass all of these regardless of our wire protocol 
 
 class TestMessageManager(unittest.TestCase):
     """This is a suite of tests that is designed to test the messaging functions and how we store all the messages. This gives me more confidence in their behavior on the server.
     If I pass these, I am reasonably confident that the data is being managed properly during communications. I watch them all in .txt files, but this is good for robust checking.
-
     """
 
     def setUp(self):
@@ -26,12 +26,10 @@ class TestMessageManager(unittest.TestCase):
         self.pending_messages = {}
 
 
-
     def tearDown(self):
         """Clean up the temporary file after tests are complete."""
 
         os.remove(self.temp_file_path)
-
 
 
     def generate_random_string(self, length=10):
@@ -39,7 +37,6 @@ class TestMessageManager(unittest.TestCase):
 
         letters = string.ascii_letters
         return "".join(random.choice(letters) for i in range(length))
-
 
 
     def test_is_valid_message(self):
@@ -65,7 +62,6 @@ class TestMessageManager(unittest.TestCase):
         self.assertFalse(is_valid_message(invalid_message))
 
 
-
     def test_create_message(self):
         """Test creating a message and storing it in a dictionary."""
 
@@ -80,7 +76,6 @@ class TestMessageManager(unittest.TestCase):
         self.assertIn(message["uuid"], self.messages)
 
 
-
     def test_delete_message(self):
         """Test deleting a message by its content."""
 
@@ -92,7 +87,6 @@ class TestMessageManager(unittest.TestCase):
         
         #delete_account returns the boolean message_found, which should be False on deletion
         self.assertFalse(delete_message("nonexistent message", self.temp_file_path))
-
 
 
     def test_list_messages(self):
@@ -118,7 +112,6 @@ class TestMessageManager(unittest.TestCase):
         self.assertEqual(len(no_match_messages), 0)
 
 
-
     def test_list_messages_filtering_and_ordering(self):
         """Test filtering and ordering of listed messages."""
 
@@ -139,7 +132,6 @@ class TestMessageManager(unittest.TestCase):
         self.assertEqual(actual_order, expected_order)
 
 
-
     @patch("builtins.open", mock_open(read_data="uuid1,2020-01-01 12:00,alice,bob,Hello!\n" + "uuid2,2020-01-01 12:05,alice,charlie,Hey there!\n"))
     def test_load_messages(self):
         """Test loading messages from a file with mocked file opening to ensure proper handling of CSV formatted data."""
@@ -151,7 +143,6 @@ class TestMessageManager(unittest.TestCase):
         self.assertIn("uuid2", messages)
         self.assertEqual(messages["uuid1"]["content"], "Hello!")
         self.assertEqual(messages["uuid2"]["content"], "Hey there!")
-
 
 
     def test_random_message_operations(self):
@@ -194,7 +185,6 @@ class TestMessageManager(unittest.TestCase):
         self.assertEqual(sorted(expected_contents), sorted(actual_contents))
 
 
-
     def test_store_pending_message(self):
         """Test storing a pending message. These behave very similar to normal messages, so I do not expect much difference here.
         I'll do this the same way as normal messages, just for completeness sake.
@@ -213,7 +203,6 @@ class TestMessageManager(unittest.TestCase):
         self.assertIn(message["uuid"], self.pending_messages)
 
 
-
     def test_list_pending_messages(self):
         """Test listing all pending messages. Same deal."""
 
@@ -229,7 +218,6 @@ class TestMessageManager(unittest.TestCase):
 
 
 
-
 class CustomTestRunner(unittest.TextTestRunner):
     """This is the package's custom test runner class. You can customize the output of the test results
     however you want. Increasing the verbosity gives you more information about the tests that were run.
@@ -239,7 +227,6 @@ class CustomTestRunner(unittest.TextTestRunner):
         """Init stuff."""
 
         super().__init__(*args, **kwargs)
-
 
 
     def run(self, test):
@@ -254,7 +241,6 @@ class CustomTestRunner(unittest.TextTestRunner):
         else:
             print("All tests passed!")
         return result
-
 
 
 

@@ -1,13 +1,11 @@
 import unittest
 from unittest.mock import patch, Mock, MagicMock
-import json
 import socket
 import sys
 
 #these will need to be fixed w new wire protocol
 sys.path.append("../")
 from client import Client
-from settings import JSON_MODE
 
 
 class TestChatClient(unittest.TestCase):
