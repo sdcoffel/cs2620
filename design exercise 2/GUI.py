@@ -11,10 +11,7 @@ class ChatApp(tk.Tk):
         """Fire up the connection screen with host/port entries and connect button."""
 
         super().__init__()
-
-        #client get assigned as the object - wow i love oop so convenient and useful :////////////////!////////!////
         self.client = client
-
         self.title("Welcome to Sav and Ian's Messaging App!")
         self.minsize(600, 800)
         self.configure(bg="light blue")
@@ -227,7 +224,6 @@ class ChatApp(tk.Tk):
         #clear the login screen 
         self.text_area.delete("1.0", tk.END)
         self.login_frame.pack_forget()  
-        #self.text_area.delete(1.0, tk.END)  
 
         #recipient styling 
         self.recipient_label = tk.Label(self, text="Who would you like to message?", bg="light blue")
@@ -322,7 +318,6 @@ class ChatApp(tk.Tk):
 
         #start a thread to receive messages so multiple clients can run concurrently 
         threading.Thread(target=self.receive_messages, daemon=True).start()
-
 
 
     def set_recipient(self, event=None):

@@ -1,8 +1,9 @@
-#import socket
 import grpc
 import hashlib
 import chatapp_pb2
 import chatapp_pb2_grpc
+
+#todo: don't hardcode in host and port info 
 
 class Client:
 
@@ -30,6 +31,9 @@ class Client:
             username (str): The username to log in with
             password (str): The password to log in with
             existing (str): "yes" or "no", indicating if the account already exists
+
+        Returns: 
+            response.success (bool), response.message (str): flag for a successful login, and the corresponding message.
         """
 
         #password gets hashed
@@ -63,8 +67,9 @@ class Client:
         
         if response.messages:
             display_text = "\n".join([f"{msg.sender}: {msg.message}" for msg in response.messages])
+
         else:
-            display_text = response.message  #"You have 0 pending messages."
+            display_text = response.message + "\n" #"You have 0 pending messages."
         
         print(f"For client records: {display_text}")
         return display_text
@@ -74,7 +79,7 @@ class Client:
         """Requests more messages from the server if the user wants to see the next batch of 10 pending messages. 
 
         Returns:
-            The server's response, either JSON or plain text. The response is the next 10 messages if they exist, otherwise it will say 'no more messages'.
+            The server's response as the next 10 messages if they exist, otherwise it will say 'no more messages'.
         """
 
         request = chatapp_pb2.MoreMessagesRequest(username=self.username)
@@ -83,7 +88,9 @@ class Client:
     
 
     def set_recipient(self, recipient):
-        """Stores the default recipient locally so that future send_messages calls can use it."""
+        """Stores the default recipient locally so that future send_messages calls can use it.
+        This is also convenient because you can change the intended recipient in the GUI at will here.
+        """
         
         self.recipient = recipient
         print(f"Default recipient set to {recipient}")
@@ -92,7 +99,7 @@ class Client:
     def ReceiveMessages(self):
         """
         Opens a streaming RPC to receive messages in real time.
-        This method blocks and yields messages as they arrive.
+        This blocks and yields messages to the GUI as they arrive.
         """
 
         request = chatapp_pb2.ReceiveMessagesRequest(username=self.username)
@@ -108,6 +115,9 @@ class Client:
     def send_messages(self, recipient, message):
         """
         Sends a message by calling the SendMessage RPC.
+
+        Returns:
+            the message data that is displayed in the GUI.
         """
 
         #if the recipient doesn't exist yet 
@@ -126,7 +136,7 @@ class Client:
         and the confirmation is sent to the client for a sanity check.
 
         Returns:
-            The server message response (plain text or JSON).
+            The server message response.
         """
 
         #print the deletion confirmation to console for a sanity check
@@ -137,7 +147,7 @@ class Client:
 
 
     def list_accounts(self, filter = "all"):
-        """Requests from the server the list of all accounts.
+        """Requests the list of all accounts from server.
 
         Returns:
             The list of accounts.
@@ -154,7 +164,7 @@ class Client:
 
         Args:
             host (str): The server IP or hostname. We can text each other over not as strongly encrypted wifi like 'Harvard University'. Eduroam might be too encrypted lol.
-            port (int): The server's designated listening port. This is assigned in the server as '12345'
+            port (int): The server's designated listening port. This is assigned in the server as '50051'
         """
 
         try:

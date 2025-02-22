@@ -18,7 +18,6 @@ def is_valid_message(message):
     return set(message.keys()) == required_keys
 
 
-
 def create_message(sender, receiver, content, messages):
     """
     Create a new message and store it in the in-memory messages dict.
@@ -54,7 +53,6 @@ def create_message(sender, receiver, content, messages):
     #store the message
     messages[new_uuid] = message_object
     return message_object
-
 
 
 def delete_message(content, file_path):
@@ -94,7 +92,6 @@ def delete_message(content, file_path):
     return message_found
 
 
-
 def list_messages(messages, sender = None, receiver= None):
     """
     List all messages currently stored in the messages dict.
@@ -125,7 +122,6 @@ def list_messages(messages, sender = None, receiver= None):
         return all_messages
 
 
-
 def format_datetime(dt_str):
     """
     Format the datetime string to a more readable format, truncating to the nearest hour and minute.
@@ -139,7 +135,6 @@ def format_datetime(dt_str):
 
     dt = datetime.fromisoformat(dt_str)
     return dt.strftime("%Y-%m-%d %H:%M")
-
 
 
 def load_messages(file_path):
@@ -164,14 +159,12 @@ def load_messages(file_path):
     return messages
 
 
-
 def save_messages(file_path, messages):
     """Save messages to a file. Serialize the messages and write them to disk"""
     with open(file_path, 'w') as file:
         for message in messages.values():
             line = f"{message['uuid']}|{message['datetime']}|{message['sender']}|{message['receiver']}|{message['content']}\n"
             file.write(line)
-
 
 
 def has_pending_messages(username, file_path):
@@ -181,7 +174,6 @@ def has_pending_messages(username, file_path):
     
     pending_messages = load_pending_messages(file_path)  
     return username in pending_messages and len(pending_messages[username]) > 0
-
 
 
 def save_pending_messages(file_path, recipient, sender, message):
@@ -196,7 +188,6 @@ def save_pending_messages(file_path, recipient, sender, message):
                     break
         line = f"{recipient}|{sender}|{message}\n"
         file.write(line)
-
 
 
 def load_pending_messages(file_path):
@@ -216,7 +207,6 @@ def load_pending_messages(file_path):
     except FileNotFoundError:
         pass
     return pending_messages
-
 
 
 def delete_pending_messages(file_path, recipient, num_messages):

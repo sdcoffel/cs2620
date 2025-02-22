@@ -1,39 +1,46 @@
 import grpc 
-from concurrent import futures 
 import time 
 import queue
 import re
 import chatapp_pb2
 import chatapp_pb2_grpc
-
+from concurrent import futures 
 from accounts import *
 from messages import *
 
 #GLOBALS - DO NOT MOVE
 FILE_PATH = "all_accounts_ever.txt"
-MESSAGES_FILE_PATH = "all_messages_ever.txt"
 PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
 active_clients = {}
-messages = {}
 pending_messages = {}
 
 class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
 
-
     def Login(self, request, context):
         """This function handles the login protocol for the client. Duplicate/bad usernames that don't match with our internal databases send a warning message to the client.
 
-        If the client is creating a new account, we check for usernames that already exist in our database. If the client provides a dupe, we tell them. If the client
-        provides a good username, we save the newly created account to our records and let them in.
+        This method receives a LoginRequest containing a username, a hashed password, and a boolean flag indicating whether the request is for account creation (is_new=True)
+        or for logging into an existing account (is_new=False). 
 
-        If the client is logging in, we check that the username they provide is a username in our database, and we validate the password with what we have stored.
-        Our passwords are all hashed, so the hashed password comes in from the client side, and that is what we cross-check with our records.
+        For account creation, the server checks whether the username already exists in its database.
+        If it does, a failure response is returned; otherwise, the account is created and a success response is sent. 
+        For login requests, the method validates the provided username and hashed password against the stored credentials. 
+        If the credentials match, a success response is returned; otherwise, an error message is sent back.
 
+        On invalid input or verification failure, the server returns a LoginResponse with success set to False along with an error message.
         On bad login attempts, users can attempt to log in as many times as necessary. Succesful logins take you to the pending messages board.
 
         Args:
-            connection (socket.socket()): socket associated with the client
-            accounts: the dict of all accounts that are registered on the server, for cross-validation
+            request (LoginRequest): A gRPC request message containing:
+                - username (str): user's username.
+                - password (str): user's hashed password.
+                - is_new (bool): True for new account creation; False for logging in.
+                - context (grpc.ServicerContext): RPC-specific information like deadlines and metadata.
+
+        Returns:
+            LoginResponse: A gRPC response message with:
+                - success (bool): True if login or account creation is successful; False otherwise.
+                - message (str): A descriptive message indicating the outcome of the operation.
 
         """
         # grab credentials that came over from the client
@@ -64,15 +71,27 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
                     else:
                         return chatapp_pb2.LoginResponse(success=False, message="This username/password is not registered with us!")
                     
-
-
             except ValueError as e:
                 print(f"Client log: Account creation failed. Try again")
                 continue
 
 
     def GetPendingMessages(self, request, context):
-        """This function displays the most recent 10 pending messages for the user on login. 
+        """This function displays the most recent 10 pending messages for the user on login by loading the pending messages 
+        from persistent storage for the user identified in the request.
+        It selects the last (most recent) 10 messages and formats them as a list of PendingMessage objects. 
+        Finally, the method updates the pending messages store and deletes them from persistent storage.
+
+        Args:
+            request (PendingMessagesRequest): A request message containing:
+                - username (str): The username for which pending messages are to be retrieved.
+                - context (grpc.ServicerContext): RPC-specific information (deadlines, metadata, etc.).
+
+        Returns:
+            PendingMessagesResponse: A response message containing:
+                - messages (repeated PendingMessage): The list of up to 10 pending messages.
+                - message (str): A summary string of the pending messages or indication that no pending messages exist.
+
         """
 
         pending = load_pending_messages(PENDING_MESSAGES_FILE_PATH)
@@ -88,13 +107,8 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
                 pending_message_info += f"{sender}: {msg}\n"
 
                 #save to records
-                create_message(sender, request.username, msg, messages)
-                #add to pending messages database
                 messages_list.append(chatapp_pb2.PendingMessage(sender=sender, message=msg))
-            
-            #save updates
-            save_messages(MESSAGES_FILE_PATH, messages)
-            
+                      
             #remove the sent messages from the pending database
             if len(message_list) > 10:
                 pending[request.username] = message_list[:-10]
@@ -111,15 +125,19 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             return chatapp_pb2.PendingMessagesResponse(messages=[], message = "You have 0 pending messages.\n")
 
 
-
     def MoreMessages(self, request, context):
-        """If there are more than 10 pending messages, the user can request to see the rest of them in chunks of 10 on login by clicking the 'more' button on the GUI.
-        That button will call this function. This function will grab the next 10 messages from the pending queue, send them over to the client, and store those messages in our
-        internal database by moving them from the pending_messages file to all_messages_ever.
+        """Constructs a list of 10 more PendingMessage objects representing these messages, updates the internal pending messages
+        store by removing the messages that have been retrieved, and deletes these messages from persistent storage.
 
         Args:
-            connection (socket.socket()): socket associated with the client
-            username: the client's chosen username
+            request (MoreMessagesRequest): A request message containing:
+                - username (str): The username for which additional pending messages are requested.
+                - context (grpc.ServicerContext): RPC-specific info.
+
+        Returns:
+            MoreMessagesResponse: A response message containing:
+                - messages (repeated PendingMessage): A list of up to 10 pending messages.
+                - message (str): A string indicating the result.
         """
 
         if request.username in pending_messages and pending_messages[request.username]:
@@ -131,17 +149,12 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
                 for sender, msg in message_limit:
                     messages_list.append(chatapp_pb2.PendingMessage(sender=sender, message=msg))
 
-                #log messages
-                for sender, msg in message_limit:
-                    create_message(sender, request.username, msg, messages)
-                save_messages(MESSAGES_FILE_PATH, messages)
-
                 #remove messages from pending list
                 pending_messages[request.username] = message_list[:-10] #do i need this???
                 delete_pending_messages(PENDING_MESSAGES_FILE_PATH, request.username, 10)
 
                 #return the retrieved messages.
-                return chatapp_pb2.MoreMessagesResponse(messages=messages_list, message="More messages retrieved.")
+                return chatapp_pb2.MoreMessagesResponse(messages=messages_list, message="More messages retrieved.\n")
             
             else:
                 return chatapp_pb2.MoreMessagesResponse(messages=[], message="No more messages.\n")
@@ -150,16 +163,19 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
 
 
     def SendMessage(self, request, context):
-        """This function will send a message to a specific client. All clients that are currently using the server are stored in the 'active_clients' dict, which
-        maps [update this ]
-
-        All messages that are sent through are stored on the internal database (currently, this is a .txt file containing all messages ever sent).
-        If a message is being sent to a user that is not online, it gets saved to the 'pending_messages.txt' file, which holds the messages until the relevant client logs back on.
+        """This function will send a message to a specific client. 
+        If the intended recipient is online, the message is delivered in real time by placing it into that client's queue.
+        If the recipient is offline, the message is appended to the 'pending_messages' store and saved to persistent storage, so it can be delivered when the recipient logs in.
 
         Args:
-            to be updated 
+            request (SendMessageRequest): A request message containing:
+                - sender (str): The username of the client sending the message.
+                - recipient (str): The username of the intended recipient.
+                - message (str): The content of the message.
+                - context (grpc.ServicerContext): context for the RPC call
 
-        If we (the server) cannot get a message through, throw an error but do not terminate the connection with the client. Instead we move on to another messaging attempt.
+        Returns:
+            SendMessageResponse: A response message indicating whether the message was delivered in real time (delivered=True) or saved as pending (delivered=False).
         """
 
         #if the recipient is online, i.e., their queue is active, deliver in real time.
@@ -186,10 +202,18 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
 
     def ReceiveMessages(self, request, context):
         """
-        A server-streaming RPC that continuously yields new messages for the given user.
-        It first pushes any pending messages into the client's queue. Otherwise, it's forwarded immediately.
+        Server-streaming RPC that continuously yields new chat messages for the user.
+        Ensures that the user's message queue exists and queues any pending messages from persistent storage. 
+        When a message is available, this yields a ChatMessageResponse containing the sender and message content. The loop continues as long as the RPC context is active.
+        
+        Args:
+            request (ReceiveMessagesRequest): The request message containing:
+                - username (str): The username of the client that will receive messages.
+                - context (grpc.ServicerContext):  RPC-specific info
+            
+        Yields:
+            ChatMessageResponse: A stream of chat messages (each with a sender and message field) for the client.
         """
-
         #make sure the user's queue is actually there
         if request.username not in active_clients:
             active_clients[request.username] = queue.Queue()
@@ -200,26 +224,32 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             for sender, msg in pending_messages[request.username]:
                 client_queue.put((sender, msg))
             pending_messages[request.username] = []
-            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, request.username, 10)  # Adjust as needed.
+            delete_pending_messages(PENDING_MESSAGES_FILE_PATH, request.username, 10) 
 
-        #stream messages to the client in real time
+        #stream messages to the client in real time. if we ever happen to hit an empty queue, just continue 
         while True:
             try:
                 sender, msg = client_queue.get(timeout=0) #immediate - although i want to clean this up a lot
                 yield chatapp_pb2.ChatMessageResponse(sender=sender, message=msg)
+
             except queue.Empty:
-                #keep waiting
                 continue
 
 
     def DeleteAccount(self, request, context):
-        """This function allows users to delete their accounts. The user is prompted for a confirmation, and if the user says yes, the function calls delete_account()
-        which deletes the user's account from the database and sends a message to the client. On the GUI, the window is also promptly closed.
-        If the user chooses not to delete their account, nothing happens, and we proceed as normal.
+        """This function allows users to delete their accounts.     
+        The request contains the username and a boolean flag (confirm) indicating whether the user has confirmed the deletion
+        If there are pending messages and confirmation has not been provided, returns a response prompting the client to confirm deletion. 
+        If confirmation is provided or there are no pending messages, the user's account is deleted from the database, and any pending messages are also removed.
 
         Args:
-            (socket.socket()): socket associated with the client
-            username: the client's chosen username
+            request (DeleteAccountRequest): A request message containing:
+                - username (str): The username of the account to delete.
+                - confirm (bool): True if the user confirms deletion despite unread messages; otherwise, False.
+                - context (grpc.ServicerContext): RPC context info, providing metadata and deadlines for the call.
+
+        Returns:
+            DeleteAccountResponse: A response message indicating whether the deletion was successful.
         """
 
         username = request.username
@@ -248,7 +278,19 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
 
     def ListAccounts(self, request, context):
         """
-        Retrieves a list of all registered accounts, optionally filtering them by a regex pattern.
+        Obtains all account names from the server's account storage, splits them into a list, and then applies a regex filter if needed. 
+        If the filter is empty or set to "all", all accounts are returned. 
+        If a regex error occurs, an error message is returned.
+
+        Args:
+            request (ListAccountsRequest): A request message containing:
+                - filter (str): A regex pattern to filter account names. If empty or "all", no filtering is applied.
+                - context (grpc.ServicerContext): The context for the RPC, etc.
+
+        Returns:
+            ListAccountsResponse: A response message containing:
+                - accounts (repeated string): The list of account names that match the filter.
+                - message (str): A message indicating the success/failure of the listing operation.
         """
        
         all_accounts = list_accounts(FILE_PATH)
@@ -270,11 +312,19 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
 
 
 def start_server():
-    """Responsible for booting up the server.
-    This will run until the server encounters an exception or is manually shut off. Here, the server listens for a client who wishes to connect, then starts a thread for that client.
-    This ensures that we can have multiple clients running together, all on separate threads.
-    """
+    """Boots up and runs the gRPC server until termination.
+    This function:
+      - Loads any pending messages from persistent storage.
+      - Creates a gRPC server using a ThreadPoolExecutor with up to 10 worker threads.
+      - Registers the ChatServiceServicer (i.e., ChatServer) with the gRPC server.
+      - Binds the server to port 50051 and starts it.
+      - Calls wait_for_termination() to block execution until a termination signal (e.g., KeyboardInterrupt) is received.
 
+    Upon termination (Cntrl+C for us), the function attempts to save any pending messages back to persistent storage before exiting.
+
+    Returns:
+        None
+    """
 
     global pending_messages
     load_pending_messages(PENDING_MESSAGES_FILE_PATH)
@@ -286,17 +336,10 @@ def start_server():
         server.add_insecure_port('[::]:50051')
         server.start()
         print(f"Server is listening on port 50051...")
-
-        try: 
-            while True: 
-                time.sleep(86400) #this is the only way to keep the while loop running for a long time- has to be a better way than this
-        except KeyboardInterrupt: 
-            server.stop(0)
-
+        server.wait_for_termination() #this is a blocking call that keeps the server running until keyboard interrupt
 
     except Exception as e: 
         print(f"Fatal error {e} with server")
-
 
     finally:
         try:
@@ -308,13 +351,10 @@ def start_server():
 
 
 if __name__ == "__main__":
-    # call all globally scoped vars
+    """Call all globally scoped variables, and start up the server."""
+
     FILE_PATH 
-    MESSAGES_FILE_PATH 
     PENDING_MESSAGES_FILE_PATH
     active_clients 
-    messages 
     pending_messages 
-
-    #fire up the server
     start_server()
