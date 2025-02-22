@@ -227,7 +227,7 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             delete_pending_messages(PENDING_MESSAGES_FILE_PATH, request.username, 10) 
 
         #stream messages to the client in real time. if we ever happen to hit an empty queue, just continue 
-        while True:
+        while context.is_active():
             try:
                 sender, msg = client_queue.get(timeout=0) #immediate - although i want to clean this up a lot
                 yield chatapp_pb2.ChatMessageResponse(sender=sender, message=msg)

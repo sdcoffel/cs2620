@@ -1,230 +1,200 @@
 import unittest
-from unittest.mock import patch, Mock, MagicMock
-import socket
+from unittest.mock import patch, MagicMock
 import sys
+import re
+import grpc
 
-#these will need to be fixed w new wire protocol
+# Ensure the client module is in the path.
 sys.path.append("../")
 from client import Client
-
+import chatapp_pb2   
+import chatapp_pb2_grpc
 
 class TestChatClient(unittest.TestCase):
     def setUp(self):
-        """Set up test fixtures before each test method."""
+        """Set up a fresh Client instance before each test and replace the stub with a MagicMock."""
         self.client = Client()
-        # Create a mock socket
-        self.mock_socket = Mock(spec=socket.socket)
-        self.client.client_socket = self.mock_socket
+        # We'll simulate the stub (and thus server responses) via a MagicMock.
+        self.client.stub = MagicMock()
+        # For tests that depend on a logged-in user, set a default username.
+        self.client.username = "tester"
+
 
     def tearDown(self):
-        """Clean up after each test method."""
-        self.client.close_connection()
+        """Close the client channel (if set) after each test."""
+        if self.client.channel:
+            self.client.channel.close()
+
 
     def test_init(self):
-        """Test client initialization."""
+        """Test that a new Client instance is initialized with no channel, stub, or username."""
         client = Client()
         self.assertIsNone(client.username)
-        self.assertFalse(client.connected)
-        self.assertIsInstance(client.client_socket, socket.socket)
+        self.assertIsNone(client.channel)
+        self.assertIsNone(client.stub)
+
 
     def test_hash_password(self):
-        """Test password hashing."""
-        password = "testpass123"
-        hashed = self.client.hash_password(password)
-        # Test that same password produces same hash
-        self.assertEqual(hashed, self.client.hash_password(password))
-        # Test hashed password and password are different
-        self.assertNotEqual(hashed, password)
-        # Test hash is correct length for SHA256
-        self.assertEqual(len(hashed), 64)
+        """Test that the hash_password function produces consistent, correctly formatted SHA256 hashes."""
+        password = "testpassword"
+        hashed1 = self.client.hash_password(password)
+        hashed2 = self.client.hash_password(password)
+        self.assertEqual(hashed1, hashed2)
+        self.assertNotEqual(hashed1, password)
+        self.assertEqual(len(hashed1), 64)
 
-    @patch("socket.socket")
-    def test_start_client(self, mock_socket_class):
-        """Test client connection to server."""
-        # Create a new mock socket instance
-        mock_socket_instance = Mock()
-        # Set up the mock socket class to return our mock instance
-        mock_socket_class.return_value = mock_socket_instance
 
-        # Create a new client (don't use self.client as it already has a mock socket)
+    @patch("grpc.insecure_channel")
+    @patch("chatapp_pb2_grpc.ChatServiceStub")
+    def test_start_client(self, mock_stub_class, mock_insecure_channel):
+        """Test that start_client properly initializes the gRPC channel and stub."""
+        fake_channel = MagicMock()
+        mock_insecure_channel.return_value = fake_channel
+        fake_stub = MagicMock()
+        mock_stub_class.return_value = fake_stub
+
         client = Client()
+        client.start_client("localhost", 50051)
+        mock_insecure_channel.assert_called_once_with("localhost:50051")
+        mock_stub_class.assert_called_once_with(fake_channel)
+        self.assertIsNotNone(client.channel)
+        self.assertIsNotNone(client.stub)
 
-        host = "localhost"
-        port = 12345
-        client.start_client(host, port)
-
-        # Now verify the connect was called
-        mock_socket_instance.connect.assert_called_once_with((host, port))
-        self.assertTrue(client.connected)
 
     def test_handle_login_new_account(self):
-        """Test handling login for new account creation."""
+        """Test handling login for new account creation via gRPC."""
         username = "newuser"
         password = "password123"
-        existing = "no"
+        existing = "no"  # means the account does not exist
+        hashed_password = self.client.hash_password(password)
+        fake_response = chatapp_pb2.LoginResponse(success=True, message="Account created! You are now logged in.")
+        self.client.stub.Login.return_value = fake_response
 
-        # Mock server response for successful account creation
-        expected_response = "Account created! You are now logged in."
-        if JSON_MODE:
-            self.mock_socket.recv.return_value = json.dumps(
-                {"data": expected_response}
-            ).encode("utf-8")
-        else:
-            self.mock_socket.recv.return_value = expected_response.encode("utf-8")
-
-        response = self.client.handle_login(username, password, existing)
-
-        # Verify the client sent correct login data
-        if JSON_MODE:
-            expected_send_data = {
-                "username": username,
-                "password": self.client.hash_password(password),
-                "existing": existing,
-            }
-            self.mock_socket.send.assert_called_once_with(
-                json.dumps(expected_send_data).encode("utf-8")
-            )
-        else:
-            expected_credentials = (
-                f"{username},{self.client.hash_password(password)},{existing}"
-            )
-            self.mock_socket.send.assert_called_once_with(
-                expected_credentials.encode("utf-8")
-            )
-
-        # Check username was set
+        success, message = self.client.handle_login(username, password, existing)
+        self.assertTrue(success)
+        self.assertEqual(message, "Account created! You are now logged in.")
         self.assertEqual(self.client.username, username)
+        self.client.stub.Login.assert_called_once()
+        request_arg = self.client.stub.Login.call_args[0][0]
+        self.assertEqual(request_arg.username, username)
+        self.assertEqual(request_arg.password, hashed_password)
+        self.assertTrue(request_arg.is_new)
+
+
+    def test_get_pending_messages(self):
+        """Test retrieving pending messages via gRPC."""
+        # Create fake pending messages response.
+        fake_msg1 = chatapp_pb2.PendingMessage(sender="user1", message="Hello")
+        fake_msg2 = chatapp_pb2.PendingMessage(sender="user2", message="Hi there")
+        fake_response = chatapp_pb2.PendingMessagesResponse(
+            messages=[fake_msg1, fake_msg2],
+            message="You have pending messages"
+        )
+        self.client.stub.GetPendingMessages.return_value = fake_response
+
+        result = self.client.get_pending_messages()
+        self.assertIn("user1: Hello", result)
+        self.assertIn("user2: Hi there", result)
+        self.client.stub.GetPendingMessages.assert_called_once()
+
+
+    def test_grab_more_messages(self):
+        """Test grabbing more messages via gRPC."""
+        fake_response = chatapp_pb2.MoreMessagesResponse(
+            messages=[],
+            message="No more messages."
+        )
+        self.client.stub.MoreMessages.return_value = fake_response
+
+        result = self.client.grab_more_messages()
+        self.assertEqual(result, "No more messages.")
+        self.client.stub.MoreMessages.assert_called_once()
+
+
+    def test_set_recipient(self):
+        """Test that set_recipient correctly stores the default recipient."""
+        self.client.set_recipient("target_user")
+        self.assertEqual(self.client.recipient, "target_user")
+
+
+    def test_receive_messages(self):
+        """Test that ReceiveMessages correctly yields messages from a streaming RPC."""
+        # Define a fake generator to simulate a streaming response.
+        def fake_generator():
+            yield chatapp_pb2.ChatMessageResponse(sender="user1", message="Test message 1")
+            yield chatapp_pb2.ChatMessageResponse(sender="user2", message="Test message 2")
+        self.client.stub.ReceiveMessages.return_value = fake_generator()
+
+        messages = list(self.client.ReceiveMessages())
+        self.assertEqual(len(messages), 2)
+        self.assertIn("user1: Test message 1", messages[0])
+        self.assertIn("user2: Test message 2", messages[1])
+        self.client.stub.ReceiveMessages.assert_called_once()
+
 
     def test_send_messages(self):
-        """Test sending messages to a recipient."""
-        recipient = "testuser"
-        message = "Hello, test user!"
+        """Test sending a message via gRPC."""
 
-        self.client.send_messages(recipient, message)
+        #initialize recipient and message
+        recipient = "target_user"
+        message = "Hello there!"
+        self.client.set_recipient(recipient)
 
-        expected_message = f"{recipient}:{message}"
-        if JSON_MODE:
-            self.mock_socket.send.assert_called_once_with(
-                json.dumps({"raw_message": expected_message}).encode("utf-8")
-            )
-        else:
-            self.mock_socket.send.assert_called_once_with(
-                expected_message.encode("utf-8")
-            )
+        #simulate a response on the stub 
+        fake_response = chatapp_pb2.SendMessageResponse(delivered=True, message="Message delivered.")
+        self.client.stub.SendMessage.return_value = fake_response
 
-    def test_receive_messages_json_mode(self):
-        """Test receiving messages in JSON mode."""
-        if not JSON_MODE:
-            self.skipTest("Test only applicable in JSON mode")
+        #simulate deliverance
+        delivered = self.client.send_messages(recipient, message)
+        self.assertTrue(delivered)
+        self.client.stub.SendMessage.assert_called_once()
+        request_arg = self.client.stub.SendMessage.call_args[0][0]
 
-        test_message = {"sender": "testuser", "message": "Test message"}
-        self.mock_socket.recv.return_value = json.dumps(test_message).encode("utf-8")
+        #assertions to pass
+        self.assertEqual(request_arg.sender, self.client.username)
+        self.assertEqual(request_arg.recipient, recipient)
+        self.assertEqual(request_arg.message, message)
 
-        received = self.client.receive_messages()
-        self.assertEqual(received, json.dumps(test_message))
 
-    def test_receive_messages_plain_mode(self):
-        """Test receiving messages in plain text mode."""
-        if JSON_MODE:
-            self.skipTest("Test only applicable in plain text mode")
+    def test_delete_account(self):
+        """Test account deletion via gRPC."""
+        fake_response = chatapp_pb2.DeleteAccountResponse(success=True, message="Account deleted successfully.")
+        self.client.stub.DeleteAccount.return_value = fake_response
 
-        test_message = "testuser: Test message"
-        self.mock_socket.recv.return_value = test_message.encode("utf-8")
+        response = self.client.delete_account()
+        self.assertEqual(response, "Account deleted successfully.")
+        self.client.stub.DeleteAccount.assert_called_once()
 
-        received = self.client.receive_messages()
-        self.assertEqual(received, test_message)
-
-    def test_delete_message(self):
-        """Test message deletion request."""
-        message = "Test message to delete"
-        server_response = "Message deleted successfully"
-
-        if JSON_MODE:
-            self.mock_socket.recv.return_value = json.dumps(
-                {"data": server_response}
-            ).encode("utf-8")
-        else:
-            self.mock_socket.recv.return_value = server_response.encode("utf-8")
-
-        self.client.delete_message(message)
-
-        if JSON_MODE:
-            expected_send = json.dumps({"raw_message": "delete " + message}).encode(
-                "utf-8"
-            )
-        else:
-            expected_send = ("delete" + message).encode("utf-8")
-
-        self.mock_socket.send.assert_called_once_with(expected_send)
 
     def test_list_accounts(self):
-        """Test requesting account list."""
+        """Test listing accounts via gRPC."""
         test_accounts = ["user1", "user2", "user3"]
+        fake_response = chatapp_pb2.ListAccountsResponse(
+            accounts=test_accounts,
+            message="Accounts listed successfully."
+        )
+        self.client.stub.ListAccounts.return_value = fake_response
 
-        if JSON_MODE:
-            self.mock_socket.recv.return_value = json.dumps(
-                {"data": test_accounts}
-            ).encode("utf-8")
-        else:
-            self.mock_socket.recv.return_value = "\n".join(test_accounts).encode(
-                "utf-8"
-            )
-
-        accounts = self.client.list_accounts()
-
-        if JSON_MODE:
-            self.mock_socket.send.assert_called_once_with(
-                json.dumps({"raw_message": "list_accounts"}).encode("utf-8")
-            )
-        else:
-            self.mock_socket.send.assert_called_once_with(
-                "list_accounts".encode("utf-8")
-            )
-
-        self.assertEqual(len(accounts), len(test_accounts))
-
-    def test_wildcard_filtering(self):
-        """Test wildcard pattern matching for account filtering."""
-        test_accounts = ["user1", "user2", "admin1", "admin2"]
-
-        # Test "all" pattern
-        filtered = self.client.wildcard("all", test_accounts)
-        self.assertEqual(filtered, test_accounts)
-
-        # Test specific pattern
-        filtered = self.client.wildcard("admin.*", test_accounts)
-        self.assertEqual(filtered, ["admin1", "admin2"])
-
-        # Test no matches
-        filtered = self.client.wildcard("nonexistent.*", test_accounts)
-        self.assertEqual(filtered, "No accounts match the given pattern.")
-
-
-
+        accounts = self.client.list_accounts("all")
+        self.assertEqual(accounts, test_accounts)
+        self.client.stub.ListAccounts.assert_called_once()
 
 
 class CustomTestRunner(unittest.TextTestRunner):
-    """This is the package's custom test runner class. You can customize the output of the test results
-    however you want. Increasing the verbosity gives you more information about the tests that were run.
-
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    """Custom test runner with additional summary output."""
     def run(self, test):
         result = super().run(test)
-        print("\n\nTest Summary")
-        print("-------------------")
-        print(f"{result.testsRun} tests run in total.")
+        print("\nTest Summary")
+        print("------------")
+        print(f"{result.testsRun} tests run.")
         if not result.wasSuccessful():
-            print(f"{len(result.failures) + len(result.errors)} tests failed.")
+            print(f"Failures: {len(result.failures)}, Errors: {len(result.errors)}")
         else:
             print("All tests passed!")
         return result
 
 
 if __name__ == "__main__":
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestChatClient)
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestChatClient)
     runner = CustomTestRunner(verbosity=2)
     runner.run(suite)
