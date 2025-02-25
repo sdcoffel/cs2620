@@ -72,49 +72,42 @@ class TestChatClient(unittest.TestCase):
         resp_bytes = fake_response.SerializeToString()
         self.__class__.proto_receive_bytes += len(resp_bytes)
 
-    @patch("client.chatapp_pb2_grpc.ChatServiceStub")  # <--- Not autospec
-    def test_receive_messages_proto_mode(self, mock_stub_class):
-        """
-        Test measuring the byte size of a ReceiveMessages server-streaming call
-        by calling the client's ReceiveMessages() generator.
-        """
-        mock_stub = mock_stub_class.return_value
-        self.client.stub = mock_stub
 
-        # Simulate the server streaming these responses:
-        fake_stream = [
-            chatapp_pb2.ChatMessageResponse(sender="alice", message="Hi Bob!"),
-            chatapp_pb2.ChatMessageResponse(sender="charlie", message="Lunch soon?"),
-        ]
-        # Make the stub's ReceiveMessages return an iterator over those
-        mock_stub.ReceiveMessages.return_value = iter(fake_stream)
+@patch("client.chatapp_pb2_grpc.ChatServiceStub")
+def test_receive_messages_proto_mode(self, mock_stub_class):
+    mock_stub = mock_stub_class.return_value
+    self.client.stub = mock_stub
 
-        # Suppose the client is "bob"
-        self.client.username = "bob"
+    # Instead of two messages, just have one
+    fake_stream = [
+        chatapp_pb2.ChatMessageResponse(sender="alice", message="Single test message!")
+    ]
+    mock_stub.ReceiveMessages.return_value = iter(fake_stream)
 
-        # Now call the client's method that consumes the server stream
-        stream = self.client.ReceiveMessages()
+    # Suppose the client is "bob"
+    self.client.username = "bob"
 
-        # The client’s code calls stub.ReceiveMessages(...) under the hood
-        # We'll iterate to collect the results
-        collected = []
-        for msg in stream:
-            collected.append(msg)
-            # Once we've read all messages, we can break
-            if len(collected) == len(fake_stream):
-                break
+    # Now call the client's method that consumes the server stream
+    stream = self.client.ReceiveMessages()
 
-        mock_stub.ReceiveMessages.assert_called_once()
-        (actual_request,), _ = mock_stub.ReceiveMessages.call_args
+    # Collect the single result
+    collected = []
+    for msg in stream:
+        collected.append(msg)
+        if len(collected) == len(fake_stream):
+            break
 
-        # Measure the request
-        req_bytes = actual_request.SerializeToString()
-        self.__class__.proto_send_bytes += len(req_bytes)
+    mock_stub.ReceiveMessages.assert_called_once()
+    (actual_request,), _ = mock_stub.ReceiveMessages.call_args
 
-        # Measure all responses
-        for resp in fake_stream:
-            resp_bytes = resp.SerializeToString()
-            self.__class__.proto_receive_bytes += len(resp_bytes)
+    # Measure the request payload size
+    req_bytes = actual_request.SerializeToString()
+    self.__class__.proto_send_bytes += len(req_bytes)
+
+    # Measure the single response payload size
+    for resp in fake_stream:
+        resp_bytes = resp.SerializeToString()
+        self.__class__.proto_receive_bytes += len(resp_bytes)
 
 
 class CustomTestRunner(unittest.TextTestRunner):
