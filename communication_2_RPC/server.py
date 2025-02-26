@@ -333,7 +333,7 @@ def start_server():
     try:
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         chatapp_pb2_grpc.add_ChatServiceServicer_to_server(ChatServer(), server)
-        server.add_insecure_port('[::]:50051')
+        server.add_insecure_port('0.0.0.0:50051')
         server.start()
         print(f"Server is listening on port 50051...")
         server.wait_for_termination() #this is a blocking call that keeps the server running until keyboard interrupt

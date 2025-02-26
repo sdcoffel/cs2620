@@ -3,8 +3,6 @@ import hashlib
 import chatapp_pb2
 import chatapp_pb2_grpc
 
-#todo: don't hardcode in host and port info 
-
 class Client:
 
     def __init__(self, host = 'localhost', port= 50051):
