@@ -3,3 +3,15 @@
 [Clock 7] Received: Recipient not connected.
 [Clock 20] Sent: b::should fail
 [Clock 21] Received: Recipient not connected.
+[Clock 22] Sent: b::test! 
+[Clock 53] Received: b: test!
+[Clock 66] Received: b: t
+[Clock 67] Received: b: t
+[Clock 83] Sent: b::t
+[Clock 85] Sent: b::t
+[Clock 128] Received: c: another test!
+[Clock 139] Received: c: d
+[Clock 140] Received: c: d
+[Clock 141] Received: c: d
+[Clock 142] Received: c: d
+[Clock 143] Received: c: d

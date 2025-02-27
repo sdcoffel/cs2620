@@ -22,6 +22,7 @@ def receive_messages(sock, net_queue):
             net_queue.put("Error receiving message: " + str(e))
             break
 
+
 def process_network_queue(net_queue, clock_rate, clock, log_file):
     """
     Processes messages from the network queue at intervals defined by the
@@ -30,8 +31,8 @@ def process_network_queue(net_queue, clock_rate, clock, log_file):
     """
     tick_interval = 1.0 / clock_rate
     while True:
-        time.sleep(tick_interval)  # Wait for the next tick.
-        clock["value"] += 1  # Increment logical clock.
+        time.sleep(tick_interval)  #wait for the next tick before proceeding
+        clock["value"] += 1  #logical (lamport) clock gets incremented by 1
         while not net_queue.empty():
             message = net_queue.get()
             log_msg = f"[Clock {clock['value']}] Received: {message}"
@@ -88,7 +89,7 @@ def start_client():
         try:
             sock.send(msg_to_send.encode('utf-8'))
             #update clock and write to log 
-            clock["value"] += 1
+            clock["value"] += 1 #logical (lamport) clock gets incremented by 1 (in testing, we'll see net 2 bc of sending and recieving)
             send_log = f"[Clock {clock['value']}] Sent: {msg_to_send}"
             print(send_log)
             log_file.write(send_log + "\n")

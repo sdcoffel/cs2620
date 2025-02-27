@@ -20,11 +20,13 @@ def SendMessage(sender, recipient, message):
     else:
         return "Recipient not connected."
 
+
 def ReceiveMessages(username):
     """
     Continuously sends queued messages to the client.
     This function runs in its own thread for each connected client.
     """
+
     client_queue = active_clients[username]['queue']
     conn = active_clients[username]['conn']
     while True:
@@ -46,6 +48,7 @@ def handle_client(conn, addr):
     for sending queued messages (ReceiveMessages) while processing
     incoming messages from the client in a loop.
     """
+
     print(f"New connection from {addr}")
     username = None
     try:
@@ -84,6 +87,7 @@ def handle_client(conn, addr):
         conn.close()
         print(f"Connection from {addr} closed.")
 
+
 def start_server():
     host = "0.0.0.0"
     port = 50051
@@ -91,6 +95,7 @@ def start_server():
     server.bind((host, port))
     server.listen()
     print(f"Server listening on port {port}")
+
     try:
         while True:
             conn, addr = server.accept()
