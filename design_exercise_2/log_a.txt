@@ -1,0 +1,5 @@
+[Clock 24] Sent: b::this is a test. should fail
+[Clock 6] Sent: b::this is a test
+[Clock 7] Received: Recipient not connected.
+[Clock 20] Sent: b::should fail
+[Clock 21] Received: Recipient not connected.

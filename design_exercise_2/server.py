@@ -16,7 +16,7 @@ def SendMessage(sender, recipient, message):
         active_clients[recipient]['queue'].put((sender, message))
         print(f"{sender} is messaging {recipient}.")
         print(f"Message from {sender} to {recipient} delivered.")
-        return "Message delivered."
+        return "Message delivered successfully."
     else:
         return "Recipient not connected."
 
@@ -29,8 +29,8 @@ def ReceiveMessages(username):
     conn = active_clients[username]['conn']
     while True:
         try:
-            sender, msg = client_queue.get(timeout=0.1)
-            # Format the message (you can modify the protocol as needed).
+            sender, msg = client_queue.get()#timeout here? 
+            #message formatting
             formatted_msg = f"{sender}: {msg}\n"
             conn.sendall(formatted_msg.encode('utf-8'))
         except queue.Empty:
@@ -72,9 +72,12 @@ def handle_client(conn, addr):
                 continue
             recipient, msg = message.split("::", 1)
             response = SendMessage(username, recipient, msg)
-            conn.sendall((response + "\n").encode('utf-8'))
+            if response != "Message delivered successfully.":
+                conn.sendall((response + "\n").encode('utf-8'))
+    
     except Exception as e:
         print(f"Error with client {addr}: {e}")
+    
     finally:
         if username and username in active_clients:
             del active_clients[username]
