@@ -1,133 +1,101 @@
-import grpc 
+import socket
+import threading
 import queue
-import re
-import timesystem_pb2
-import timesystem_pb2_grpc
-from concurrent import futures 
-# from accounts import *
-# from messages import *
 
-#GLOBALS - DO NOT MOVE
-# PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
+#global dict to keep track of active clients.
+#client is stored as: username -> {'conn': socket, 'queue': Queue()}
 active_clients = {}
-# pending_messages = {}
 
-class ChatServer(timesystem_pb2_grpc.CommunicationServiceServicer):
+def SendMessage(sender, recipient, message):
+    """
+    Sends a message from sender to recipient.
+    If the recipient is online, places the message in their queue.
+    Returns a status string.
+    """
+    if recipient in active_clients:
+        active_clients[recipient]['queue'].put((sender, message))
+        print(f"{sender} is messaging {recipient}.")
+        print(f"Message from {sender} to {recipient} delivered.")
+        return "Message delivered."
+    else:
+        return "Recipient not connected."
 
-    def SendMessage(self, request, context):
-        """This function will send a message to a specific client. 
-        If the intended recipient is online, the message is delivered in real time by placing it into that client's queue.
-        If the recipient is offline, the message is appended to the 'pending_messages' store and saved to persistent storage, so it can be delivered when the recipient logs in.
+def ReceiveMessages(username):
+    """
+    Continuously sends queued messages to the client.
+    This function runs in its own thread for each connected client.
+    """
+    client_queue = active_clients[username]['queue']
+    conn = active_clients[username]['conn']
+    while True:
+        try:
+            sender, msg = client_queue.get(timeout=0.1)
+            # Format the message (you can modify the protocol as needed).
+            formatted_msg = f"{sender}: {msg}\n"
+            conn.sendall(formatted_msg.encode('utf-8'))
+        except queue.Empty:
+            continue
+        except Exception as e:
+            print(f"Error sending message to {username}: {e}")
+            break
 
-        Args:
-            request (SendMessageRequest): A request message containing:
-                - sender (str): The username of the client sending the message.
-                - recipient (str): The username of the intended recipient.
-                - message (str): The content of the message.
-                - context (grpc.ServicerContext): context for the RPC call
+def handle_client(conn, addr):
+    """
+    Handles an individual client connection.
+    First receives the username, then starts a background thread
+    for sending queued messages (ReceiveMessages) while processing
+    incoming messages from the client in a loop.
+    """
+    print(f"New connection from {addr}")
+    username = None
+    try:
+        #the first message from the client must be the username.
+        username = conn.recv(1024).decode('utf-8').strip()
+        if not username:
+            conn.close()
+            return
 
-        Returns:
-            SendMessageResponse: A response message indicating whether the message was delivered in real time (delivered=True) or saved as pending (delivered=False).
-        """
+        #add the client to active_clients with its own message queue and start a thread for continuous messaging
+        active_clients[username] = {'conn': conn, 'queue': queue.Queue()}
+        print(f"Client {username} has connected.")
+        threading.Thread(target=ReceiveMessages, args=(username,), daemon=True).start()
 
-        #if the recipient is online, i.e., their queue is active, deliver in real time.
-        if request.recipient in active_clients:
-            client_queue = active_clients[request.recipient]
-            client_queue.put((request.sender, request.message))
-
-            print(f"{request.sender} is messaging {request.recipient}.")
-            print(f"Message from {request.sender} to {request.recipient} delivered.")
-
-            return timesystem_pb2.SendMessageResponse(delivered=True, message="Message delivered.")
-        
-        else:
-            #store to pending messages if intended recipient is not online
-            if request.recipient not in pending_messages:
-                pending_messages[request.recipient] = []
-
-            pending_messages[request.recipient].append((request.sender, request.message))
-            print(f"Message from {request.sender} to {request.recipient} saved as pending.")
-            return timesystem_pb2.SendMessageResponse(delivered=False, message="Recipient offline. Message saved as pending.")
-
-
-    def ReceiveMessages(self, request, context):
-        """
-        Server-streaming RPC that continuously yields new chat messages for the user.
-        Ensures that the user's message queue exists and queues any pending messages from persistent storage. 
-        When a message is available, this yields a ChatMessageResponse containing the sender and message content. The loop continues as long as the RPC context is active.
-        
-        Args:
-            request (ReceiveMessagesRequest): The request message containing:
-                - username (str): The username of the client that will receive messages.
-                - context (grpc.ServicerContext):  RPC-specific info
-            
-        Yields:
-            ChatMessageResponse: A stream of chat messages (each with a sender and message field) for the client.
-        """
-        #make sure the user's queue is actually there
-        if request.username not in active_clients:
-            active_clients[request.username] = queue.Queue()
-        client_queue = active_clients[request.username]
-
-        #pending messages get added to the queue
-        if request.username in pending_messages:
-            for sender, msg in pending_messages[request.username]:
-                client_queue.put((sender, msg))
-            pending_messages[request.username] = []
-            #delete_pending_messages(PENDING_MESSAGES_FILE_PATH, request.username, 10) 
-
-        #stream messages to the client in real time. if we ever happen to hit an empty queue, just continue 
-        while context.is_active():
-            try:
-                sender, msg = client_queue.get(timeout=0) #immediate - although i want to clean this up a lot
-                yield timesystem_pb2.ChatMessageResponse(sender=sender, message=msg)
-
-            except queue.Empty:
+        #process messages in real time
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break  
+            #messages must be in the format "recipient::message"
+            message = data.decode('utf-8').strip()
+            if "::" not in message:
+                conn.sendall("Invalid message format. Use recipient::message\n".encode('utf-8'))
                 continue
-
+            recipient, msg = message.split("::", 1)
+            response = SendMessage(username, recipient, msg)
+            conn.sendall((response + "\n").encode('utf-8'))
+    except Exception as e:
+        print(f"Error with client {addr}: {e}")
+    finally:
+        if username and username in active_clients:
+            del active_clients[username]
+        conn.close()
+        print(f"Connection from {addr} closed.")
 
 def start_server():
-    """Boots up and runs the gRPC server until termination.
-    This function:
-      - Loads any pending messages from persistent storage.
-      - Creates a gRPC server using a ThreadPoolExecutor with up to 10 worker threads.
-      - Binds the server to port 50051 and starts it.
-      - Calls wait_for_termination() to block execution until a termination signal (e.g., KeyboardInterrupt) is received.
-
-    Upon termination (Cntrl+C for us), the function attempts to save any pending messages back to persistent storage before exiting.
-
-    Returns:
-        None
-    """
-
-    global pending_messages
-    #load_pending_messages(PENDING_MESSAGES_FILE_PATH)
-    print("Pending messages loaded...")
-
+    host = "0.0.0.0"
+    port = 50051
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind((host, port))
+    server.listen()
+    print(f"Server listening on port {port}")
     try:
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        timesystem_pb2_grpc.add_CommunicationServiceServicer_to_server(ChatServer(), server)
-        server.add_insecure_port('0.0.0.0:50051')
-        server.start()
-        print(f"Server is listening on port 50051...")
-        server.wait_for_termination() #this is a blocking call that keeps the server running until keyboard interrupt
-
-    except Exception as e: 
-        print(f"Fatal error {e} with server")
-
+        while True:
+            conn, addr = server.accept()
+            threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
+    except KeyboardInterrupt:
+        print("Server shutting down...")
     finally:
-        try:
-            #save_pending_messages(PENDING_MESSAGES_FILE_PATH, pending_messages)
-            print("Pending messages saved...")
-
-        except Exception as e:
-            print(f"Failed to exit server properly! : {e}")
-
+        server.close()
 
 if __name__ == "__main__":
-    """Call all globally scoped variables, and start up the server."""
-
-    #PENDING_MESSAGES_FILE_PATH
-    active_clients 
-    #pending_messages 
     start_server()
