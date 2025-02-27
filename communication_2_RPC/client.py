@@ -5,7 +5,7 @@ import chatapp_pb2_grpc
 
 class Client:
 
-    def __init__(self, host = 'localhost', port= 50051):
+    def __init__(self, host, port= 50051):
         """Initialize the client."""
 
         self.channel = None
