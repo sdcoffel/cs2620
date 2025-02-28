@@ -2,6 +2,10 @@ import socket
 import threading
 import queue
 
+# -----------------------------------------------------------------
+# SERVER STUFF - NEEDS TO BE RUN FIRST BEFORE THE CLIENT SIM STARTS 
+# -----------------------------------------------------------------
+
 #global dict to keep track of active clients.
 #client is stored as: username -> {'conn': socket, 'queue': Queue()}
 active_clients = {}
@@ -12,14 +16,11 @@ def SendMessage(sender, recipient, message):
     If the recipient is online, places the message in their queue.
     Returns a status string.
     """
-    if recipient in active_clients:
-        active_clients[recipient]['queue'].put((sender, message))
-        print(f"{sender} is messaging {recipient}.")
-        print(f"Message from {sender} to {recipient} delivered.")
-        return "Message delivered successfully."
-    else:
-        return "Recipient not connected."
-
+ 
+    active_clients[recipient]['queue'].put((sender, message))
+    print(f"{sender} is messaging {recipient}.")
+    return "Message delivered."
+    
 
 def ReceiveMessages(username):
     """
@@ -41,6 +42,7 @@ def ReceiveMessages(username):
             print(f"Error sending message to {username}: {e}")
             break
 
+
 def handle_client(conn, addr):
     """
     Handles an individual client connection.
@@ -53,7 +55,7 @@ def handle_client(conn, addr):
     username = None
     try:
         #the first message from the client must be the username.
-        username = conn.recv(1024).decode('utf-8').strip()
+        username = conn.recv(1024).decode('utf-8').strip().lower()
         if not username:
             conn.close()
             return
@@ -71,9 +73,13 @@ def handle_client(conn, addr):
             #messages must be in the format "recipient::message"
             message = data.decode('utf-8').strip()
             if "::" not in message:
-                conn.sendall("Invalid message format. Use recipient::message\n".encode('utf-8'))
+                conn.sendall("Invalid message format. Something got messed up on the wire.\n".encode('utf-8'))
                 continue
+
             recipient, msg = message.split("::", 1)
+            recipient = recipient.strip().lower()  #fix the whitespace issue 
+            msg = msg.strip()
+
             response = SendMessage(username, recipient, msg)
             if response != "Message delivered successfully.":
                 conn.sendall((response + "\n").encode('utf-8'))
