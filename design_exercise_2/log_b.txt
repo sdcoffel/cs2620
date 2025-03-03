@@ -373,3 +373,244 @@ Simulation duration reached 30 seconds. Exiting simulation...
 [Clock 67] Internal event occurred. | Global time: 2025-02-27 20:18:28 | Logical clock: 67
 [Clock 68] Received: c: Logical clock time: 177 | Global time: 2025-02-27 20:18:29 | Queue length: 0 | Logical clock: 68
 [b] Simulation ended after 30 seconds.
+[Clock 1] Received: a -> b: Preloaded message 1 | Global time: 2025-02-27 20:28:18 | Queue length: 2 | Logical clock: 1
+[Clock 2] Received: a -> b: Preloaded message 2 | Global time: 2025-02-27 20:28:18 | Queue length: 1 | Logical clock: 2
+[Clock 3] Received: a -> b: Preloaded message 3 | Global time: 2025-02-27 20:28:19 | Queue length: 0 | Logical clock: 3
+[Clock 4] Internal event occurred. | Global time: 2025-02-27 20:28:19 | Logical clock: 4
+[Clock 5] Received: c: Logical clock time: 8 | Global time: 2025-02-27 20:28:19 | Queue length: 0 | Logical clock: 5
+[Clock 6] Internal event occurred. | Global time: 2025-02-27 20:28:19 | Logical clock: 6
+[Clock 7] Internal event occurred. | Global time: 2025-02-27 20:28:20 | Logical clock: 7
+[Clock 9] Sent to a: Logical clock time: 8 | Global time: 2025-02-27 20:28:20 | Logical clock: 9
+[Clock 10] Received: Message delivered. | Global time: 2025-02-27 20:28:20 | Queue length: 0 | Logical clock: 10
+[Clock 11] Internal event occurred. | Global time: 2025-02-27 20:28:20 | Logical clock: 11
+[Clock 12] Received: c: Logical clock time: 19 | Global time: 2025-02-27 20:28:21 | Queue length: 0 | Logical clock: 12
+[Clock 14] Sent to a: Logical clock time: 13 | Global time: 2025-02-27 20:28:21 | Logical clock: 14
+[Clock 15] Received: Message delivered. | Global time: 2025-02-27 20:28:21 | Queue length: 0 | Logical clock: 15
+[Clock 16] Received: c: Logical clock time: 24 | Global time: 2025-02-27 20:28:21 | Queue length: 0 | Logical clock: 16
+[Clock 17] Received: c: Logical clock time: 27 | Global time: 2025-02-27 20:28:22 | Queue length: 0 | Logical clock: 17
+[Clock 19] Sent to a: Logical clock time: 18 | Global time: 2025-02-27 20:28:22 | Logical clock: 19
+[Clock 20] Received: Message delivered. | Global time: 2025-02-27 20:28:22 | Queue length: 1 | Logical clock: 20
+[Clock 21] Received: c: Logical clock time: 31 | Global time: 2025-02-27 20:28:22 | Queue length: 0 | Logical clock: 21
+[Clock 22] Internal event occurred. | Global time: 2025-02-27 20:28:23 | Logical clock: 22
+[Clock 24] Sent to a: Logical clock time: 23 | Global time: 2025-02-27 20:28:23 | Logical clock: 24
+[Clock 25] Received: Message delivered. | Global time: 2025-02-27 20:28:23 | Queue length: 0 | Logical clock: 25
+[Clock 26] Internal event occurred. | Global time: 2025-02-27 20:28:23 | Logical clock: 26
+[Clock 28] Sent to a, c: Logical clock time: 27 | Global time: 2025-02-27 20:28:24 | Logical clock: 28
+[Clock 29] Received: Message delivered. | Global time: 2025-02-27 20:28:24 | Queue length: 0 | Logical clock: 29
+[Clock 31] Sent to a, c: Logical clock time: 30 | Global time: 2025-02-27 20:28:24 | Logical clock: 31
+[Clock 32] Received: Message delivered. | Global time: 2025-02-27 20:28:24 | Queue length: 0 | Logical clock: 32
+[Clock 33] Internal event occurred. | Global time: 2025-02-27 20:28:25 | Logical clock: 33
+[Clock 34] Internal event occurred. | Global time: 2025-02-27 20:28:25 | Logical clock: 34
+[Clock 35] Internal event occurred. | Global time: 2025-02-27 20:28:25 | Logical clock: 35
+[Clock 36] Internal event occurred. | Global time: 2025-02-27 20:28:25 | Logical clock: 36
+[Clock 37] Received: c: Logical clock time: 54 | Global time: 2025-02-27 20:28:26 | Queue length: 0 | Logical clock: 37
+[Clock 38] Internal event occurred. | Global time: 2025-02-27 20:28:26 | Logical clock: 38
+[Clock 39] Internal event occurred. | Global time: 2025-02-27 20:28:26 | Logical clock: 39
+[Clock 40] Received: c: Logical clock time: 61 | Global time: 2025-02-27 20:28:26 | Queue length: 0 | Logical clock: 40
+[Clock 41] Internal event occurred. | Global time: 2025-02-27 20:28:27 | Logical clock: 41
+[Clock 43] Sent to a: Logical clock time: 42 | Global time: 2025-02-27 20:28:27 | Logical clock: 43
+[Clock 44] Received: Message delivered. | Global time: 2025-02-27 20:28:27 | Queue length: 0 | Logical clock: 44
+[Clock 46] Sent to c: Logical clock time: 45 | Global time: 2025-02-27 20:28:27 | Logical clock: 46
+[Clock 47] Received: Message delivered. | Global time: 2025-02-27 20:28:28 | Queue length: 0 | Logical clock: 47
+[Clock 48] Received: c: Logical clock time: 72 | Global time: 2025-02-27 20:28:28 | Queue length: 0 | Logical clock: 48
+[Clock 50] Sent to a, c: Logical clock time: 49 | Global time: 2025-02-27 20:28:28 | Logical clock: 50
+[Clock 51] Received: Message delivered. | Global time: 2025-02-27 20:28:28 | Queue length: 0 | Logical clock: 51
+[Clock 53] Sent to c: Logical clock time: 52 | Global time: 2025-02-27 20:28:29 | Logical clock: 53
+[Clock 54] Received: Message delivered. | Global time: 2025-02-27 20:28:29 | Queue length: 0 | Logical clock: 54
+[Clock 55] Internal event occurred. | Global time: 2025-02-27 20:28:29 | Logical clock: 55
+[Clock 56] Internal event occurred. | Global time: 2025-02-27 20:28:29 | Logical clock: 56
+[Clock 57] Internal event occurred. | Global time: 2025-02-27 20:28:30 | Logical clock: 57
+[Clock 58] Internal event occurred. | Global time: 2025-02-27 20:28:30 | Logical clock: 58
+[Clock 59] Internal event occurred. | Global time: 2025-02-27 20:28:30 | Logical clock: 59
+[Clock 60] Internal event occurred. | Global time: 2025-02-27 20:28:31 | Logical clock: 60
+[Clock 61] Internal event occurred. | Global time: 2025-02-27 20:28:31 | Logical clock: 61
+[Clock 62] Internal event occurred. | Global time: 2025-02-27 20:28:31 | Logical clock: 62
+[Clock 63] Internal event occurred. | Global time: 2025-02-27 20:28:31 | Logical clock: 63
+[Clock 65] Sent to a, c: Logical clock time: 64 | Global time: 2025-02-27 20:28:32 | Logical clock: 65
+[Clock 66] Received: Message delivered.
+Message delivered. | Global time: 2025-02-27 20:28:32 | Queue length: 0 | Logical clock: 66
+[Clock 67] Internal event occurred. | Global time: 2025-02-27 20:28:32 | Logical clock: 67
+[Clock 68] Internal event occurred. | Global time: 2025-02-27 20:28:32 | Logical clock: 68
+[Clock 70] Sent to a, c: Logical clock time: 69 | Global time: 2025-02-27 20:28:33 | Logical clock: 70
+[Clock 71] Received: Message delivered.
+Message delivered. | Global time: 2025-02-27 20:28:33 | Queue length: 0 | Logical clock: 71
+[Clock 72] Received: c: Logical clock time: 105 | Global time: 2025-02-27 20:28:33 | Queue length: 0 | Logical clock: 72
+[Clock 74] Sent to a, c: Logical clock time: 73 | Global time: 2025-02-27 20:28:33 | Logical clock: 74
+[Clock 75] Received: Message delivered.
+Message delivered. | Global time: 2025-02-27 20:28:34 | Queue length: 0 | Logical clock: 75
+[Clock 76] Internal event occurred. | Global time: 2025-02-27 20:28:34 | Logical clock: 76
+[Clock 77] Received: a: Logical clock time: 34c::Logical clock time: 34 | Global time: 2025-02-27 20:28:34 | Queue length: 0 | Logical clock: 77
+[Clock 79] Sent to a, c: Logical clock time: 78 | Global time: 2025-02-27 20:28:34 | Logical clock: 79
+[Clock 80] Received: Message delivered.
+Message delivered. | Global time: 2025-02-27 20:28:35 | Queue length: 1 | Logical clock: 80
+[Clock 81] Received: c: Logical clock time: 116 | Global time: 2025-02-27 20:28:35 | Queue length: 0 | Logical clock: 81
+[Clock 82] Received: c: Logical clock time: 119 | Global time: 2025-02-27 20:28:35 | Queue length: 0 | Logical clock: 82
+[Clock 83] Internal event occurred. | Global time: 2025-02-27 20:28:35 | Logical clock: 83
+[Clock 84] Internal event occurred. | Global time: 2025-02-27 20:28:36 | Logical clock: 84
+[Clock 85] Internal event occurred. | Global time: 2025-02-27 20:28:36 | Logical clock: 85
+[Clock 86] Internal event occurred. | Global time: 2025-02-27 20:28:36 | Logical clock: 86
+[Clock 87] Received: c: Logical clock time: 127 | Global time: 2025-02-27 20:28:36 | Queue length: 0 | Logical clock: 87
+[Clock 89] Sent to c: Logical clock time: 88 | Global time: 2025-02-27 20:28:37 | Logical clock: 89
+[Clock 90] Received: Message delivered. | Global time: 2025-02-27 20:28:37 | Queue length: 0 | Logical clock: 90
+[Clock 92] Sent to a: Logical clock time: 91 | Global time: 2025-02-27 20:28:37 | Logical clock: 92
+[Clock 93] Received: Message delivered. | Global time: 2025-02-27 20:28:37 | Queue length: 1 | Logical clock: 93
+[Clock 94] Received: c: Logical clock time: 135 | Global time: 2025-02-27 20:28:38 | Queue length: 0 | Logical clock: 94
+[Clock 95] Internal event occurred. | Global time: 2025-02-27 20:28:38 | Logical clock: 95
+[Clock 96] Internal event occurred. | Global time: 2025-02-27 20:28:38 | Logical clock: 96
+[Clock 97] Internal event occurred. | Global time: 2025-02-27 20:28:38 | Logical clock: 97
+[Clock 98] Internal event occurred. | Global time: 2025-02-27 20:28:39 | Logical clock: 98
+[Clock 100] Sent to a, c: Logical clock time: 99 | Global time: 2025-02-27 20:28:39 | Logical clock: 100
+[Clock 101] Received: Message delivered. | Global time: 2025-02-27 20:28:39 | Queue length: 0 | Logical clock: 101
+[Clock 102] Internal event occurred. | Global time: 2025-02-27 20:28:39 | Logical clock: 102
+[Clock 103] Received: c: Logical clock time: 153 | Global time: 2025-02-27 20:28:40 | Queue length: 0 | Logical clock: 103
+[Clock 105] Sent to c: Logical clock time: 104 | Global time: 2025-02-27 20:28:40 | Logical clock: 105
+[Clock 106] Received: Message delivered. | Global time: 2025-02-27 20:28:40 | Queue length: 0 | Logical clock: 106
+[Clock 107] Internal event occurred. | Global time: 2025-02-27 20:28:40 | Logical clock: 107
+[Clock 108] Internal event occurred. | Global time: 2025-02-27 20:28:41 | Logical clock: 108
+[Clock 110] Sent to a, c: Logical clock time: 109 | Global time: 2025-02-27 20:28:41 | Logical clock: 110
+[Clock 111] Received: Message delivered.
+Message delivered. | Global time: 2025-02-27 20:28:41 | Queue length: 0 | Logical clock: 111
+[Clock 113] Sent to a: Logical clock time: 112 | Global time: 2025-02-27 20:28:41 | Logical clock: 113
+[Clock 114] Received: Message delivered. | Global time: 2025-02-27 20:28:42 | Queue length: 0 | Logical clock: 114
+[Clock 115] Internal event occurred. | Global time: 2025-02-27 20:28:42 | Logical clock: 115
+[Clock 116] Internal event occurred. | Global time: 2025-02-27 20:28:42 | Logical clock: 116
+[Clock 117] Internal event occurred. | Global time: 2025-02-27 20:28:42 | Logical clock: 117
+[Clock 118] Internal event occurred. | Global time: 2025-02-27 20:28:43 | Logical clock: 118
+[Clock 119] Received: c: Logical clock time: 175 | Global time: 2025-02-27 20:28:43 | Queue length: 0 | Logical clock: 119
+[Clock 121] Sent to c: Logical clock time: 120 | Global time: 2025-02-27 20:28:43 | Logical clock: 121
+[Clock 122] Received: Message delivered. | Global time: 2025-02-27 20:28:43 | Queue length: 0 | Logical clock: 122
+[Clock 124] Sent to a, c: Logical clock time: 123 | Global time: 2025-02-27 20:28:44 | Logical clock: 124
+[Clock 125] Received: Message delivered. | Global time: 2025-02-27 20:28:44 | Queue length: 0 | Logical clock: 125
+[Clock 126] Received: c: Logical clock time: 183 | Global time: 2025-02-27 20:28:44 | Queue length: 0 | Logical clock: 126
+[Clock 127] Internal event occurred. | Global time: 2025-02-27 20:28:45 | Logical clock: 127
+[Clock 129] Sent to c: Logical clock time: 128 | Global time: 2025-02-27 20:28:45 | Logical clock: 129
+[Clock 130] Received: Message delivered. | Global time: 2025-02-27 20:28:45 | Queue length: 0 | Logical clock: 130
+[Clock 132] Sent to a: Logical clock time: 131 | Global time: 2025-02-27 20:28:45 | Logical clock: 132
+[Clock 133] Received: Message delivered. | Global time: 2025-02-27 20:28:46 | Queue length: 0 | Logical clock: 133
+[Clock 135] Sent to a: Logical clock time: 134 | Global time: 2025-02-27 20:28:46 | Logical clock: 135
+[Clock 136] Received: Message delivered. | Global time: 2025-02-27 20:28:46 | Queue length: 0 | Logical clock: 136
+[Clock 138] Sent to a, c: Logical clock time: 137 | Global time: 2025-02-27 20:28:46 | Logical clock: 138
+[Clock 139] Received: Message delivered. | Global time: 2025-02-27 20:28:47 | Queue length: 0 | Logical clock: 139
+[Clock 140] Received: c: Logical clock time: 202 | Global time: 2025-02-27 20:28:47 | Queue length: 0 | Logical clock: 140
+[Clock 141] Internal event occurred. | Global time: 2025-02-27 20:28:47 | Logical clock: 141
+[Clock 143] Sent to a: Logical clock time: 142 | Global time: 2025-02-27 20:28:47 | Logical clock: 143
+[Clock 144] Received: Message delivered. | Global time: 2025-02-27 20:28:48 | Queue length: 0 | Logical clock: 144
+[b] Simulation ended after 30 seconds.
+[Clock 1] Received: c -> b: Preloaded message 1 | Global time: 2025-03-03 13:17:19 | Queue length: 3 | Logical clock: 1
+[Clock 2] Received: c -> b: Preloaded message 2 | Global time: 2025-03-03 13:17:19 | Queue length: 2 | Logical clock: 2
+[Clock 3] Received: c -> b: Preloaded message 3 | Global time: 2025-03-03 13:17:19 | Queue length: 2 | Logical clock: 3
+[Clock 4] Received: c -> b: Preloaded message 4 | Global time: 2025-03-03 13:17:20 | Queue length: 1 | Logical clock: 4
+[Clock 5] Received: a: Logical clock time: 5c::Logical clock time: 5 | Global time: 2025-03-03 13:17:20 | Queue length: 0 | Logical clock: 5
+[Clock 6] Internal event occurred. | Global time: 2025-03-03 13:17:20 | Logical clock: 6
+[Clock 7] Internal event occurred. | Global time: 2025-03-03 13:17:21 | Logical clock: 7
+[Clock 8] Received: a: Logical clock time: 16 | Global time: 2025-03-03 13:17:21 | Queue length: 0 | Logical clock: 8
+[Clock 9] Internal event occurred. | Global time: 2025-03-03 13:17:21 | Logical clock: 9
+[Clock 10] Received: a: Logical clock time: 21c::Logical clock time: 21 | Global time: 2025-03-03 13:17:22 | Queue length: 0 | Logical clock: 10
+[Clock 11] Received: a: Logical clock time: 25c::Logical clock time: 25 | Global time: 2025-03-03 13:17:22 | Queue length: 0 | Logical clock: 11
+[Clock 12] Received: a: Logical clock time: 28 | Global time: 2025-03-03 13:17:23 | Queue length: 0 | Logical clock: 12
+[Clock 13] Internal event occurred. | Global time: 2025-03-03 13:17:23 | Logical clock: 13
+[Clock 15] Sent to c: Logical clock time: 14 | Global time: 2025-03-03 13:17:23 | Logical clock: 15
+[Clock 16] Received: Message delivered. | Global time: 2025-03-03 13:17:24 | Queue length: 0 | Logical clock: 16
+[Clock 17] Internal event occurred. | Global time: 2025-03-03 13:17:24 | Logical clock: 17
+[Clock 18] Internal event occurred. | Global time: 2025-03-03 13:17:24 | Logical clock: 18
+[Clock 19] Internal event occurred. | Global time: 2025-03-03 13:17:25 | Logical clock: 19
+[Clock 20] Internal event occurred. | Global time: 2025-03-03 13:17:25 | Logical clock: 20
+[Clock 21] Received: a: Logical clock time: 46c::Logical clock time: 46 | Global time: 2025-03-03 13:17:25 | Queue length: 0 | Logical clock: 21
+[Clock 22] Internal event occurred. | Global time: 2025-03-03 13:17:26 | Logical clock: 22
+[Clock 23] Received: a: Logical clock time: 50c::Logical clock time: 50 | Global time: 2025-03-03 13:17:26 | Queue length: 0 | Logical clock: 23
+[Clock 24] Received: a: Logical clock time: 54 | Global time: 2025-03-03 13:17:26 | Queue length: 0 | Logical clock: 24
+[Clock 25] Internal event occurred. | Global time: 2025-03-03 13:17:27 | Logical clock: 25
+[Clock 26] Internal event occurred. | Global time: 2025-03-03 13:17:27 | Logical clock: 26
+[Clock 27] Internal event occurred. | Global time: 2025-03-03 13:17:27 | Logical clock: 27
+[Clock 28] Internal event occurred. | Global time: 2025-03-03 13:17:28 | Logical clock: 28
+[Clock 30] Sent to a: Logical clock time: 29 | Global time: 2025-03-03 13:17:28 | Logical clock: 30
+[Clock 31] Received: Message delivered. | Global time: 2025-03-03 13:17:28 | Queue length: 0 | Logical clock: 31
+[Clock 32] Internal event occurred. | Global time: 2025-03-03 13:17:29 | Logical clock: 32
+[Clock 33] Internal event occurred. | Global time: 2025-03-03 13:17:29 | Logical clock: 33
+[Clock 35] Sent to c: Logical clock time: 34 | Global time: 2025-03-03 13:17:29 | Logical clock: 35
+[Clock 36] Received: Message delivered. | Global time: 2025-03-03 13:17:30 | Queue length: 1 | Logical clock: 36
+[Clock 37] Received: a: Logical clock time: 77c::Logical clock time: 77 | Global time: 2025-03-03 13:17:30 | Queue length: 0 | Logical clock: 37
+[Clock 38] Internal event occurred. | Global time: 2025-03-03 13:17:30 | Logical clock: 38
+[Clock 39] Received: a: Logical clock time: 83c::Logical clock time: 83 | Global time: 2025-03-03 13:17:31 | Queue length: 1 | Logical clock: 39
+[Clock 40] Received: c: Logical clock time: 26 | Global time: 2025-03-03 13:17:31 | Queue length: 0 | Logical clock: 40
+[Clock 41] Received: a: Logical clock time: 88c::Logical clock time: 88 | Global time: 2025-03-03 13:17:31 | Queue length: 0 | Logical clock: 41
+[Clock 42] Received: a: Logical clock time: 91c::Logical clock time: 91 | Global time: 2025-03-03 13:17:32 | Queue length: 0 | Logical clock: 42
+[Clock 43] Internal event occurred. | Global time: 2025-03-03 13:17:32 | Logical clock: 43
+[Clock 44] Internal event occurred. | Global time: 2025-03-03 13:17:32 | Logical clock: 44
+[Clock 45] Internal event occurred. | Global time: 2025-03-03 13:17:33 | Logical clock: 45
+[Clock 46] Internal event occurred. | Global time: 2025-03-03 13:17:33 | Logical clock: 46
+[Clock 47] Received: a: Logical clock time: 104 | Global time: 2025-03-03 13:17:33 | Queue length: 0 | Logical clock: 47
+[Clock 48] Internal event occurred. | Global time: 2025-03-03 13:17:34 | Logical clock: 48
+[Clock 49] Internal event occurred. | Global time: 2025-03-03 13:17:34 | Logical clock: 49
+[Clock 50] Received: a: Logical clock time: 112c::Logical clock time: 112 | Global time: 2025-03-03 13:17:34 | Queue length: 0 | Logical clock: 50
+[Clock 51] Received: a: Logical clock time: 115 | Global time: 2025-03-03 13:17:35 | Queue length: 0 | Logical clock: 51
+[Clock 52] Received: a: Logical clock time: 118 | Global time: 2025-03-03 13:17:35 | Queue length: 0 | Logical clock: 52
+[Clock 54] Sent to a, c: Logical clock time: 53 | Global time: 2025-03-03 13:17:35 | Logical clock: 54
+[Clock 55] Received: Message delivered. | Global time: 2025-03-03 13:17:36 | Queue length: 0 | Logical clock: 55
+[Clock 56] Received: a: Logical clock time: 124 | Global time: 2025-03-03 13:17:36 | Queue length: 0 | Logical clock: 56
+[Clock 57] Internal event occurred. | Global time: 2025-03-03 13:17:36 | Logical clock: 57
+[Clock 59] Sent to c: Logical clock time: 58 | Global time: 2025-03-03 13:17:37 | Logical clock: 59
+[Clock 60] Received: Message delivered. | Global time: 2025-03-03 13:17:37 | Queue length: 1 | Logical clock: 60
+[Clock 61] Received: a: Logical clock time: 133 | Global time: 2025-03-03 13:17:37 | Queue length: 0 | Logical clock: 61
+[Clock 62] Internal event occurred. | Global time: 2025-03-03 13:17:38 | Logical clock: 62
+[Clock 64] Sent to a, c: Logical clock time: 63 | Global time: 2025-03-03 13:17:38 | Logical clock: 64
+[Clock 65] Received: Message delivered. | Global time: 2025-03-03 13:17:38 | Queue length: 0 | Logical clock: 65
+[Clock 66] Internal event occurred. | Global time: 2025-03-03 13:17:39 | Logical clock: 66
+[Clock 67] Internal event occurred. | Global time: 2025-03-03 13:17:39 | Logical clock: 67
+[Clock 68] Received: a: Logical clock time: 150 | Global time: 2025-03-03 13:17:39 | Queue length: 0 | Logical clock: 68
+[Clock 69] Internal event occurred. | Global time: 2025-03-03 13:17:40 | Logical clock: 69
+[Clock 70] Received: a: Logical clock time: 154 | Global time: 2025-03-03 13:17:40 | Queue length: 0 | Logical clock: 70
+[Clock 71] Internal event occurred. | Global time: 2025-03-03 13:17:40 | Logical clock: 71
+[Clock 72] Internal event occurred. | Global time: 2025-03-03 13:17:41 | Logical clock: 72
+[Clock 74] Sent to a, c: Logical clock time: 73 | Global time: 2025-03-03 13:17:41 | Logical clock: 74
+[Clock 75] Received: Message delivered. | Global time: 2025-03-03 13:17:41 | Queue length: 0 | Logical clock: 75
+[Clock 76] Received: c: Logical clock time: 52 | Global time: 2025-03-03 13:17:42 | Queue length: 0 | Logical clock: 76
+[Clock 77] Internal event occurred. | Global time: 2025-03-03 13:17:42 | Logical clock: 77
+[Clock 78] Internal event occurred. | Global time: 2025-03-03 13:17:42 | Logical clock: 78
+[Clock 79] Internal event occurred. | Global time: 2025-03-03 13:17:43 | Logical clock: 79
+[Clock 80] Received: a: Logical clock time: 174c::Logical clock time: 174 | Global time: 2025-03-03 13:17:43 | Queue length: 0 | Logical clock: 80
+[Clock 81] Internal event occurred. | Global time: 2025-03-03 13:17:43 | Logical clock: 81
+[Clock 82] Internal event occurred. | Global time: 2025-03-03 13:17:44 | Logical clock: 82
+[Clock 83] Internal event occurred. | Global time: 2025-03-03 13:17:44 | Logical clock: 83
+[Clock 84] Received: c: Logical clock time: 58 | Global time: 2025-03-03 13:17:44 | Queue length: 1 | Logical clock: 84
+[Clock 85] Received: a: Logical clock time: 184 | Global time: 2025-03-03 13:17:45 | Queue length: 0 | Logical clock: 85
+[Clock 86] Internal event occurred. | Global time: 2025-03-03 13:17:45 | Logical clock: 86
+[Clock 87] Received: a: Logical clock time: 192c::Logical clock time: 192 | Global time: 2025-03-03 13:17:45 | Queue length: 0 | Logical clock: 87
+[Clock 88] Internal event occurred. | Global time: 2025-03-03 13:17:46 | Logical clock: 88
+[Clock 89] Internal event occurred. | Global time: 2025-03-03 13:17:46 | Logical clock: 89
+[Clock 90] Internal event occurred. | Global time: 2025-03-03 13:17:47 | Logical clock: 90
+[Clock 91] Received: a: Logical clock time: 201c::Logical clock time: 201 | Global time: 2025-03-03 13:17:47 | Queue length: 0 | Logical clock: 91
+[Clock 92] Internal event occurred. | Global time: 2025-03-03 13:17:47 | Logical clock: 92
+[Clock 93] Internal event occurred. | Global time: 2025-03-03 13:17:48 | Logical clock: 93
+[Clock 94] Internal event occurred. | Global time: 2025-03-03 13:17:48 | Logical clock: 94
+[Clock 96] Sent to a: Logical clock time: 95 | Global time: 2025-03-03 13:17:48 | Logical clock: 96
+[b] Simulation ended after 30 seconds.
+[Clock 1] Received: a -> b: Preloaded message 1 | Global time: 2025-03-03 14:35:42 | Queue length: 2 | Logical clock: 1
+[Clock 2] Received: c -> b: Preloaded message 2 | Global time: 2025-03-03 14:35:43 | Queue length: 1 | Logical clock: 2
+[Clock 3] Received: c -> b: Preloaded message 3 | Global time: 2025-03-03 14:35:44 | Queue length: 0 | Logical clock: 3
+[Clock 4] Received: a: Logical clock time: 11c::Logical clock time: 11 | Global time: 2025-03-03 14:35:45 | Queue length: 0 | Logical clock: 4
+[Clock 5] Internal event occurred. | Global time: 2025-03-03 14:35:46 | Logical clock: 5
+[Clock 6] Internal event occurred. | Global time: 2025-03-03 14:35:47 | Logical clock: 6
+[Clock 7] Received: c: Logical clock time: 36 | Global time: 2025-03-03 14:35:48 | Queue length: 1 | Logical clock: 7
+[Clock 8] Received: c: Logical clock time: 40 | Global time: 2025-03-03 14:35:49 | Queue length: 1 | Logical clock: 8
+[Clock 9] Received: a: Logical clock time: 25 | Global time: 2025-03-03 14:35:50 | Queue length: 1 | Logical clock: 9
+[Clock 10] Received: a: Logical clock time: 30 | Global time: 2025-03-03 14:35:51 | Queue length: 0 | Logical clock: 10
+[Clock 12] Sent to a: Logical clock time: 11 | Global time: 2025-03-03 14:35:52 | Logical clock: 12
+[Clock 13] Received: Message delivered. | Global time: 2025-03-03 14:35:53 | Queue length: 0 | Logical clock: 13
+[Clock 14] Internal event occurred. | Global time: 2025-03-03 14:35:54 | Logical clock: 14
+[Clock 15] Received: c: Logical clock time: 80 | Global time: 2025-03-03 14:35:55 | Queue length: 1 | Logical clock: 15
+[Clock 16] Received: a: Logical clock time: 47 | Global time: 2025-03-03 14:35:56 | Queue length: 0 | Logical clock: 16
+[Clock 17] Received: a: Logical clock time: 54c::Logical clock time: 54 | Global time: 2025-03-03 14:35:57 | Queue length: 0 | Logical clock: 17
+[Clock 18] Received: c: Logical clock time: 98 | Global time: 2025-03-03 14:35:58 | Queue length: 0 | Logical clock: 18
+[Clock 19] Internal event occurred. | Global time: 2025-03-03 14:35:59 | Logical clock: 19
+[Clock 20] Received: c: Logical clock time: 113 | Global time: 2025-03-03 14:36:00 | Queue length: 0 | Logical clock: 20
+[Clock 21] Received: a: Logical clock time: 67 | Global time: 2025-03-03 14:36:01 | Queue length: 1 | Logical clock: 21
+[Clock 22] Received: c: Logical clock time: 116 | Global time: 2025-03-03 14:36:02 | Queue length: 0 | Logical clock: 22
+[Clock 23] Internal event occurred. | Global time: 2025-03-03 14:36:03 | Logical clock: 23
+[Clock 24] Received: a: Logical clock time: 77c::Logical clock time: 77 | Global time: 2025-03-03 14:36:04 | Queue length: 0 | Logical clock: 24
+[Clock 26] Sent to c: Logical clock time: 25 | Global time: 2025-03-03 14:36:05 | Logical clock: 26
+[Clock 27] Received: Message delivered. | Global time: 2025-03-03 14:36:06 | Queue length: 0 | Logical clock: 27
+[Clock 28] Received: a: Logical clock time: 88 | Global time: 2025-03-03 14:36:07 | Queue length: 0 | Logical clock: 28
+[Clock 29] Received: c: Logical clock time: 160 | Global time: 2025-03-03 14:36:08 | Queue length: 0 | Logical clock: 29
+[Clock 31] Sent to a: Logical clock time: 30 | Global time: 2025-03-03 14:36:09 | Logical clock: 31
+[Clock 32] Received: Message delivered. | Global time: 2025-03-03 14:36:10 | Queue length: 1 | Logical clock: 32
