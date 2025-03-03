@@ -18,7 +18,6 @@ Dependencies:
     - queue
     - time
     - sys
-    - os
 """
 
 import socket
@@ -27,7 +26,7 @@ import random
 import queue
 import time
 import sys
-import os
+
 
 # ---------------------------------
 # FUNCTIONS THAT RUN DURING THE SIM 
@@ -98,9 +97,8 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
             message = net_queue.get()  # Retrieve the next message from the network queue.
             queue_length = net_queue.qsize()  # Get the current number of messages left in the queue.
             # Construct a log message including clock, global time, queue length, and message content.
-            log_msg = (f" Message received. | Global time: {global_time} "
-                       f"| Queue length: {queue_length} | Current local logical clock value: {clock['value']}")
-            print(f"{log_msg}\n", flush=True)  # Print the log message to standard output for us to track
+            log_msg = (f" Message received. | Global time: {global_time} | Queue length: {queue_length} | Current local logical clock value: {clock['value']} ")
+            #print(f"{log_msg}\n", flush=True)  # Print the log message to standard output for us to track
             log_file.write(log_msg + "\n")  # Write the log message to the log file.
             log_file.flush()  # Flush the log file buffer to ensure the message is written.
        
@@ -115,9 +113,8 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
                     # Send message to the first recipient in the list.
                     sock.send(f"{other_recipients[0]}::{msg}".encode('utf-8'))
                     clock["value"] += 1  # Increment logical clock after sending.
-                    log_msg = (f" Message sent to {other_recipients[0]} with content: {msg} | Global/system time: {global_time} "
-                               f"| Current local logical clock value: {clock['value']}")
-                    print(f"{log_msg}\n", flush=True)
+                    log_msg = (f"Message sent to {other_recipients[1]} with content: {msg} | Global/system time: {global_time} | Current local logical clock value: {clock['value']} ")
+                    #print(f"{log_msg}\n", flush=True)
                     log_file.write(log_msg + "\n")
                     log_file.flush()
                 
@@ -133,9 +130,8 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
                     # Send message to the selected recipient.
                     sock.send(f"{recipient}::{msg}".encode('utf-8'))
                     clock["value"] += 1  # Increment logical clock.
-                    log_msg = (f" Message sent to {other_recipients[1]} with content: {msg} | Global/system time: {global_time} "
-                               f"| Current local logical clock value: {clock['value']}")
-                    print(f"{log_msg}\n", flush=True)
+                    log_msg = (f"Message sent to {other_recipients[1]} with content: {msg} | Global/system time: {global_time} | Current local logical clock value: {clock['value']} ")
+                    #print(f"{log_msg}\n", flush=True)
                     log_file.write(log_msg + "\n")
                     log_file.flush()
                 except Exception as e:
@@ -151,9 +147,8 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
                     except Exception as e:
                         print("Error sending message to", recipient, ":", e)
                 clock["value"] += 1  # Increment logical clock after sending to all recipients.
-                log_msg = (f"Message sent to all other recipients with content: {msg} | Global/system time: {global_time} "
-                           f"| Current local logical clock value: {clock['value']}")
-                print(f"{log_msg}\n", flush=True)
+                log_msg = (f"Message sent to all other recipients with content: {msg} | Global/system time: {global_time} | Current local logical clock value: {clock['value']} ")
+                #print(f"{log_msg}\n", flush=True)
                 log_file.write(log_msg + "\n")
                 log_file.flush()
             
@@ -161,14 +156,13 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
             else:
                 clock["value"] += 1  # Increment logical clock 
                 # Log an internal event when no message is sent.
-                log_msg = (f" Internal event occurred. | Global/system time: {global_time} "
-                           f"| Local logical clock value: {clock['value']}")
-                print(f"{log_msg}\n", flush=True)
+                log_msg = (f" Internal event occurred. | Global/system time: {global_time} | Local logical clock value: {clock['value']} ")
+                #print(f"{log_msg}\n", flush=True)
                 log_file.write(log_msg + "\n")
                 log_file.flush()
 
 
-def simulate_client(username, host, port, simulation_duration):
+def simulate_client(username, host, port, simulation_duration, run_number):
     """
     Simulates a client that connects to a server, preloads messages, and autonomously interacts for a set duration.
 
@@ -210,6 +204,10 @@ def simulate_client(username, host, port, simulation_duration):
     log_file = open(f"log_{username}.txt", "a")  # Open a log file for appending events.
     print(f"[{username}] Log file opened.")
 
+    #delimiters for the log files
+    log_file = open(f"log_{username}.txt", "a")
+    log_file.write(f"\n===== Simulation Run {run_number} START at {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n") #header at the top
+
     #create a network queue and prepopulate it with test messages -- this simulates the clients 'talking' to each other
     net_queue = queue.Queue()  # Create a thread-safe queue for network messages.
     num_preloaded = random.randint(2, 4)  # Determine a random number of preloaded messages.
@@ -225,18 +223,13 @@ def simulate_client(username, host, port, simulation_duration):
                      args=(net_queue, clock_rate, clock, log_file, sock, other_recipients),
                      daemon=True).start()  # Start thread for processing the network queue.
 
-    #run simulation for this long
+    #run simulation
     time.sleep(simulation_duration)  # Let the simulation run for the specified duration.
     
     #log and close connections
-    end_msg = f"[{username}] Simulation ended after {simulation_duration} seconds."
-    print(end_msg)
-    log_file.write(end_msg + "\n")  # Write simulation end message to the log.
+    log_file.write("\n")  #newline for personal style + clarity
     log_file.flush()  # Flush the log file buffer.
-    # sock.close()  # Close the socket connection.
-    # log_file.close()  # Close the log file.
-    os._exit(0)  #force exit
-
+ 
 
 # -------------------------------
 # DRIVERRRRR CODEEEEEEE (for sim)
@@ -253,17 +246,21 @@ if __name__ == "__main__":
     host = input("Enter server host: ").strip()  # Prompt user for the server host.
     port = int(input("Enter server port: ").strip())  # Prompt user for the server port.
     
-    simulation_duration = 30  #go for 30 seconds - tweakable
-    
-    #each registered username (client), spawns a thread to simulate their interactions 
-    threads = []  # List to keep track of client simulation threads.
-    for username in usernames:
-        # Create a new thread for each simulated client.
-        t = threading.Thread(target=simulate_client, args=(username, host, port, simulation_duration))
-        t.daemon = True  # Set thread as daemon so it exits when main program exits.
-        t.start()  # Start the client simulation thread.
-        threads.append(t)  # Append thread to list.
-    
-    #wait until all threads are done before ending the simulation
-    for t in threads:
-        t.join()  # Block until the thread finishes execution.
+    simulation_duration = 60  #run each sim for 1 minute - tweakable
+    simulation_runs = 5 #run the simulation 5 times
+
+    for run_number in range(1, simulation_runs+1): #so we don't end up indexing by 0
+        #each registered username (client), spawns a thread to simulate their interactions 
+        threads = []  # List to keep track of client simulation threads.
+        for username in usernames:
+            # Create a new thread for each simulated client.
+            t = threading.Thread(target=simulate_client, args=(username, host, port, simulation_duration, run_number))
+            t.daemon = True  # Set thread as daemon so it exits when main program exits.
+            t.start()  # Start the client simulation thread.
+            threads.append(t)  # Append thread to list.
+        
+        #wait until all threads are done before ending the simulation
+        for t in threads:
+            t.join()  # Block until the thread finishes execution.
+
+    print(f"Simulation ended.")
