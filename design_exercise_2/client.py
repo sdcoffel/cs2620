@@ -230,8 +230,8 @@ def simulate_client(username, host, port, simulation_duration):
     print(end_msg)
     log_file.write(end_msg + "\n")  # Write simulation end message to the log.
     log_file.flush()  # Flush the log file buffer.
-    #sock.close()  # Close the socket connection.
-    #log_file.close()  # Close the log file.
+    # sock.close()  # Close the socket connection.
+    # log_file.close()  # Close the log file.
     os._exit(0)  #force exit
 
 
