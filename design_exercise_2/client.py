@@ -98,27 +98,29 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
             message = net_queue.get()  # Retrieve the next message from the network queue.
             queue_length = net_queue.qsize()  # Get the current number of messages left in the queue.
             # Construct a log message including clock, global time, queue length, and message content.
-            log_msg = (f"[Clock {clock['value']}] Received: {message} | Global time: {global_time} "
-                       f"| Queue length: {queue_length} | Logical clock: {clock['value']}")
-            print(f"{log_msg}\n", flush=True)  # Print the log message to standard output.
+            log_msg = (f" Message received. | Global time: {global_time} "
+                       f"| Queue length: {queue_length} | Current local logical clock value: {clock['value']}")
+            print(f"{log_msg}\n", flush=True)  # Print the log message to standard output for us to track
             log_file.write(log_msg + "\n")  # Write the log message to the log file.
             log_file.flush()  # Flush the log file buffer to ensure the message is written.
        
        #otherwise, the queue is empty, so simulate a random number between 1-10:
         else:
             rand_val = random.randint(1, 10)  # Generate a random number to determine the event.
+            
             #if value is 1, send to machine b all the relevant info 
             if rand_val == 1:
-                msg = f"Logical clock time: {clock['value']}"
+                msg = f"Machine logical clock time: {clock['value']}" #message is this machines local time
                 try:
                     # Send message to the first recipient in the list.
                     sock.send(f"{other_recipients[0]}::{msg}".encode('utf-8'))
                     clock["value"] += 1  # Increment logical clock after sending.
-                    log_msg = (f"[Clock {clock['value']}] Sent to {other_recipients[0]}: {msg} | Global time: {global_time} "
-                               f"| Logical clock: {clock['value']}")
+                    log_msg = (f" Message sent to {other_recipients[0]} with content: {msg} | Global/system time: {global_time} "
+                               f"| Current local logical clock value: {clock['value']}")
                     print(f"{log_msg}\n", flush=True)
                     log_file.write(log_msg + "\n")
                     log_file.flush()
+                
                 except Exception as e:
                     print("Error sending message:", e)
             
@@ -131,8 +133,8 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
                     # Send message to the selected recipient.
                     sock.send(f"{recipient}::{msg}".encode('utf-8'))
                     clock["value"] += 1  # Increment logical clock.
-                    log_msg = (f"[Clock {clock['value']}] Sent to {recipient}: {msg} | Global time: {global_time} "
-                               f"| Logical clock: {clock['value']}")
+                    log_msg = (f" Message sent to {other_recipients[1]} with content: {msg} | Global/system time: {global_time} "
+                               f"| Current local logical clock value: {clock['value']}")
                     print(f"{log_msg}\n", flush=True)
                     log_file.write(log_msg + "\n")
                     log_file.flush()
@@ -149,17 +151,18 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
                     except Exception as e:
                         print("Error sending message to", recipient, ":", e)
                 clock["value"] += 1  # Increment logical clock after sending to all recipients.
-                log_msg = (f"[Clock {clock['value']}] Sent to {', '.join(other_recipients)}: {msg} | Global time: {global_time} "
-                           f"| Logical clock: {clock['value']}")
+                log_msg = (f"Message sent to all other recipients with content: {msg} | Global/system time: {global_time} "
+                           f"| Current local logical clock value: {clock['value']}")
                 print(f"{log_msg}\n", flush=True)
                 log_file.write(log_msg + "\n")
                 log_file.flush()
             
             #otherwise, log this as an internal event, and log all relevant values 
             else:
+                clock["value"] += 1  # Increment logical clock 
                 # Log an internal event when no message is sent.
-                log_msg = (f"[Clock {clock['value']}] Internal event occurred. | Global time: {global_time} "
-                           f"| Logical clock: {clock['value']}")
+                log_msg = (f" Internal event occurred. | Global/system time: {global_time} "
+                           f"| Local logical clock value: {clock['value']}")
                 print(f"{log_msg}\n", flush=True)
                 log_file.write(log_msg + "\n")
                 log_file.flush()

@@ -214,26 +214,17 @@ def test_process_network_queue_send_to_all_recipients(monkeypatch, capsys):
     # Force the sending branch for all recipients (rand_val == 3).
     monkeypatch.setattr(random, "randint", lambda a, b: 3)
 
-    # Use try/except to handle the expected exception from our fake_sleep function
-    try:
+    with pytest.raises(Exception, match="Test complete"):
         process_network_queue(net_queue, 10, clock, fake_log_file, fake_sock, other_recipients)
-    except Exception as e:
-        if str(e) != "Test complete":
-            raise  # Re-raise if it's not our expected exception
-    
+
     # Verify messages were sent to all recipients
     assert len(fake_sock.sent_data) >= len(other_recipients), "Expected at least one message per recipient"
-    
+
     # Verify each recipient received at least one message
     for recipient in other_recipients:
-        found = False
-        for data in fake_sock.sent_data:
-            sent_message = data.decode('utf-8')
-            if recipient in sent_message:
-                found = True
-                break
+        found = any(recipient in data.decode('utf-8') for data in fake_sock.sent_data)
         assert found, f"Expected to find message sent to {recipient}"
-    
+
     # Verify log contains the right info
     log_contents = fake_log_file.getvalue()
     assert "Sent to" in log_contents
