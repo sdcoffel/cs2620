@@ -1,158 +1,166 @@
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-import io
-import queue
-import random
-import socket
 import threading
+import queue
 import time
-import os
-import pytest
+import socket
 
-from client import (
-    receive_messages,
-    process_network_queue,
-    simulate_client,
-)
+# Adjust system path to import the server module from the parent directory.
+sys.path.append("../")  # Change this if your server script is in a different directory.
 
-# --- Helper: FakeSocket ---
-class FakeSocket:
-    """A fake socket to simulate recv, send, connect, and close behavior."""
-    def __init__(self, responses=None):
-        # responses is a list of bytes that recv() will return sequentially.
-        self.responses = responses or []
+# Import the server functions and global active_clients.
+from server import SendMessage, ReceiveMessages, handle_client, start_server, active_clients
+
+# --------------------------
+# Fake Connection and Socket
+# --------------------------
+class FakeConn:
+    def __init__(self, responses):
+        # responses: a list of strings to be returned on successive recv calls.
+        self.responses = responses
+        self.index = 0
         self.sent_data = []
-        self.connected_address = None
+        self.closed = False
 
     def recv(self, bufsize):
-        if self.responses:
-            return self.responses.pop(0)
-        # When there are no responses, simulate connection closed.
+        if self.index < len(self.responses):
+            response = self.responses[self.index]
+            self.index += 1
+            return response.encode('utf-8')
         return b""
 
-    def send(self, data):
+    def sendall(self, data):
         self.sent_data.append(data)
 
-    def connect(self, address):
-        self.connected_address = address
+    def close(self):
+        self.closed = True
+
+# Fake server socket for testing start_server.
+class FakeServerSocket:
+    def __init__(self):
+        self.accepted = False
+
+    def bind(self, addr):
+        pass
+
+    def listen(self):
+        pass
+
+    def accept(self):
+        # Return a fake connection on first call, then raise KeyboardInterrupt.
+        if not self.accepted:
+            self.accepted = True
+            # For simplicity, simulate a client that sends username "a" then disconnects.
+            fake_conn = FakeConn(["a", ""])  # username then immediate disconnect
+            return (fake_conn, ("127.0.0.1", 12345))
+        raise KeyboardInterrupt
 
     def close(self):
         pass
 
-# --- Tests for receive_messages ---
-
-def test_receive_messages_normal():
-    """
-    Test that receive_messages decodes a valid message and enqueues
-    a disconnect message when no data is received.
-    """
-    net_queue = queue.Queue()
-    fake_sock = FakeSocket(responses=[b"Hello, client", b""])
-    receive_messages(fake_sock, net_queue)
-    # First message: decoded text.
-    msg1 = net_queue.get_nowait()
-    assert msg1 == "Hello, client"
-    # Second message: server disconnected.
-    msg2 = net_queue.get_nowait()
-    assert "Server disconnected." in msg2
-
-def test_receive_messages_exception():
-    """
-    Test that if socket.recv raises an exception, an error message is enqueued.
-    """
-    net_queue = queue.Queue()
-    class ExceptionSocket:
-        def recv(self, bufsize):
-            raise Exception("Test exception")
-    fake_sock = ExceptionSocket()
-    receive_messages(fake_sock, net_queue)
-    msg = net_queue.get_nowait()
-    assert "Error receiving message: Test exception" in msg
-
-# --- Tests for process_network_queue ---
-# We let threads sleep briefly so they get scheduled.
-
-def test_process_network_queue_receive(monkeypatch, capsys):
-    """
-    Test that when a message is waiting in the network queue, it is dequeued
-    and a "Received:" event is logged.
-    """
-    net_queue = queue.Queue()
-    net_queue.put("Test message from network")
-    clock = {"value": 0}
-    fake_log_file = io.StringIO()
-    fake_sock = FakeSocket()
-    other_recipients = ["b", "c"]
-
-    # Save the original sleep function.
-    orig_sleep = time.sleep
-    # Let the tick sleep for a very short time using the original sleep.
-    monkeypatch.setattr(time, "sleep", lambda duration: orig_sleep(0.01))
-    # Fix the global time to a constant.
-    monkeypatch.setattr(time, "strftime", lambda fmt, t: "2025-03-03 12:00:00")
+# --------------------------
+# Tests for SendMessage
+# --------------------------
+def test_SendMessage():
+    # Prepare active_clients for recipient "b".
+    recipient_queue = queue.Queue()
+    active_clients["b"] = {"conn": FakeConn([]), "queue": recipient_queue}
     
-    t = threading.Thread(
-        target=process_network_queue,
-        args=(net_queue, 10, clock, fake_log_file, fake_sock, other_recipients),
-        daemon=True
-    )
+    # Call SendMessage from "a" to "b" with a sample message.
+    status = SendMessage("a", "b", "Hello")
+    # Check that the message was enqueued.
+    queued_sender, queued_message = recipient_queue.get_nowait()
+    assert queued_sender == "a"
+    assert queued_message == "Hello"
+    # Depending on your implementation, adjust expected status.
+    assert status in ["Message delivered.", "Message delivered successfully."]
+    
+    # Cleanup.
+    del active_clients["b"]
+
+# --------------------------
+# Tests for ReceiveMessages
+# --------------------------
+def test_ReceiveMessages(monkeypatch, capsys):
+    username = "testuser"
+    # Create a fake connection whose sendall will raise an exception to break the infinite loop.
+    class FakeConnError:
+        def __init__(self):
+            self.sent_data = []
+        def sendall(self, data):
+            self.sent_data.append(data)
+            raise Exception("Simulated send error")
+        def close(self):
+            pass
+
+    # Setup active_clients for testuser.
+    fake_queue = queue.Queue()
+    fake_queue.put(("sender", "Test message"))
+    active_clients[username] = {'conn': FakeConnError(), 'queue': fake_queue}
+    
+    # Run ReceiveMessages in a separate thread; it should process one message then break.
+    t = threading.Thread(target=ReceiveMessages, args=(username,), daemon=True)
     t.start()
-    # Allow some time for the thread to process.
-    orig_sleep(0.05)
+    t.join(timeout=1)
+    
     captured = capsys.readouterr().out
-    log_contents = fake_log_file.getvalue()
-    assert ("Received: Test message from network" in captured or
-            "Received: Test message from network" in log_contents)
-
-def test_process_network_queue_send(monkeypatch, capsys):
-    """
-    Test that when the network queue is empty and random.randint returns 1,
-    process_network_queue sends a message to the first recipient.
-    """
-    net_queue = queue.Queue()  # Start with an empty queue.
-    clock = {"value": 0}
-    fake_log_file = io.StringIO()
-    fake_sock = FakeSocket()
-    other_recipients = ["b", "c"]
-
-    orig_sleep = time.sleep
-    monkeypatch.setattr(time, "sleep", lambda duration: orig_sleep(0.01))
-    monkeypatch.setattr(time, "strftime", lambda fmt, t: "2025-03-03 12:00:00")
-    # Force the sending branch (rand_val == 1).
-    monkeypatch.setattr(random, "randint", lambda a, b: 1)
-
-    t = threading.Thread(
-        target=process_network_queue,
-        args=(net_queue, 10, clock, fake_log_file, fake_sock, other_recipients),
-        daemon=True
-    )
-    t.start()
-    orig_sleep(0.05)
-    assert fake_sock.sent_data, "Expected a message to be sent"
-    sent_message = fake_sock.sent_data[0].decode('utf-8')
-    assert other_recipients[0] in sent_message
-    captured = capsys.readouterr().out
-    log_contents = fake_log_file.getvalue()
-    assert ("Sent to" in captured or "Sent to" in log_contents)
-
-def test_simulate_client(monkeypatch, tmp_path):
-    """
-    Test simulate_client by patching the socket, file I/O, and os._exit so that
-    the simulation runs quickly without actually exiting the test process.
-    """
-    fake_sock = FakeSocket()
-    monkeypatch.setattr(socket, "socket", lambda *args, **kwargs: fake_sock)
+    assert f"Error sending message to {username}:" in captured
     
-    # Patch os._exit so that it raises an exception instead.
-    def fake_exit(code):
-        raise SystemExit(code)
-    monkeypatch.setattr(os, "_exit", fake_exit)
+    # Cleanup.
+    del active_clients[username]
+
+# --------------------------
+# Tests for handle_client
+# --------------------------
+def test_handle_client(monkeypatch):
+    """
+    Simulate a client that sends:
+      1. Its username ("a")
+      2. A valid message ("b::Hello")
+      3. An invalid message ("invalid")
+      4. An empty message to simulate disconnect.
+    """
+    responses = ["a", "b::Hello", "invalid", ""]
+    fake_conn = FakeConn(responses)
+    addr = ("127.0.0.1", 12345)
     
-    with pytest.raises(SystemExit):
-        simulate_client("a", "localhost", 12345, simulation_duration=1)
+    # Pre-populate active_clients for recipient "b" so SendMessage works.
+    active_clients["b"] = {"conn": FakeConn([]), "queue": queue.Queue()}
     
-    # Check that the client sent its username on connect.
-    sent_usernames = [data for data in fake_sock.sent_data if b"a" in data]
-    assert sent_usernames, "Expected the client to send its username on connect"
+    # Run handle_client (this will block until the connection sends empty data).
+    handle_client(fake_conn, addr)
+    
+    # After disconnection, client "a" should be removed from active_clients.
+    assert "a" not in active_clients
+    
+    # Check that an error message was sent for the invalid format.
+    error_sent = any("Invalid message format" in sent.decode('utf-8') for sent in fake_conn.sent_data)
+    assert error_sent
+    
+    # Check that the valid message was delivered to recipient "b".
+    q = active_clients["b"]["queue"]
+    delivered = q.get_nowait()
+    assert delivered == ("a", "Hello")
+    
+    # Cleanup.
+    del active_clients["b"]
+
+# --------------------------
+# Test for start_server
+# --------------------------
+def test_start_server(monkeypatch):
+    """
+    Replace socket.socket with our FakeServerSocket so that start_server
+    processes one connection and then raises KeyboardInterrupt.
+    """
+    monkeypatch.setattr(socket, "socket", lambda *args, **kwargs: FakeServerSocket())
+    
+    # Since start_server catches KeyboardInterrupt internally, we run it in a thread.
+    server_thread = threading.Thread(target=start_server)
+    server_thread.start()
+    # Allow some time for the server to process the fake connection.
+    time.sleep(0.2)
+    # The FakeServerSocket will raise KeyboardInterrupt on the second accept,
+    # so the server should shut down gracefully.
+    server_thread.join(timeout=1)
+    assert not server_thread.is_alive()

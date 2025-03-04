@@ -65,7 +65,7 @@ def receive_messages(sock, net_queue):
             break
 
 
-def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_recipients):
+def process_network_queue(net_queue, clock_rate, log_file, sock, other_recipients):
     """
     Processes events from the network queue and simulates random events on each clock tick.
 
@@ -85,6 +85,7 @@ def process_network_queue(net_queue, clock_rate, clock, log_file, sock, other_re
     Returns:
         None
     """
+    clock = {"value": 0}  # Initialize the logical clock with a starting value of 0.
     tick_interval = 1.0 / clock_rate  # Calculate interval duration for each tick.
     while True:
         time.sleep(tick_interval)  # Sleep for the duration of one tick.
@@ -200,9 +201,9 @@ def simulate_client(username, host, port, simulation_duration, run_number):
     print(f"[{username}] Clock rate is: {clock_rate} ticks per second.")
     
     #lamport clocks and log files 
-    clock = {"value": 0}  # Initialize the logical clock with a starting value of 0.
+    # clock = {"value": 0}  # Initialize the logical clock with a starting value of 0.
     log_file = open(f"log_{username}.txt", "a")  # Open a log file for appending events.
-    print(f"[{username}] Log file opened.")
+    #print(f"[{username}] Log file opened.")
 
     #delimiters for the log files
     log_file = open(f"log_{username}.txt", "a")
@@ -215,12 +216,12 @@ def simulate_client(username, host, port, simulation_duration, run_number):
         sender = random.choice(other_recipients)  # Randomly select a sender from the list of other recipients.
         test_message = f"{sender} -> {username}: Preloaded message {i+1}"
         net_queue.put(test_message)  # Enqueue the test message.
-    print(f"[{username}] Preloaded {num_preloaded} messages into the network queue.")
+    #print(f"[{username}] Preloaded {num_preloaded} messages into the network queue.")
 
     #recieving/processing messages get their own threads
     threading.Thread(target=receive_messages, args=(sock, net_queue), daemon=True).start()  # Start thread for receiving messages.
     threading.Thread(target=process_network_queue, 
-                     args=(net_queue, clock_rate, clock, log_file, sock, other_recipients),
+                     args=(net_queue, clock_rate, log_file, sock, other_recipients),
                      daemon=True).start()  # Start thread for processing the network queue.
 
     #run simulation
