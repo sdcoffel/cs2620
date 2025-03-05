@@ -26,6 +26,7 @@ import random
 import queue
 import time
 import sys
+import multiprocessing
 
 
 # ---------------------------------
@@ -170,7 +171,8 @@ def simulate_client(username, host, port, simulation_duration, run_number):
     The client simulation includes connecting to the server, sending the username as an initial message,
     preloading the network queue with test messages (to simulate inter-client communication), and starting
     dedicated threads for receiving and processing messages. The simulation runs for a specified duration,
-    after which all connections are closed and the process is terminated.
+    after which all connections are closed and the process is terminated. Every client instance is treated as its own
+    process, where the threads for sending/recieving messages and for pulling from the queue are contained within each process.
 
     Args:
         username (str): The client's username which identifies the machine (should be 'a', 'b', or 'c').
@@ -196,14 +198,11 @@ def simulate_client(username, host, port, simulation_duration, run_number):
     sock.send(username.encode('utf-8'))  # Send username to the server.
     print(f"[{username}] Connected to the server.")
 
-    #get clock rate
-    clock_rate = random.randint(1, 6)  # Randomly determine the clock rate (ticks per second).
-    print(f"[{username}] Clock rate is: {clock_rate} ticks per second.")
-    
-    #lamport clocks and log files 
-    # clock = {"value": 0}  # Initialize the logical clock with a starting value of 0.
+    #set clock rate and open logs
+    clock_rate = random.randint(1, 30)  # Randomly determine the clock rate (ticks per second).
+    print(f"[{username}] Clock rate is: {clock_rate} ticks per second.") 
     log_file = open(f"log_{username}.txt", "a")  # Open a log file for appending events.
-    #print(f"[{username}] Log file opened.")
+    
 
     #delimiters for the log files
     log_file = open(f"log_{username}.txt", "a")
@@ -216,20 +215,19 @@ def simulate_client(username, host, port, simulation_duration, run_number):
         sender = random.choice(other_recipients)  # Randomly select a sender from the list of other recipients.
         test_message = f"{sender} -> {username}: Preloaded message {i+1}"
         net_queue.put(test_message)  # Enqueue the test message.
-    #print(f"[{username}] Preloaded {num_preloaded} messages into the network queue.")
 
-    #recieving/processing messages get their own threads
+    #recieving/processing messages get their own threads within each client process
     threading.Thread(target=receive_messages, args=(sock, net_queue), daemon=True).start()  # Start thread for receiving messages.
     threading.Thread(target=process_network_queue, 
                      args=(net_queue, clock_rate, log_file, sock, other_recipients),
                      daemon=True).start()  # Start thread for processing the network queue.
 
     #run simulation
-    time.sleep(simulation_duration)  # Let the simulation run for the specified duration.
+    time.sleep(simulation_duration)  #let the simulation run for the specified duration.
     
     #log and close connections
     log_file.write("\n")  #newline for personal style + clarity
-    log_file.flush()  # Flush the log file buffer.
+    log_file.flush()  #flush log buffer
  
 
 # -------------------------------
@@ -250,18 +248,20 @@ if __name__ == "__main__":
     simulation_duration = 60  #run each sim for 1 minute - tweakable
     simulation_runs = 5 #run the simulation 5 times
 
-    for run_number in range(1, simulation_runs+1): #so we don't end up indexing by 0
-        #each registered username (client), spawns a thread to simulate their interactions 
-        threads = []  # List to keep track of client simulation threads.
+    for run_number in range(1, simulation_runs + 1):
+        processes = []  #list that keeps track of client simulation processes
         for username in usernames:
-            # Create a new thread for each simulated client.
-            t = threading.Thread(target=simulate_client, args=(username, host, port, simulation_duration, run_number))
-            t.daemon = True  # Set thread as daemon so it exits when main program exits.
-            t.start()  # Start the client simulation thread.
-            threads.append(t)  # Append thread to list.
+            #every client gets its own process
+            p = multiprocessing.Process(
+                target=simulate_client,
+                args=(username, host, port, simulation_duration, run_number)
+            )
+            #run with the sim 
+            p.start()   
+            processes.append(p)
         
-        #wait until all threads are done before ending the simulation
-        for t in threads:
-            t.join()  # Block until the thread finishes execution.
+        #wait for all processes to finish before starting the next run
+        for p in processes:
+            p.join()
 
     print(f"Simulation ended.")
