@@ -248,8 +248,8 @@ if __name__ == "__main__":
     host = input("Enter server host: ").strip()  # Prompt user for the server host.
     port = int(input("Enter server port: ").strip())  # Prompt user for the server port.
     
-    simulation_duration = 600  #run each sim for 1 minute - tweakable
-    simulation_runs = 1 #run the simulation 5 times
+    simulation_duration = 60  #run each sim for 1 minute - tweakable
+    simulation_runs = 5 #run the simulation 5 times --tweakable 
 
     for run_number in range(1, simulation_runs + 1):
         processes = []  #list that keeps track of client simulation processes

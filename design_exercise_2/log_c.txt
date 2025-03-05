@@ -9980,3 +9980,19 @@ Message sent to b with content: Logical clock time: 4863 | Global/system time: 2
  Internal event occurred. | Global/system time: 2025-03-05 16:11:32 | Local logical clock value: 4883 
  Message received. | Global time: 2025-03-05 16:11:33 | Queue length: 0 | Current local logical clock value: 4884 
 
+
+===== Simulation Run 1 START at 2025-03-05 16:14:22 =====
+ Message received. | Global time: 2025-03-05 16:14:23 | Queue length: 4 | Current local logical clock value: 1 
+ Message received. | Global time: 2025-03-05 16:14:24 | Queue length: 3 | Current local logical clock value: 2 
+ Message received. | Global time: 2025-03-05 16:14:25 | Queue length: 3 | Current local logical clock value: 3 
+ Message received. | Global time: 2025-03-05 16:14:26 | Queue length: 2 | Current local logical clock value: 4 
+ Message received. | Global time: 2025-03-05 16:14:27 | Queue length: 1 | Current local logical clock value: 5 
+ Message received. | Global time: 2025-03-05 16:14:28 | Queue length: 0 | Current local logical clock value: 6 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:29 | Local logical clock value: 8 
+Message sent to b with content: Logical clock time: 9 | Global/system time: 2025-03-05 16:14:30 | Current local logical clock value: 10 
+ Message received. | Global time: 2025-03-05 16:14:31 | Queue length: 2 | Current local logical clock value: 11 
+ Message received. | Global time: 2025-03-05 16:14:32 | Queue length: 1 | Current local logical clock value: 12 
+ Message received. | Global time: 2025-03-05 16:14:33 | Queue length: 1 | Current local logical clock value: 13 
+ Message received. | Global time: 2025-03-05 16:14:34 | Queue length: 0 | Current local logical clock value: 14 
+ Message received. | Global time: 2025-03-05 16:14:35 | Queue length: 0 | Current local logical clock value: 15 
+ Message received. | Global time: 2025-03-05 16:14:36 | Queue length: 0 | Current local logical clock value: 16 

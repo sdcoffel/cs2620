@@ -7209,3 +7209,62 @@ Message sent to c with content: Machine logical clock time: 1448 | Global/system
  Internal event occurred. | Global/system time: 2025-03-05 16:11:32 | Local logical clock value: 1462 
 Message sent to c with content: Logical clock time: 1463 | Global/system time: 2025-03-05 16:11:33 | Current local logical clock value: 1464 
 
+
+===== Simulation Run 1 START at 2025-03-05 16:14:22 =====
+ Message received. | Global time: 2025-03-05 16:14:22 | Queue length: 1 | Current local logical clock value: 1 
+ Message received. | Global time: 2025-03-05 16:14:22 | Queue length: 0 | Current local logical clock value: 2 
+ Message received. | Global time: 2025-03-05 16:14:22 | Queue length: 0 | Current local logical clock value: 3 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:23 | Local logical clock value: 5 
+ Message received. | Global time: 2025-03-05 16:14:23 | Queue length: 0 | Current local logical clock value: 6 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:23 | Local logical clock value: 8 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:23 | Local logical clock value: 10 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:24 | Local logical clock value: 12 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:24 | Local logical clock value: 14 
+Message sent to c with content: Logical clock time: 15 | Global/system time: 2025-03-05 16:14:24 | Current local logical clock value: 16 
+ Message received. | Global time: 2025-03-05 16:14:24 | Queue length: 0 | Current local logical clock value: 17 
+ Message received. | Global time: 2025-03-05 16:14:25 | Queue length: 0 | Current local logical clock value: 18 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:25 | Local logical clock value: 20 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:25 | Local logical clock value: 22 
+ Message received. | Global time: 2025-03-05 16:14:25 | Queue length: 0 | Current local logical clock value: 23 
+ Message received. | Global time: 2025-03-05 16:14:26 | Queue length: 0 | Current local logical clock value: 24 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:26 | Local logical clock value: 26 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:26 | Local logical clock value: 28 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:26 | Local logical clock value: 30 
+Message sent to all other recipients with content: Logical clock time: 31 | Global/system time: 2025-03-05 16:14:27 | Current local logical clock value: 32 
+ Message received. | Global time: 2025-03-05 16:14:27 | Queue length: 0 | Current local logical clock value: 33 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:27 | Local logical clock value: 35 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:27 | Local logical clock value: 37 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:28 | Local logical clock value: 39 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:28 | Local logical clock value: 41 
+ Message received. | Global time: 2025-03-05 16:14:28 | Queue length: 0 | Current local logical clock value: 42 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:28 | Local logical clock value: 44 
+ Message received. | Global time: 2025-03-05 16:14:29 | Queue length: 0 | Current local logical clock value: 45 
+Message sent to c with content: Machine logical clock time: 46 | Global/system time: 2025-03-05 16:14:29 | Current local logical clock value: 47 
+ Message received. | Global time: 2025-03-05 16:14:29 | Queue length: 0 | Current local logical clock value: 48 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:29 | Local logical clock value: 50 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:30 | Local logical clock value: 52 
+Message sent to all other recipients with content: Logical clock time: 53 | Global/system time: 2025-03-05 16:14:30 | Current local logical clock value: 54 
+ Message received. | Global time: 2025-03-05 16:14:30 | Queue length: 0 | Current local logical clock value: 55 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:30 | Local logical clock value: 57 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:31 | Local logical clock value: 59 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:31 | Local logical clock value: 61 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:31 | Local logical clock value: 63 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:31 | Local logical clock value: 65 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:32 | Local logical clock value: 67 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:32 | Local logical clock value: 69 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:32 | Local logical clock value: 71 
+ Message received. | Global time: 2025-03-05 16:14:32 | Queue length: 0 | Current local logical clock value: 72 
+ Message received. | Global time: 2025-03-05 16:14:33 | Queue length: 0 | Current local logical clock value: 73 
+Message sent to c with content: Machine logical clock time: 74 | Global/system time: 2025-03-05 16:14:33 | Current local logical clock value: 75 
+ Message received. | Global time: 2025-03-05 16:14:33 | Queue length: 0 | Current local logical clock value: 76 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:34 | Local logical clock value: 78 
+ Message received. | Global time: 2025-03-05 16:14:34 | Queue length: 0 | Current local logical clock value: 79 
+Message sent to c with content: Logical clock time: 80 | Global/system time: 2025-03-05 16:14:34 | Current local logical clock value: 81 
+ Message received. | Global time: 2025-03-05 16:14:34 | Queue length: 0 | Current local logical clock value: 82 
+ Message received. | Global time: 2025-03-05 16:14:35 | Queue length: 0 | Current local logical clock value: 83 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:35 | Local logical clock value: 85 
+ Message received. | Global time: 2025-03-05 16:14:35 | Queue length: 0 | Current local logical clock value: 86 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:35 | Local logical clock value: 88 
+ Message received. | Global time: 2025-03-05 16:14:36 | Queue length: 0 | Current local logical clock value: 89 
+ Internal event occurred. | Global/system time: 2025-03-05 16:14:36 | Local logical clock value: 91 
+ Message received. | Global time: 2025-03-05 16:14:36 | Queue length: 0 | Current local logical clock value: 92 
