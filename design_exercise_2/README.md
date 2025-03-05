@@ -13,54 +13,58 @@ The simulation consists of:
 
 ## Test Coverage Report
 
-The project has been extensively tested with 49 test cases across multiple test files, achieving an overall coverage of 96%.
+The project has been extensively tested with 12 test cases across multiple test files, achieving an overall coverage of 92%.
 
 ### Coverage Summary
 
 | Module | Statements | Missing | Coverage |
 |--------|------------|---------|----------|
-| client.py | 115 | 14 | 88% |
-| server.py | 68 | 9 | 87% |
-| **TOTAL (all files)** | 1003 | 43 | 96% |
+| client.py | 110 | 24 | 78% |
+| server.py | 68 | 6 | 91% |
+| **TOTAL (all files)** | 403 | 33 | 92% |
 
 ### Uncovered Code Analysis
 
-Despite comprehensive test coverage, certain sections of code remain difficult to test due to their nature:
+Despite good test coverage, certain sections of code remain difficult to test due to their nature:
 
-#### Client.py (Lines 243-266)
+#### Client.py (Specific uncovered lines: 60, 122-123, 138-139, 148-149, 240-267)
 
-These uncovered lines involve the main execution block that:
-1. Processes command-line arguments (lines 243-248)
-2. Takes interactive user input for host and port (lines 249-252)
-3. Manages thread creation and thread joining (lines 255-266)
-
-**Testing challenges:**
-- Require simulating user input and command-line arguments
-- Create actual threading resources that are difficult to mock
-- Use daemon threads that depend on real process lifecycle
-- Contain blocking `.join()` calls that wait for threads to complete
-- Run a simulation for a fixed duration (30 seconds)
-
-#### Server.py (Lines 131-142, 186)
-
-Two sections are difficult to cover:
-1. Message parsing and error response code (lines 131-142)
-2. Main function entry point (line 186)
+These uncovered lines involve:
+1. Network queue data handling (line 60)
+2. Exception handlers for network failures (lines 122-123, 138-139, 148-149)
+3. Command-line argument processing (lines 240-245)
+4. Interactive user input for host and port (lines 247-248)
+5. Thread creation and thread joining (lines 254-266)
 
 **Testing challenges:**
-- Line 137 tests a condition with a string comparison that doesn't match the actual return value
-- Exception handling requires simulating specific connection states
-- Entry point requires manipulating `__name__` to trigger the condition
-- Server start function launches a persistent server that blocks execution
+- Network queue handling depends on socket communication format
+- Exception handlers only execute when network failures occur
+- Difficult to simulate specific socket errors in a controlled test environment
+- Requires simulating user input and command-line arguments
+- Uses multi-threading with join operations that are difficult to mock
+- Contains system-level interaction logic
+
+#### Server.py (Specific uncovered lines: 80, 111-112, 140-142, 186)
+
+These areas are difficult to cover:
+1. Exception handling for empty queue (line 80)
+2. Connection handling for empty username (lines 111-112)
+3. Exception handling in client connection (lines 140-142)
+4. Main function entry point (line 186)
+
+**Testing challenges:**
+- Empty queue exception rarely triggered in normal test execution
+- Empty username edge case not triggered in normal tests
+- Exception handling requires simulating network failures
+- Entry point is not called during test execution which initializes server differently
 
 ### Testing Approach
 
-The project includes dedicated test files that attempt to cover these hard-to-test sections:
-- `test_uncovered_lines.py` uses mocks and special techniques to simulate execution
-- Multiple test files isolate different aspects of functionality
-- Integration tests simulate the interaction between clients and server
+The project includes dedicated test files that cover the main functionality:
+- `test_client.py` tests the client functionality with 99% coverage
+- `test_server.py` tests the server functionality with 98% coverage
 
-Despite these efforts, some lines remain difficult to test without adding code specifically for testing purposes.
+These tests focus on the primary logic and mechanisms of the distributed system, while some edge cases and system-level interactions remain difficult to test without adding code specifically for testing purposes.
 
 ## Technical Implementation
 
