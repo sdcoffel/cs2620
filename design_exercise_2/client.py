@@ -105,6 +105,8 @@ def process_network_queue(net_queue, clock_rate, log_file, sock, other_recipient
             log_file.flush()  # Flush the log file buffer to ensure the message is written.
        
        #otherwise, the queue is empty, so simulate a random number between 1-10:
+       #note: when testing with lower probability of internal event generation, i tweaked these values
+       #as of turnin, they should be reset to the assignment specs 
         else:
             rand_val = random.randint(1, 10)  # Generate a random number to determine the event.
             
@@ -199,10 +201,11 @@ def simulate_client(username, host, port, simulation_duration, run_number):
     print(f"[{username}] Connected to the server.")
 
     #set clock rate and open logs
-    clock_rate = random.randint(1, 30)  # Randomly determine the clock rate (ticks per second).
+    #my eng notebook has data for clock rates between 1-6 as per the assignment, 
+    #but i wanted to play around with this more and tweak it up to 30 to see what would happen! 
+    clock_rate = random.randint(1, 6)  #choose the clock rate randomly for this range -- tweakable. 
     print(f"[{username}] Clock rate is: {clock_rate} ticks per second.") 
     log_file = open(f"log_{username}.txt", "a")  # Open a log file for appending events.
-    
 
     #delimiters for the log files
     log_file = open(f"log_{username}.txt", "a")
@@ -214,7 +217,7 @@ def simulate_client(username, host, port, simulation_duration, run_number):
     for i in range(num_preloaded):
         sender = random.choice(other_recipients)  # Randomly select a sender from the list of other recipients.
         test_message = f"{sender} -> {username}: Preloaded message {i+1}"
-        net_queue.put(test_message)  # Enqueue the test message.
+        net_queue.put(test_message)  #queue the test message.
 
     #recieving/processing messages get their own threads within each client process
     threading.Thread(target=receive_messages, args=(sock, net_queue), daemon=True).start()  # Start thread for receiving messages.
@@ -245,8 +248,8 @@ if __name__ == "__main__":
     host = input("Enter server host: ").strip()  # Prompt user for the server host.
     port = int(input("Enter server port: ").strip())  # Prompt user for the server port.
     
-    simulation_duration = 60  #run each sim for 1 minute - tweakable
-    simulation_runs = 5 #run the simulation 5 times
+    simulation_duration = 600  #run each sim for 1 minute - tweakable
+    simulation_runs = 1 #run the simulation 5 times
 
     for run_number in range(1, simulation_runs + 1):
         processes = []  #list that keeps track of client simulation processes
