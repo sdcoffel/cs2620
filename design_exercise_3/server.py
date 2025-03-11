@@ -7,6 +7,12 @@ from concurrent import futures
 from accounts import *
 from messages import *
 
+# todo: 
+# move critical states to an external database, like redis or something
+# implement leader elections for multiple server instances 
+# implement 2-fault tolerance, maybe write sim so that every once in a while, 
+# a component goes down, so we automatically cycle to the next server as primary
+
 #GLOBALS - DO NOT MOVE
 FILE_PATH = "all_accounts_ever.txt"
 PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"

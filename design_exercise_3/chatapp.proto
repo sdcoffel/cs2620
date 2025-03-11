@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package chat;
+
+//all the RPCs for the messaging app are defined under ChatService.
+
+service ChatService {
+  //these are all the different things that the app needs to be able to do:
+
+  //login or account creation.
+  rpc Login (LoginRequest) returns (LoginResponse);
+
+  //send a message from one user to another
+  rpc SendMessage (MessageRequest) returns (MessageResponse);
+
+  // RPC to receive messages as a stream.
+  rpc ReceiveMessages (ReceiveMessagesRequest) returns (stream ChatMessageResponse);
+
+  //get the most recent pending messages
+  rpc GetPendingMessages (PendingMessagesRequest) returns (PendingMessagesResponse);
+
+  //retrieves additional pending messages in chunks of 10 
+  rpc MoreMessages (MoreMessagesRequest) returns (MoreMessagesResponse);
+
+  //deletes a message 
+  rpc DeleteMessage (DeleteMessageRequest) returns (DeleteMessageResponse);
+
+  //deletes an account after confirming 
+  rpc DeleteAccount (DeleteAccountRequest) returns (DeleteAccountResponse);
+
+  //lists all registered accounts, maybe filter by a wildcard if the user prompts
+  rpc ListAccounts (ListAccountsRequest) returns (ListAccountsResponse);
+}
+
+
+// ----------- Message Definitions -----------
+
+//login request used for logging in and creating new account
+message LoginRequest {
+  string username = 1; //entry for the username
+  string password = 2; //entry for password
+  bool is_new = 3; //flag: true if creating a new account; false if logging into an existing account.
+}
+
+//response to a login attempt
+message LoginResponse {
+  bool success = 1; //flag for whether or not the login was successful 
+  string message = 2; //string the server sends over
+}
+
+//request for sending a message
+message MessageRequest {
+  string sender = 1;
+  string recipient = 2;
+  string message = 3;
+}
+
+//response for sending a message
+message MessageResponse {
+  bool delivered = 1;
+  string message = 2;
+}
+
+//request for retrieving pending messages
+message PendingMessagesRequest {
+  string username = 1;
+}
+
+//pending message struct
+message PendingMessage {
+  string sender = 1;
+  string message = 2;
+}
+
+//response that contains the list of pending messages
+message PendingMessagesResponse {
+  repeated PendingMessage messages = 1;
+  //do i want to include 'you have pending messages?'
+  string message = 2;
+}
+
+//request for retrieving additional pending messages
+message MoreMessagesRequest {
+  string username = 1;
+}
+
+//response for the "more messages" request
+message MoreMessagesResponse {
+  repeated PendingMessage messages = 1;
+  string message = 2;
+}
+
+//messages that are forwarded over by the server 
+message ChatMessage {
+  string sender = 1;
+  string recipient = 2;
+  string message = 3;
+}
+
+message SendMessageRequest {
+  string sender = 1;
+  string recipient = 2;
+  string message = 3;
+}
+
+message SendMessageResponse {
+  bool delivered = 1;
+  string message = 2;
+}
+
+message ReceiveMessagesRequest {
+  string username = 1;
+}
+
+message ChatMessageResponse {
+  string sender = 1;
+  string message = 2;
+}
+
+
+//request to delete a message 
+message DeleteMessageRequest {
+  // This represents the content of the message to be deleted.
+  string message_content = 1;
+}
+
+//response to a delete message request
+message DeleteMessageResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+//request to delete an account. If there are unread messages, the client should set confirm = true.
+message DeleteAccountRequest {
+  string username = 1;
+  bool confirm = 2;
+}
+
+//response to an account deletion request.
+message DeleteAccountResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// request to list accounts. The filter field is optional; if empty, all accounts are returned.
+message ListAccountsRequest {
+  string filter = 1;
+}
+
+//response containing the list of account usernames, whether wildcarded or not 
+message ListAccountsResponse {
+  repeated string accounts = 1;
+  string message = 2;
+}
