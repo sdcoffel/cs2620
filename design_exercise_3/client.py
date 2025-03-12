@@ -168,9 +168,8 @@ class Client:
         try:
             self.channel = grpc.insecure_channel(f'{host}:{port}')
             self.stub = chatapp_pb2_grpc.ChatServiceStub(self.channel)
-            print("Connected to the server.")
+            print("Connected to a server!")
 
         except Exception as e: 
-            print("Failed to connect to the gRPC server. Client needs to retry.")
-
-
+            print("Failed to connect to our gRPC servers. Client needs to retry.")
+            

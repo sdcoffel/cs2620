@@ -453,7 +453,7 @@ class ChatApp(tk.Tk):
 if __name__ == "__main__":
     """Assigns the client, GUI, and runs the main loop."""
 
-    client = Client(host = 'localhost', port = 50051)
+    client = Client(host = "localhost", port = 50051) #change this later
     app = ChatApp(client)
     app.mainloop()
 

@@ -413,3 +413,176 @@ class ChatService(object):
             timeout,
             metadata,
             _registered_method=True)
+
+
+class RaftServiceStub(object):
+    """-----------------------
+    Raft Service Definitions
+    -----------------------
+
+    """
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.RequestVote = channel.unary_unary(
+                '/chat.RaftService/RequestVote',
+                request_serializer=chatapp__pb2.RequestVoteRequest.SerializeToString,
+                response_deserializer=chatapp__pb2.RequestVoteResponse.FromString,
+                _registered_method=True)
+        self.AppendEntries = channel.unary_unary(
+                '/chat.RaftService/AppendEntries',
+                request_serializer=chatapp__pb2.AppendEntriesRequest.SerializeToString,
+                response_deserializer=chatapp__pb2.AppendEntriesResponse.FromString,
+                _registered_method=True)
+        self.Ping = channel.unary_unary(
+                '/chat.RaftService/Ping',
+                request_serializer=chatapp__pb2.PingRequest.SerializeToString,
+                response_deserializer=chatapp__pb2.PingResponse.FromString,
+                _registered_method=True)
+
+
+class RaftServiceServicer(object):
+    """-----------------------
+    Raft Service Definitions
+    -----------------------
+
+    """
+
+    def RequestVote(self, request, context):
+        """RPC for requesting votes during leader election.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AppendEntries(self, request, context):
+        """RPC for heartbeats and log replication.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Ping(self, request, context):
+        """RPC for pings 
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_RaftServiceServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'RequestVote': grpc.unary_unary_rpc_method_handler(
+                    servicer.RequestVote,
+                    request_deserializer=chatapp__pb2.RequestVoteRequest.FromString,
+                    response_serializer=chatapp__pb2.RequestVoteResponse.SerializeToString,
+            ),
+            'AppendEntries': grpc.unary_unary_rpc_method_handler(
+                    servicer.AppendEntries,
+                    request_deserializer=chatapp__pb2.AppendEntriesRequest.FromString,
+                    response_serializer=chatapp__pb2.AppendEntriesResponse.SerializeToString,
+            ),
+            'Ping': grpc.unary_unary_rpc_method_handler(
+                    servicer.Ping,
+                    request_deserializer=chatapp__pb2.PingRequest.FromString,
+                    response_serializer=chatapp__pb2.PingResponse.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'chat.RaftService', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('chat.RaftService', rpc_method_handlers)
+
+
+ # This class is part of an EXPERIMENTAL API.
+class RaftService(object):
+    """-----------------------
+    Raft Service Definitions
+    -----------------------
+
+    """
+
+    @staticmethod
+    def RequestVote(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.RaftService/RequestVote',
+            chatapp__pb2.RequestVoteRequest.SerializeToString,
+            chatapp__pb2.RequestVoteResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AppendEntries(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.RaftService/AppendEntries',
+            chatapp__pb2.AppendEntriesRequest.SerializeToString,
+            chatapp__pb2.AppendEntriesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Ping(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.RaftService/Ping',
+            chatapp__pb2.PingRequest.SerializeToString,
+            chatapp__pb2.PingResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
