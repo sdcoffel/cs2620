@@ -34,7 +34,7 @@ class RaftNode:
         self.server_id = server_id
         self.peers = peers  # list of peer addresses
         self.role = "follower"  # roles: follower, candidate, leader
-        self.address = address  # this node's own address (e.g., "localhost:50051")
+        self.address = address  #node's own address (e.g., "localhost:50051")
         self.current_term = 0
         self.voted_for = None
         self.global_leader_id = None
