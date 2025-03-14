@@ -23,12 +23,21 @@ global_leader= None #leader of the cluster
 
 
 
+
+##TODOS FOR SPRING BREAK 
+#savanna: 
+
+#todo: implement a config file to keep track of all server instances, and dynamically update when we add new servers
+#todo: unit tests and integration tests for the server
+
+#ian: 
+#todo: documentation (hold off on readme )
+
 ########################################################################
 # Raft Node Implementation
 ########################################################################
 
 
-#todo: implement pinging of the leader and makethe grcp calls
 class RaftNode:
     def __init__(self, server_id, peers, address, timeout=10):
         self.server_id = server_id
@@ -549,6 +558,7 @@ if __name__ == "__main__":
     pending_messages
 
     #todo: command line arguments for number of servers
+
     #for 2-fault tolerance, we need at least 3 servers, but i want this to be able to add as many servers as possible
     ports = [50051, 50052, 50053]
     server_ids = ["server1", "server2", "server3"]
