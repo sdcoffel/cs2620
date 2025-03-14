@@ -368,7 +368,8 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
             return chatapp_pb2.SendMessageResponse(delivered=True, message="Message delivered.")
         
         else:
-            #store to pending messages if intended recipient is not online
+            #store to pending messages if intended recipient is not online - this is split up by processes, 
+            #so nobody is sharing persistent store (which is super secure and what we want!!1!!)
             if request.recipient not in pending_messages:
                 pending_messages[request.recipient] = []
 
@@ -547,6 +548,7 @@ if __name__ == "__main__":
     active_clients 
     pending_messages
 
+    #todo: command line arguments for number of servers
     #for 2-fault tolerance, we need at least 3 servers, but i want this to be able to add as many servers as possible
     ports = [50051, 50052, 50053]
     server_ids = ["server1", "server2", "server3"]
