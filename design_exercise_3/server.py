@@ -2,9 +2,7 @@ import grpc
 import queue
 import re
 import time 
-import random
 import threading
-import argparse
 import multiprocessing
 import chatapp_pb2
 import chatapp_pb2_grpc
@@ -12,13 +10,16 @@ from concurrent import futures
 from accounts import *
 from messages import *
 
+from config_manager import ConfigManager
+from zookeeper_manager import ZooKeeperManager
+
 #GLOBALS - DO NOT MOVE
 FILE_PATH = "all_accounts_ever.txt"
 PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
 active_clients = {}
 pending_messages = {}
 
-PEER_ADDRESSES = ['localhost:50051', 'localhost:50052', 'localhost:50053'] #allserver instances 
+#PEER_ADDRESSES = ['localhost:50051', 'localhost:50052', 'localhost:50053'] #allserver instances 
 global_leader= None #leader of the cluster
 
 
@@ -71,14 +72,14 @@ class RaftNode:
                 # if leader is designated and it is not this node,force this node to be a follower and update the heartbeat.
                 if global_leader is not None:
                     if global_leader != self.server_id:
-                        if self.role != "follower":
+                        if self.role == "leader":
                             print(f"Node {self.server_id} stepping down from leader role to follower.")
                         self.role = "follower"
                         self.leader_id = global_leader
                         self.last_heartbeat = time.time()
                         continue
                     
-                    #if the global leader is alread this node, then send heartbeats
+                    #if the global leader is already this node, then send heartbeats
                     if self.role == "leader":
                         self.send_heartbeats()
                         continue
@@ -100,6 +101,7 @@ class RaftNode:
                         except Exception as e:
                             continue
 
+                    #become the leader if we get majority votes
                     if votes > (len(self.peers) + 1) // 2:
                         self.role = "leader"
                         self.leader_id = self.server_id
@@ -134,11 +136,11 @@ class RaftNode:
     def send_heartbeats(self):
         #only leaders send heartbeats
         if self.role != "leader":
-            return 
+            return #followers don't send heartbeats
         
         #update local heartbeat timestamp
         self.last_heartbeat = time.time()
-        print(f"{self.server_id} heartbeat for term {self.current_term}")
+        print(f"{self.server_id} heartbeat")
         
         #for each peer, send an AppendEntries RPC as a heartbeat
         for peer in self.peers:
@@ -163,7 +165,7 @@ class RaftNode:
             except Exception as e:
                 print(f"Error sending heartbeat from {self.server_id} to {peer}: {e}")
         
-        # Sleep for a short heartbeat interval.
+        #sleep for 2 seconds before sending the next heartbeat
         time.sleep(2)
 
     def is_leader(self):
@@ -546,7 +548,8 @@ def run_server_instance(port, server_id):
     global raft_node
     address = f"localhost:{port}"
     #each server instance gets its own raftnode
-    raft_node = RaftNode(server_id=server_id, peers=PEER_ADDRESSES, address = address, timeout=10)
+    #raft_node = RaftNode(server_id=server_id, peers=PEER_ADDRESSES, address = address, timeout=10)
+    raft_node = RaftNode(server_id=server_id, peers=[], address = address, timeout=10)
     start_server(port, server_id)
 
 
@@ -557,11 +560,14 @@ if __name__ == "__main__":
     active_clients 
     pending_messages
 
+    #there is a synchornization bug here with how the servers are being started up. the global leader variable 
+    #isn't being set correctly. will debug later 
+
     #todo: command line arguments for number of servers
 
     #for 2-fault tolerance, we need at least 3 servers, but i want this to be able to add as many servers as possible
     ports = [50051, 50052, 50053]
-    server_ids = ["server1", "server2", "server3"]
+    server_ids = ["server1", "server2", "server3"] #default to three servers on startup 
 
     #each server must be run as a separate process in order to prevent a single point of failure 
     #global states like pending messages and accoutnts are shared across processes and decouples the states from the server instances
