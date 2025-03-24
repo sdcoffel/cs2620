@@ -9,6 +9,7 @@ import chatapp_pb2_grpc
 from concurrent import futures 
 from accounts import *
 from messages import *
+from multiprocessing import Manager
 
 from config_manager import ConfigManager
 from zookeeper_manager import ZooKeeperManager
@@ -20,7 +21,7 @@ active_clients = {}
 pending_messages = {}
 
 #PEER_ADDRESSES = ['localhost:50051', 'localhost:50052', 'localhost:50053'] #allserver instances 
-global_leader= None #leader of the cluster
+#global_leader= None #leader of the cluster
 
 
 
@@ -28,7 +29,7 @@ global_leader= None #leader of the cluster
 ##TODOS FOR SPRING BREAK 
 #savanna: 
 
-#todo: implement a config file to keep track of all server instances, and dynamically update when we add new servers
+#todo: add functionality to dynamically update the config file when new servers are started up, and add command line instances when these are run (?)
 #todo: unit tests and integration tests for the server
 
 #ian: 
@@ -40,20 +41,20 @@ global_leader= None #leader of the cluster
 
 
 class RaftNode:
-    def __init__(self, server_id, peers, address, timeout=10):
+    def __init__(self, server_id, peers, address, timeout, global_leader):
         self.server_id = server_id
         self.peers = peers  # list of peer addresses
         self.role = "follower"  # roles: follower, candidate, leader
         self.address = address  #node's own address (e.g., "localhost:50051")
         self.current_term = 0
         self.voted_for = None
-        self.global_leader_id = None
+        self.leader_id = None
         self.last_heartbeat = time.time()
         self.election_timeout = timeout #fixed timeout length that i can override if i need to
         self.lock = threading.Lock()
+        self.global_leader = global_leader
 
         #default to having server1 be the first leader
-        global global_leader
         if self.server_id == "server1":
             self.role = "leader"
             self.global_leader_id = self.server_id
@@ -65,17 +66,15 @@ class RaftNode:
         
         
     def election_loop(self):
-        global global_leader
         while True:
             time.sleep(0.1)
             with self.lock:
-                # if leader is designated and it is not this node,force this node to be a follower and update the heartbeat.
-                if global_leader is not None:
-                    if global_leader != self.server_id:
+                if self.global_leader.value is not None:
+                    if self.global_leader.value != self.server_id:
                         if self.role == "leader":
                             print(f"Node {self.server_id} stepping down from leader role to follower.")
                         self.role = "follower"
-                        self.leader_id = global_leader
+                        self.leader_id = self.global_leader.value
                         self.last_heartbeat = time.time()
                         continue
                     
@@ -84,6 +83,7 @@ class RaftNode:
                         self.send_heartbeats()
                         continue
 
+                #this is where the synchronization bug is happening 
                 #if no global leader is designated, check for election timeout
                 if time.time() - self.last_heartbeat > self.election_timeout:
                     #trigger election process when there is no leader
@@ -105,9 +105,8 @@ class RaftNode:
                     if votes > (len(self.peers) + 1) // 2:
                         self.role = "leader"
                         self.leader_id = self.server_id
-                        global_leader = self.server_id
+                        self.global_leader.value = self.server_id
                         print(f"Node {self.server_id} is the new leader for term {self.current_term}")
-                    
                     else:
                         self.role = "follower"
                         self.last_heartbeat = time.time()
@@ -544,15 +543,16 @@ def start_server(port, server_id):
             print(f"Failed to exit server properly! : {e}")
 
 
-def run_server_instance(port, server_id):
+def run_server_instance(port, server_id, global_leader):
     global raft_node
     address = f"localhost:{port}"
+
     #each server instance gets its own raftnode
-    #raft_node = RaftNode(server_id=server_id, peers=PEER_ADDRESSES, address = address, timeout=10)
-    raft_node = RaftNode(server_id=server_id, peers=[], address = address, timeout=10)
+    raft_node = RaftNode(server_id=server_id, peers=[], address = address, timeout=5, global_leader=global_leader) #default to starting with no peers which can be added in
     start_server(port, server_id)
 
 
+ #todo: command line arguments for number of servers
 if __name__ == "__main__":
     """Call all globally scoped variables, and start up the server."""
     FILE_PATH 
@@ -560,11 +560,9 @@ if __name__ == "__main__":
     active_clients 
     pending_messages
 
-    #there is a synchornization bug here with how the servers are being started up. the global leader variable 
-    #isn't being set correctly. will debug later 
 
-    #todo: command line arguments for number of servers
-
+    manager = Manager()
+    global_leader = manager.Value("globar_leader", "server1")
     #for 2-fault tolerance, we need at least 3 servers, but i want this to be able to add as many servers as possible
     ports = [50051, 50052, 50053]
     server_ids = ["server1", "server2", "server3"] #default to three servers on startup 
@@ -573,7 +571,7 @@ if __name__ == "__main__":
     #global states like pending messages and accoutnts are shared across processes and decouples the states from the server instances
     processes = []
     for port, server_id in zip(ports, server_ids):
-        p = multiprocessing.Process(target=run_server_instance, args=(port, server_id))
+        p = multiprocessing.Process(target=run_server_instance, args=(port, server_id, global_leader))
         p.start()
         processes.append(p)
     
