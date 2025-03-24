@@ -193,7 +193,7 @@ class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
 
     def Ping(self, request, context):
         #get the current status if we need it 
-        return chatapp_pb2.PingResponse(status="OK", role=raft_node.role)
+        return chatapp_pb2.PingResponse(status="OK", role=self.raft_node.role)
     
 
     def AddServer(self, request, context):
