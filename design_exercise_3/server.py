@@ -10,6 +10,7 @@ from concurrent import futures
 from accounts import *
 from messages import *
 from multiprocessing import Manager
+from raftnode import RaftNode, RaftService
 
 from config_manager import ConfigManager
 from zookeeper_manager import ZooKeeperManager
@@ -20,196 +21,13 @@ PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
 active_clients = {}
 pending_messages = {}
 
-#global Raft node instance set per serverinstance
-raft_node = None
 
 #savanna: 
 #todo: unit tests and integration tests for the server
 
 #ian: 
-#todo: documentation (you can write the readme now - i won't change much else bc i just need to add the config manager)
+#todo: full documentation
 
-########################################################################
-# Raft Node Implementation
-########################################################################
-
-
-class RaftNode:
-    def __init__(self, server_id, peers, address, timeout, global_leader):
-        self.server_id = server_id
-        self.peers = peers  #list of all addresses other than that node
-        self.role = "follower"  # roles: follower, candidate, leader
-        self.address = address  #node's address - where the server lives - needs to be updated by the zookeeper modules
-        self.current_term = 0
-        self.voted_for = None
-        self.leader_id = None
-        self.last_heartbeat = time.time()
-        self.election_timeout = timeout #fixed timeout length that i can override if i need to
-        self.lock = threading.Lock()
-        self.global_leader = global_leader
-
-        #default to having server1 be the first leader
-        if self.server_id == "server1":
-            self.role = "leader"
-            self.global_leader_id = self.server_id
-            global_leader = self.server_id
-            print(f"Node {self.server_id} is set as leader on startup.")
-        
-        #election loop is in a background thread
-        threading.Thread(target=self.election_loop, daemon=True).start()
-        
-        
-    def election_loop(self):
-        while True:
-            time.sleep(0.1)
-            with self.lock:
-                if self.global_leader.value is not None:
-                    if self.global_leader.value != self.server_id:
-                        if self.role == "leader":
-                            print(f"Node {self.server_id} stepping down from leader role to follower.")
-                        self.role = "follower"
-                        self.leader_id = self.global_leader.value
-                        self.last_heartbeat = time.time()
-                        continue
-                    
-                    #if the global leader is already this node, then send heartbeats
-                    if self.role == "leader":
-                        self.send_heartbeats()
-                        continue
-
-                #this is where the synchronization bug is happening 
-                #if no global leader is designated, check for election timeout
-                if time.time() - self.last_heartbeat > self.election_timeout:
-                    #trigger election process when there is no leader
-                    print(f"Leader node has failed. Node {self.server_id} starting election for term {self.current_term}")
-                    self.role = "candidate"
-                    self.current_term += 1
-                    self.voted_for = self.server_id
-                    votes = 1  # vote for self
-
-                    for peer in self.peers:
-                        try:
-                            vote_granted = self.send_request_vote(peer, self.current_term)
-                            if vote_granted:
-                                votes += 1
-                        except Exception as e:
-                            continue
-
-                    #become the leader if we get majority votes
-                    if votes > (len(self.peers) + 1) // 2:
-                        self.role = "leader"
-                        self.leader_id = self.server_id
-                        self.global_leader.value = self.server_id
-                        print(f"Node {self.server_id} is the new leader for term {self.current_term}")
-                    else:
-                        self.role = "follower"
-                        self.last_heartbeat = time.time()
-
-
-    def send_request_vote(self, peer, term):
-        try:
-            #open a gRPC channel to the peer
-            with grpc.insecure_channel(peer) as channel:
-                stub = chatapp_pb2_grpc.RaftServiceStub(channel)
-                #build the RequestVoteRequest
-                request = chatapp_pb2.RequestVoteRequest(
-                    term=term,
-                    candidate_id=self.server_id,
-                    last_log_index=0,  #no need to maintain the logs here
-                    last_log_term=0    #ditto
-                )
-                response = stub.RequestVote(request, timeout=2)
-                print(f"Node {self.server_id} got vote_granted={response.vote_granted} from {peer} for term {term}")
-                return response.vote_granted
-        except Exception as e:
-            print(f"Error sending RequestVote from {self.server_id} to {peer}: {e}")
-            return False
-
-
-    def send_heartbeats(self):
-        #only leaders send heartbeats
-        if self.role != "leader":
-            return #followers don't send heartbeats
-        
-        #update local heartbeat timestamp
-        self.last_heartbeat = time.time()
-        #print(f"{self.server_id} heartbeat")
-        
-        #for each peer, send an AppendEntries RPC as a heartbeat
-        for peer in self.peers:
-            if peer == self.address:
-                #don't send a request to yourself
-                continue
-            try:
-                with grpc.insecure_channel(peer) as channel:
-                    stub = chatapp_pb2_grpc.RaftServiceStub(channel)
-                    #build the AppendEntriesRequest message by filling in request
-                    #for a heartbeat, the entries list is empty,so leave as empty
-                    request = chatapp_pb2.AppendEntriesRequest(
-                        term=self.current_term,
-                        leader_id=self.server_id,
-                        prev_log_index=0,  #not maintaining logs here so keep at 0
-                        prev_log_term=0,   #ditto
-                        entries=[],        #empty heartbeat 
-                        leader_commit=0    #ditto
-                    )
-                    response = stub.AppendEntries(request, timeout=2)
-                    if not response.success:
-                        print(f"Heartbeat to {peer} failed: response={response}")
-            except Exception as e:
-                print(f"Error sending heartbeat from {self.server_id} to {peer}: {e}")
-        
-        #sleep for 2 seconds before sending the next heartbeat
-        time.sleep(2)
-
-    def is_leader(self):
-        with self.lock:
-            return self.role == "leader"
-    
-    def get_leader(self):
-        with self.lock:
-            return self.leader_id if self.role != "follower" else None
-
-    def add_peer(self, peer_address):
-        """Add a new peer to the Raft node."""
-        with self.lock:
-            if peer_address not in self.peers:
-                self.peers.append(peer_address)
-                print(f"Added new peer: {peer_address}")
-
-
-
-
-class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
-    def __init__(self, raft_node):
-        self.raft_node = raft_node
-    
-    def RequestVote(self, request, context):
-        #updates the raft_node state if necessary (e.g., reset election timer)
-        return chatapp_pb2.RequestVoteResponse(term=request.term, vote_granted=True)
-    
-    def AppendEntries(self, request, context):
-        #reset heartbeat timer
-        with self.raft_node.lock:
-            self.raft_node.last_heartbeat = time.time()
-
-            #if this call comes from a valid leader, update that leader's info 
-            self.raft_node.leader_id = request.leader_id
-            self.raft_node.role = "follower"
-        return chatapp_pb2.AppendEntriesResponse(term=request.term, success=True)
-    
-    def Ping(self, request, context):
-        #get the current status if we need it 
-        return chatapp_pb2.PingResponse(status="OK", role=raft_node.role)
-    
-
-    def AddServer(self, request, context):
-        """Handle the addition of a new server to the cluster."""
-        new_server_address = request.address
-        self.raft_node.add_peer(new_server_address)
-        return chatapp_pb2.AddServerResponse(success=True)
-
-    
 
 class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
 
@@ -541,7 +359,7 @@ def notify_existing_servers(new_server_id, new_server_address):
                 except Exception as e:
                     print(f"Failed to notify {server_id} about new server: {e}")
                     print(f"Retrying notification to {server_id}...")
-                    time.sleep(2)  # Add a delay before retrying
+                    time.sleep(2)  #delay before retrying
                     try:
                         with grpc.insecure_channel(server_address) as channel:
                             stub = chatapp_pb2_grpc.RaftServiceStub(channel)
@@ -560,7 +378,7 @@ def start_new_server(server_id, address, port, global_leader):
     p = multiprocessing.Process(target=run_server_instance, args=(port, server_id, global_leader))
     p.start()
     print(f"New server {server_id} started on {address}:{port}.")
-    time.sleep(5) #delay to ensure that the new server properly starts up 
+    time.sleep(2) #delay to ensure that the new server properly starts up - probably don't need this 
     return p
 
 
@@ -631,20 +449,25 @@ def run_server_instance(port, server_id, global_leader):
 
 
 
-
-
 if __name__ == "__main__":
-    """Call all globally scoped variables, and start up the server."""
+    """Call all globally scoped variables, and start up the server. Server 1 is designated as the leader by default, and we always start with 
+    three replicas on my machine to ensure 2 fault tolerance. To maintian multiple servers across multiple machines, you can either add additional servers during runtime,
+    or immediately start three more replicas on another machine and connect them to the same ZooKeeper instance.
+    
+    Each server is its own process with global states such as the designated cluster leader shared across all processes. We maintain persistent storage by immediatly 
+    saving pending messages to disk in the ChatServer class. If a server, or even the entire cluster goes down, we can always recover those messages.
+    """
+
+    #load in all globals
     FILE_PATH 
     PENDING_MESSAGES_FILE_PATH
     active_clients 
     pending_messages
 
-
     manager = Manager()
     global_leader = manager.Value("global_leader", "server1")
 
-    #for 2-fault tolerance, we need at least 3 servers, but i want this to be able to add as many servers as possible
+    #for 2-fault tolerance, we need at least 3 servers. by default, we start with 3 servers on my (or anyone who runs this script's) machine
     ports = [50051, 50052, 50053]
     server_ids = ["server1", "server2", "server3"] #default to three servers on startup 
 
@@ -679,6 +502,7 @@ if __name__ == "__main__":
 
             elif command == "exit":
                 break
+    
     finally:
         #cleanup dynamically added servers
         cleanup_dynamically_added_servers(dynamically_added_servers)
@@ -691,7 +515,6 @@ if __name__ == "__main__":
                 print("Terminated process.")
 
         print("Server cluster shut down.")
-
 
     for p in processes:
         p.join()
