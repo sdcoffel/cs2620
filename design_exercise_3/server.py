@@ -20,11 +20,10 @@ PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
 active_clients = {}
 pending_messages = {}
 
-##TODOS FOR SPRING BREAK 
-#savanna: 
+#global Raft node instance set per serverinstance
+raft_node = None
 
-#todo: add functionality to dynamically update the config file when new servers are started up, and add command line instances when these are run (?) 
-    #-> this means that i need to use the methods in config.py to add new servers to the config file -- but how???
+#savanna: 
 #todo: unit tests and integration tests for the server
 
 #ian: 
@@ -38,9 +37,9 @@ pending_messages = {}
 class RaftNode:
     def __init__(self, server_id, peers, address, timeout, global_leader):
         self.server_id = server_id
-        self.peers = peers  # list of peer addresses
+        self.peers = peers  #list of all addresses other than that node
         self.role = "follower"  # roles: follower, candidate, leader
-        self.address = address  #node's own address (e.g., "localhost:50051")
+        self.address = address  #node's address - where the server lives - needs to be updated by the zookeeper modules
         self.current_term = 0
         self.voted_for = None
         self.leader_id = None
@@ -134,11 +133,12 @@ class RaftNode:
         
         #update local heartbeat timestamp
         self.last_heartbeat = time.time()
-        print(f"{self.server_id} heartbeat")
+        #print(f"{self.server_id} heartbeat")
         
         #for each peer, send an AppendEntries RPC as a heartbeat
         for peer in self.peers:
             if peer == self.address:
+                #don't send a request to yourself
                 continue
             try:
                 with grpc.insecure_channel(peer) as channel:
@@ -170,9 +170,15 @@ class RaftNode:
         with self.lock:
             return self.leader_id if self.role != "follower" else None
 
+    def add_peer(self, peer_address):
+        """Add a new peer to the Raft node."""
+        with self.lock:
+            if peer_address not in self.peers:
+                self.peers.append(peer_address)
+                print(f"Added new peer: {peer_address}")
 
-#global Raft node instance set per serverinstance
-raft_node = None
+
+
 
 class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
     def __init__(self, raft_node):
@@ -195,6 +201,14 @@ class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
     def Ping(self, request, context):
         #get the current status if we need it 
         return chatapp_pb2.PingResponse(status="OK", role=raft_node.role)
+    
+
+    def AddServer(self, request, context):
+        """Handle the addition of a new server to the cluster."""
+        new_server_address = request.address
+        self.raft_node.add_peer(new_server_address)
+        return chatapp_pb2.AddServerResponse(success=True)
+
     
 
 class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
@@ -497,6 +511,82 @@ class ChatServer(chatapp_pb2_grpc.ChatServiceServicer):
 
 
 
+##############################Server Stuff##########################################
+def register_new_server(server_id, address):
+    zk_manager = ZooKeeperManager()
+    path = f"/servers/{server_id}"
+    if zk_manager.zk.exists(path):
+        print(f"zNode at {path} already exists. Updating its value.")
+        zk_manager.update_znode(path, address)
+    else:
+        zk_manager.create_znode(path, address)
+        print(f"Server {server_id} registered in ZooKeeper with address {address}.")
+    zk_manager.close()
+
+
+def notify_existing_servers(new_server_id, new_server_address):
+    zk_manager = ZooKeeperManager()
+    try:
+        existing_servers = zk_manager.list_children("/servers")
+
+        for server_id in existing_servers:
+            if server_id != new_server_id:  # Don't notify the new server about itself
+                try:
+                    server_address = zk_manager.get_znode(f"/servers/{server_id}")
+                    with grpc.insecure_channel(server_address) as channel:
+                        stub = chatapp_pb2_grpc.RaftServiceStub(channel)
+                        request = chatapp_pb2.AddServerRequest(server_id=new_server_id, address=new_server_address)
+                        response = stub.AddServer(request)
+                        print(f"Notified {server_id} about new server {new_server_id}: {response.success}")
+                except Exception as e:
+                    print(f"Failed to notify {server_id} about new server: {e}")
+                    print(f"Retrying notification to {server_id}...")
+                    time.sleep(2)  # Add a delay before retrying
+                    try:
+                        with grpc.insecure_channel(server_address) as channel:
+                            stub = chatapp_pb2_grpc.RaftServiceStub(channel)
+                            request = chatapp_pb2.AddServerRequest(server_id=new_server_id, address=new_server_address)
+                            response = stub.AddServer(request)
+                            print(f"Retry successful: Notified {server_id} about new server {new_server_id}: {response.success}")
+                    except Exception as retry_exception:
+                        print(f"Retry failed: Could not notify {server_id} about new server: {retry_exception}")
+    finally:
+        zk_manager.close()
+
+
+
+def start_new_server(server_id, address, port, global_leader):
+    """Start a new server instance."""
+    p = multiprocessing.Process(target=run_server_instance, args=(port, server_id, global_leader))
+    p.start()
+    print(f"New server {server_id} started on {address}:{port}.")
+    time.sleep(5) #delay to ensure that the new server properly starts up 
+    return p
+
+
+
+#######for cleaning up the servers added during runtime to prevent synchronization issues##################
+def cleanup_dynamically_added_servers(dynamically_added_servers):
+    """Remove dynamically added servers from ZooKeeper."""
+    zk_manager = ZooKeeperManager()
+    for server_id in dynamically_added_servers:
+        path = f"/servers/{server_id}"
+        if zk_manager.zk.exists(path):
+            zk_manager.zk.delete(path)
+            print(f"Removed zNode for {server_id} from ZooKeeper.")
+    zk_manager.close()
+
+
+def terminate_dynamically_added_servers(processes, dynamically_added_servers):
+    """Terminate processes for dynamically added servers."""
+    for server_id in dynamically_added_servers:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+                print(f"Terminated process for {server_id}.")
+
+
+
 def start_server(port, server_id):
     """Boots up and runs the gRPC server until termination.
     This function:
@@ -529,25 +619,20 @@ def start_server(port, server_id):
     except Exception as e: 
         print(f"Fatal error {e} with server")
 
-    finally:
-        try:
-            #todo: check that pending messages are already saved immediately on writing, so that we don't need to save them here (should be the case but i want to be sure)
-            print("Exiting the server...")
-
-        except Exception as e:
-            print(f"Failed to exit server properly! : {e}")
-
 
 def run_server_instance(port, server_id, global_leader):
     global raft_node
-    address = f"localhost:{port}"
+    address = f"10.250.84.166:{port}" #this lets anyone on another machine look for my laptops ip address and request to connect
 
     #each server instance gets its own raftnode
     raft_node = RaftNode(server_id=server_id, peers=[], address = address, timeout=5, global_leader=global_leader) #default to starting with no peers which can be added in
     start_server(port, server_id)
 
 
- #todo: command line arguments for number of servers
+
+
+
+
 if __name__ == "__main__":
     """Call all globally scoped variables, and start up the server."""
     FILE_PATH 
@@ -557,11 +642,13 @@ if __name__ == "__main__":
 
 
     manager = Manager()
-    global_leader = manager.Value("globar_leader", "server1")
+    global_leader = manager.Value("global_leader", "server1")
+
     #for 2-fault tolerance, we need at least 3 servers, but i want this to be able to add as many servers as possible
     ports = [50051, 50052, 50053]
     server_ids = ["server1", "server2", "server3"] #default to three servers on startup 
 
+    dynamically_added_servers = []
     #each server must be run as a separate process in order to prevent a single point of failure 
     #global states like pending messages and accoutnts are shared across processes and decouples the states from the server instances
     processes = []
@@ -570,6 +657,42 @@ if __name__ == "__main__":
         p.start()
         processes.append(p)
     
+
+    #option for adding in additional servers during runtime - for extra credit and running on multiple machines, per our design 
+    try:
+        while True:
+            command = input("Enter 'add' to add a new server: \n").strip().lower()
+            if command == "add":
+                new_server_id = input("Enter new server ID: ").strip()
+                new_server_port = int(input("Enter new server port: ").strip())
+                new_server_address = f"10.250.84.166:{new_server_port}"
+
+                #register the new server in ZooKeeper and notify all other servers
+                register_new_server(new_server_id, new_server_address)
+                notify_existing_servers(new_server_id, new_server_address)
+
+                #fire up new server
+                p = start_new_server(new_server_id, new_server_address, new_server_port, global_leader)
+                processes.append(p)
+
+                dynamically_added_servers.append(new_server_id)
+
+            elif command == "exit":
+                break
+    finally:
+        #cleanup dynamically added servers
+        cleanup_dynamically_added_servers(dynamically_added_servers)
+        terminate_dynamically_added_servers(processes, dynamically_added_servers)
+
+        #terminate everyone 
+        for p in processes:
+            if p.is_alive():
+                p.terminate()
+                print("Terminated process.")
+
+        print("Server cluster shut down.")
+
+
     for p in processes:
         p.join()
 

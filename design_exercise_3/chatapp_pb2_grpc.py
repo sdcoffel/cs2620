@@ -443,6 +443,11 @@ class RaftServiceStub(object):
                 request_serializer=chatapp__pb2.PingRequest.SerializeToString,
                 response_deserializer=chatapp__pb2.PingResponse.FromString,
                 _registered_method=True)
+        self.AddServer = channel.unary_unary(
+                '/chat.RaftService/AddServer',
+                request_serializer=chatapp__pb2.AddServerRequest.SerializeToString,
+                response_deserializer=chatapp__pb2.AddServerResponse.FromString,
+                _registered_method=True)
 
 
 class RaftServiceServicer(object):
@@ -473,6 +478,13 @@ class RaftServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def AddServer(self, request, context):
+        """RPC for adding a new server to the cluster.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_RaftServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -490,6 +502,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
                     servicer.Ping,
                     request_deserializer=chatapp__pb2.PingRequest.FromString,
                     response_serializer=chatapp__pb2.PingResponse.SerializeToString,
+            ),
+            'AddServer': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddServer,
+                    request_deserializer=chatapp__pb2.AddServerRequest.FromString,
+                    response_serializer=chatapp__pb2.AddServerResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -577,6 +594,33 @@ class RaftService(object):
             '/chat.RaftService/Ping',
             chatapp__pb2.PingRequest.SerializeToString,
             chatapp__pb2.PingResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AddServer(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.RaftService/AddServer',
+            chatapp__pb2.AddServerRequest.SerializeToString,
+            chatapp__pb2.AddServerResponse.FromString,
             options,
             channel_credentials,
             insecure,

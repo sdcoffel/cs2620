@@ -167,6 +167,9 @@ service RaftService {
   
   //RPC for pings 
   rpc Ping (PingRequest) returns (PingResponse);
+
+  // RPC for adding a new server to the cluster.
+  rpc AddServer (AddServerRequest) returns (AddServerResponse);
 }
 
 // ----------- Raft Message Definitions -----------
@@ -213,4 +216,14 @@ message PingRequest {
 message PingResponse {
   string status = 1; // e.g. "OK" or an error message
   string role = 2;   // current role: "leader", "follower", or "candidate"
+}
+
+// AddServer RPC messages
+message AddServerRequest {
+  string server_id = 1;  // ID of the new server
+  string address = 2;    // Address of the new server
+}
+
+message AddServerResponse {
+  bool success = 1;      // True if the server was successfully added
 }

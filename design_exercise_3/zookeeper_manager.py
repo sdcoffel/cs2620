@@ -1,19 +1,33 @@
 from kazoo.client import KazooClient
 
-ZOOKEEPER_HOSTS = "127.0.0.1:2181"  # Replace with your ZooKeeper host(s)
+ZOOKEEPER_HOSTS = "127.0.0.1:2181"  #ZooKeeper host - ian needs to update this on his side so his servers can communicate w mine
 
 class ZooKeeperManager:
     def __init__(self):
-        self.zk = KazooClient(hosts=ZOOKEEPER_HOSTS)
-        self.zk.start()
+        try:
+            self.zk = KazooClient(hosts=ZOOKEEPER_HOSTS)
+            self.zk.start()
+        except Exception as e:
+            print(f"Error connecting to ZooKeeper: {e}")
+            raise
 
     def create_znode(self, path, value):
         """Create a zNode in ZooKeeper."""
-        if not self.zk.exists(path):
-            self.zk.create(path, value.encode("utf-8"))
-            print(f"Created zNode at {path} with value: {value}")
-        else:
-            print(f"zNode at {path} already exists.")
+        try:
+            # Ensure parent zNodes exist
+            parent_path = "/".join(path.split("/")[:-1])
+            if parent_path and not self.zk.exists(parent_path):
+                self.zk.ensure_path(parent_path)  # Create parent zNodes if they don't exist
+
+            # Create the zNode
+            if not self.zk.exists(path):
+                self.zk.create(path, value.encode("utf-8"))
+                print(f"Created zNode at {path} with value: {value}")
+            else:
+                print(f"zNode at {path} already exists.")
+        except Exception as e:
+            print(f"Error creating zNode at {path}: {e}")
+            raise
 
     def update_znode(self, path, value):
         """Update the value of an existing zNode."""
