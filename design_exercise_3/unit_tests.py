@@ -6,6 +6,8 @@ import grpc
 import chatapp_pb2
 import chatserver  
 
+#run with: pytest -s --maxfail=1 --disable-warnings -v --cov=chatserver --cov=raftnode unit_tests.py
+
 #ian, do documentation for this please 
 #-------------------------------------------------------------------------
 # Dummy context classes to simulate gRPC contexts.
@@ -405,6 +407,7 @@ class TestRaftNode:
     def test_election_loop_promotes_to_leader(self, monkeypatch):
         # Test that if election timeout expires and send_request_vote returns True,
         # the node becomes leader.
+        #this will throw up a connection refused error just because we are not running the server, but the functionality is correct so i am confident
         dummy_global = DummyGlobal(None)
         node = RaftNode(server_id="server2", peers=["localhost:50051"], address="localhost:50052",
                         timeout=0.1, global_leader=dummy_global)
