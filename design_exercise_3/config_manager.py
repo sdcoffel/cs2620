@@ -1,6 +1,6 @@
 from kazoo.client import KazooClient
 
-ZOOKEEPER_HOSTS = "127.0.0.1:2181"
+ZOOKEEPER_HOSTS = "127.0.0.1:2181" #i assume this hosts all the server at this ip address
 
 
 class ConfigManager:

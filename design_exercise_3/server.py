@@ -20,20 +20,15 @@ PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
 active_clients = {}
 pending_messages = {}
 
-#PEER_ADDRESSES = ['localhost:50051', 'localhost:50052', 'localhost:50053'] #allserver instances 
-#global_leader= None #leader of the cluster
-
-
-
-
 ##TODOS FOR SPRING BREAK 
 #savanna: 
 
-#todo: add functionality to dynamically update the config file when new servers are started up, and add command line instances when these are run (?)
+#todo: add functionality to dynamically update the config file when new servers are started up, and add command line instances when these are run (?) 
+    #-> this means that i need to use the methods in config.py to add new servers to the config file -- but how???
 #todo: unit tests and integration tests for the server
 
 #ian: 
-#todo: documentation (hold off on readme )
+#todo: documentation (you can write the readme now - i won't change much else bc i just need to add the config manager)
 
 ########################################################################
 # Raft Node Implementation
