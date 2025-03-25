@@ -175,6 +175,9 @@ if __name__ == "__main__":
     #global states like pending messages and accoutnts are shared across processes and decouples the states from the server instances
     processes = []
     for port, server_id in zip(ports, server_ids):
+        server_address = f"10.250.84.166:{port}"
+        register_new_server(server_id, server_address)
+        notify_existing_servers(server_id, server_address)
         p = multiprocessing.Process(target=run_server_instance, args=(port, server_id, global_leader))
         p.start()
         processes.append(p)
