@@ -323,6 +323,9 @@ class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
         the request and calls the RaftNode's add_peer method to include 
         it in the cluster.
         """
+        new_server_id = request.server_id
         new_server_address = request.address
+
+        print(f"Remote server '{new_server_id}' at {new_server_address} is attempting to connect to the cluster.")
         self.raft_node.add_peer(new_server_address)
         return chatapp_pb2.AddServerResponse(success=True)
