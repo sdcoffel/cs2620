@@ -3,7 +3,7 @@ import time
 import grpc
 import chatapp_pb2
 import chatapp_pb2_grpc
-
+from zookeeper_manager import ZooKeeperManager
 
 """
 Class coverage for RaftNodes, and the services that you can provide with them via RaftService. 
@@ -70,7 +70,7 @@ class RaftNode:
         self.lock = threading.Lock()
         self.global_leader = global_leader
 
-        # Default to having server1 be the first leader, for demonstration or initial setup.
+        # Default to having server1 always be the first leader, for demonstration or initial setup.
         if self.server_id == "server1":
             self.role = "leader"
             self.global_leader_id = self.server_id
@@ -169,6 +169,47 @@ class RaftNode:
             print(f"Error sending RequestVote from {self.server_id} to {peer}: {e}")
             return False
 
+    def add_peer(self, peer_address):
+        """
+        Add a new peer to the Raft node.
+
+        This method takes in the address of a new peer and appends it to 
+        the list of known peers if it is not already present. This ensures 
+        the new server will receive heartbeats, participate in voting, and 
+        stay consistent with the cluster.
+        """
+        with self.lock:
+            if peer_address not in self.peers:
+                self.peers.append(peer_address)
+                print(f"Added new peer: {peer_address}")
+                #delay for the server to properly initialize before it recieves heartbeats
+                time.sleep(3)
+
+
+    def remove_peer(self, peer_address):
+        """
+        Remove a peer from the Raft node and ZooKeeper.
+
+        This method removes the peer from the list of known peers and deletes
+        its zNode from ZooKeeper to ensure the cluster no longer attempts to
+        communicate with the downed server.
+
+        Args:
+            peer_address (str): The gRPC address of the peer to remove.
+        """
+        
+        if peer_address in self.peers:
+            self.peers.remove(peer_address)
+            print(f"Removed peer: {peer_address}")
+
+            # Remove the peer's zNode from ZooKeeper
+            zk_manager = ZooKeeperManager()
+            znode_path = f"/servers/{peer_address.split(':')[1]}"  # Use port as server ID
+            if zk_manager.zk.exists(znode_path):
+                zk_manager.zk.delete(znode_path)
+                print(f"Removed zNode for {peer_address} from ZooKeeper.")
+          
+            zk_manager.close()
 
     def send_heartbeats(self):
         """
@@ -216,6 +257,9 @@ class RaftNode:
                             print(f"Retry successful: Heartbeat to {peer} succeeded.")
                 except Exception as retry_exception:
                     print(f"Retry failed: Could not send heartbeat to {peer}")
+                    # Remove the unresponsive peer
+                    self.remove_peer(peer)
+                    print(f"{peer} removed from cluster.")
 
 
         #sleep for 0.01 seconds (10ms) before sending the next heartbeat
@@ -241,21 +285,39 @@ class RaftNode:
         with self.lock:
             return self.leader_id if self.role != "follower" else None
 
-    def add_peer(self, peer_address):
-        """
-        Add a new peer to the Raft node.
 
-        This method takes in the address of a new peer and appends it to 
-        the list of known peers if it is not already present. This ensures 
-        the new server will receive heartbeats, participate in voting, and 
-        stay consistent with the cluster.
+
+
+
+    def check_peer_health(self):
         """
-        with self.lock:
-            if peer_address not in self.peers:
-                self.peers.append(peer_address)
-                print(f"Added new peer: {peer_address}")
-                #delay for the server to properly initialize before it recieves heartbeats
-                time.sleep(3)
+        Periodically check the health of all peers.
+        If a peer is unresponsive, remove it from the cluster.
+        """
+        def health_check():
+            while True:
+                with self.lock:
+                    for peer in list(self.peers):  # Use a copy of the list to avoid modification during iteration
+                        if peer == self.address:
+                            continue  # Skip self
+                        try:
+                            with grpc.insecure_channel(peer) as channel:
+                                stub = chatapp_pb2_grpc.RaftServiceStub(channel)
+                                request = chatapp_pb2.HealthCheckRequest()
+                                response = stub.HealthCheck(request, timeout=1.0)
+                                if not response.success:
+                                    print(f"Peer {peer} is unresponsive.")
+                                    self.remove_peer(peer)  # Remove the unresponsive peer
+                        except Exception as e:
+                            print(f"Removing unresponsive peer: {peer}")
+                            self.remove_peer(peer)  # Remove the unresponsive peer
+                time.sleep(5)  # Check health every 5 seconds
+
+        # Run health checks in a separate thread
+        threading.Thread(target=health_check, daemon=True).start()
+
+
+
 
 
 class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
@@ -316,6 +378,7 @@ class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
             self.raft_node.role = "follower"
         return chatapp_pb2.AppendEntriesResponse(term=request.term, success=True)
 
+
     def Ping(self, request, context):
         """
         A simple gRPC method that can be used for health checks or to get 
@@ -331,6 +394,7 @@ class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
         # Get the current status if we need it
         return chatapp_pb2.PingResponse(status="OK", role=self.raft_node.role)
 
+
     def AddServer(self, request, context):
         """
         Handle the addition of a new server to the cluster.
@@ -345,3 +409,17 @@ class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
         print(f"Remote server '{new_server_id}' at {new_server_address} is attempting to connect to the cluster.")
         self.raft_node.add_peer(new_server_address)
         return chatapp_pb2.AddServerResponse(success=True)
+    
+
+    def HealthCheck(self, request, context):
+        """
+        A simple gRPC method to check the health of the server.
+
+        Args:
+            request: The incoming health check request (unused here).
+            context: gRPC context (unused here).
+
+        Returns:
+            HealthCheckResponse: A response indicating the server is healthy.
+        """
+        return chatapp_pb2.HealthCheckResponse(success=True)

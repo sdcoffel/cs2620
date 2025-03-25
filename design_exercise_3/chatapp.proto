@@ -170,6 +170,12 @@ service RaftService {
 
   // RPC for adding a new server to the cluster.
   rpc AddServer (AddServerRequest) returns (AddServerResponse);
+
+  // RPC for checking cluster health 
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+
+
 }
 
 // ----------- Raft Message Definitions -----------
@@ -226,4 +232,10 @@ message AddServerRequest {
 
 message AddServerResponse {
   bool success = 1;      // True if the server was successfully added
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+    bool success = 1;
 }
