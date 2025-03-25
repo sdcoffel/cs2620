@@ -35,17 +35,38 @@ def is_server_name_or_port_in_use(server_id, port):
     """
     zk_manager = ZooKeeperManager()
     try:
+        print(f"Checking if server ID '{server_id}' or port {port} is already in use...")
+        
+        # Check if /servers path exists
+        if not zk_manager.zk.exists("/servers"):
+            print("'/servers' path doesn't exist in ZooKeeper yet. Creating it...")
+            zk_manager.zk.ensure_path("/servers")
+            return False
+            
         # Check if server ID already exists
-        if zk_manager.zk.exists(f"/servers/{server_id}"):
+        server_path = f"/servers/{server_id}"
+        server_exists = zk_manager.zk.exists(server_path)
+        if server_exists:
+            print(f"Server ID '{server_id}' already exists in ZooKeeper at {server_path}")
             return True
             
         # Check if port is already in use by another server
         existing_servers = zk_manager.list_children("/servers")
+        print(f"Found {len(existing_servers)} existing servers: {existing_servers}")
+        
         for existing_id in existing_servers:
-            server_address = zk_manager.get_znode(f"/servers/{existing_id}")
-            if f":{port}" in server_address:  # Check if port appears in address
+            server_path = f"/servers/{existing_id}"
+            server_address = zk_manager.get_znode(server_path)
+            print(f"Server {existing_id} has address: '{server_address}'")
+            port_str = f":{port}"
+            if server_address and port_str in server_address:
+                print(f"Port {port} is already in use by server {existing_id}")
                 return True
                 
+        print(f"Server ID '{server_id}' and port {port} are available for use")
+        return False
+    except Exception as e:
+        print(f"Error in is_server_name_or_port_in_use: {e}")
         return False
     finally:
         zk_manager.close()
