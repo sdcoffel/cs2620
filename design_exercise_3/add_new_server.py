@@ -22,6 +22,34 @@ pending_messages = {}
 
 
 ##############################Server Management and Stuff##########################################
+def is_server_name_or_port_in_use(server_id, port):
+    """
+    Check if a server name or port is already in use.
+    
+    Args:
+        server_id (str): The server ID to check
+        port (int): The port number to check
+        
+    Returns:
+        bool: True if either the server ID or port is already in use, False otherwise
+    """
+    zk_manager = ZooKeeperManager()
+    try:
+        # Check if server ID already exists
+        if zk_manager.zk.exists(f"/servers/{server_id}"):
+            return True
+            
+        # Check if port is already in use by another server
+        existing_servers = zk_manager.list_children("/servers")
+        for existing_id in existing_servers:
+            server_address = zk_manager.get_znode(f"/servers/{existing_id}")
+            if f":{port}" in server_address:  # Check if port appears in address
+                return True
+                
+        return False
+    finally:
+        zk_manager.close()
+
 def register_new_server(server_id, address):
     zk_manager = ZooKeeperManager()
     path = f"/servers/{server_id}"
@@ -180,6 +208,11 @@ if __name__ == "__main__":
                 new_server_id = input("Enter new server ID: ").strip()
                 new_server_port = int(input("Enter new server port: ").strip())
                 new_server_address = f"10.250.84.166:{new_server_port}"
+
+                # Check if server name or port is already in use
+                if is_server_name_or_port_in_use(new_server_id, new_server_port):
+                    print(f"Error: Server ID '{new_server_id}' or port {new_server_port} is already in use.")
+                    continue
 
                 #register the new server in ZooKeeper and notify all other servers
                 register_new_server(new_server_id, new_server_address)
