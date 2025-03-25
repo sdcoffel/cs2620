@@ -50,6 +50,7 @@ def notify_existing_servers(new_server_id, new_server_address):
             if server_id != new_server_id:  # Don't notify the new server about itself
                 try:
                     server_address = zk_manager.get_znode(f"/servers/{server_id}")
+                    print(f"Test to notify {server_id} about new server {new_server_id} at {server_address}")
                     with grpc.insecure_channel(server_address) as channel:
                         stub = chatapp_pb2_grpc.RaftServiceStub(channel)
                         request = chatapp_pb2.AddServerRequest(server_id=new_server_id, address=new_server_address)
