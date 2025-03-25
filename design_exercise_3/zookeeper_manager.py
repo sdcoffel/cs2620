@@ -1,6 +1,6 @@
 from kazoo.client import KazooClient
 
-ZOOKEEPER_HOSTS = "127.0.0.1:2181"  #ZooKeeper host - ian needs to update this on his side so his servers can communicate w mine
+ZOOKEEPER_HOSTS = "10.250.84.166"  #ZooKeeper host - ian needs to update this on his side so his servers can communicate w mine
 
 class ZooKeeperManager:
     def __init__(self):
