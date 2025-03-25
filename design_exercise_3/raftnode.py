@@ -4,6 +4,7 @@ import grpc
 import chatapp_pb2
 import chatapp_pb2_grpc
 
+
 """
 Class coverage for RaftNodes, and the services that you can provide with them via RaftService. 
 These classes are used to implement the Raft consensus algorithm, which helps us manage the 
@@ -87,7 +88,7 @@ class RaftNode:
         RequestVote RPCs to peers. If it gains a majority, it becomes the leader.
         """
         while True:
-            time.sleep(0.1)
+            time.sleep(0.05)  #check the leader status every 50ms - leader would have to miss 5 heartbeats before election loop is triggered 
 
             with self.lock:
                 # Check if a global leader is set
@@ -136,6 +137,7 @@ class RaftNode:
                         self.role = "follower"
                         self.last_heartbeat = time.time()
 
+
     def send_request_vote(self, peer, term):
         """
         Send a RequestVote RPC to the specified peer.
@@ -166,6 +168,7 @@ class RaftNode:
         except Exception as e:
             print(f"Error sending RequestVote from {self.server_id} to {peer}: {e}")
             return False
+
 
     def send_heartbeats(self):
         """
@@ -199,13 +202,12 @@ class RaftNode:
                         entries=[],        # Empty heartbeat
                         leader_commit=0    # No commit index to maintain
                     )
-                    response = stub.AppendEntries(request, timeout=0.5)
+                    response = stub.AppendEntries(request, timeout=1.0) #we'll let this sit for 1 second 
                     if not response.success:
                         print(f"Heartbeat to {peer} failed: response={response}")
             except Exception as e:
-                #print(f"Error sending heartbeat from {self.server_id} to {peer}: {e}")
                 print(f"Retrying heartbeat to {peer}...")
-                time.sleep(1)  # Wait before retrying
+                time.sleep(1)  #wait a second before retrying to make sure the server can properly initialize
                 try:
                     with grpc.insecure_channel(peer) as channel:
                         stub = chatapp_pb2_grpc.RaftServiceStub(channel)
@@ -213,11 +215,11 @@ class RaftNode:
                         if response.success:
                             print(f"Retry successful: Heartbeat to {peer} succeeded.")
                 except Exception as retry_exception:
-                    print(f"Retry failed: Could not send heartbeat to {peer}: {retry_exception}")
+                    print(f"Retry failed: Could not send heartbeat to {peer}")
 
 
-        # Sleep for 2 seconds before sending the next heartbeat
-        time.sleep(2)
+        #sleep for 0.01 seconds (10ms) before sending the next heartbeat
+        time.sleep(0.01)
 
     def is_leader(self):
         """

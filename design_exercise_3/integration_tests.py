@@ -5,7 +5,6 @@ import grpc
 from raftnode import RaftNode
 
 #run with: pytest -s --maxfail=1 --disable-warnings -v --cov=raftnode integration_tests.py
-#also do documentation for this ian 
 
 # Dummy global container for shared leader state.
 class DummyGlobal:
