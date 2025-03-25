@@ -12,6 +12,11 @@ from chatserver import ChatServer
 from config_manager import ConfigManager
 from zookeeper_manager import ZooKeeperManager
 
+
+#todo, put the heartbeat at 10ms
+#todo, put the election timeout at 150ms
+#todo, put the append entries timeout at 50ms
+
 #GLOBALS - DO NOT MOVE
 FILE_PATH = "all_accounts_ever.txt"
 PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"

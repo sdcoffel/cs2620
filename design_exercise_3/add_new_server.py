@@ -157,20 +157,11 @@ if __name__ == "__main__":
 
     manager = Manager()
     global_leader = manager.Value("global_leader", "server1")
-
-    #for 2-fault tolerance, we need at least 3 servers. by default, we start with 3 servers on my (or anyone who runs this script's) machine
-    # ports = [50051, 50052, 50053]
-    # server_ids = ["server1", "server2", "server3"] #default to three servers on startup 
-
     dynamically_added_servers = []
     # #each server must be run as a separate process in order to prevent a single point of failure 
     # #global states like pending messages and accoutnts are shared across processes and decouples the states from the server instances
     processes = []
-    # for port, server_id in zip(ports, server_ids):
-    #     p = multiprocessing.Process(target=run_server_instance, args=(port, server_id, global_leader))
-    #     p.start()
-    #     processes.append(p)
-    
+
 
     #option for adding in additional servers during runtime - for extra credit and running on multiple machines, per our design 
     try:
