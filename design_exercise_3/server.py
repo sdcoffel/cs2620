@@ -17,15 +17,13 @@ from zookeeper_manager import ZooKeeperManager
 #todo, put the election timeout at 150ms
 #todo, put the append entries timeout at 50ms
 
+#todo: after i get this working, move server management functions into a separate script
+
 #GLOBALS - DO NOT MOVE
 FILE_PATH = "all_accounts_ever.txt"
 PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
 active_clients = {}
 pending_messages = {}
-
-
-#ian: 
-#todo: full documentation
 
 
 ##############################Server Management and Stuff##########################################
@@ -78,7 +76,7 @@ def start_new_server(server_id, address, port, global_leader):
     p = multiprocessing.Process(target=run_server_instance, args=(port, server_id, global_leader))
     p.start()
     print(f"New server {server_id} started on {address}:{port}.")
-    time.sleep(2) #delay to ensure that the new server properly starts up - probably don't need this 
+    time.sleep(1) #delay to ensure that the new server properly starts up - probably don't need this 
     return p
 
 
@@ -175,9 +173,6 @@ if __name__ == "__main__":
     #global states like pending messages and accoutnts are shared across processes and decouples the states from the server instances
     processes = []
     for port, server_id in zip(ports, server_ids):
-        server_address = f"10.250.84.166:{port}"
-        register_new_server(server_id, server_address)
-        notify_existing_servers(server_id, server_address)
         p = multiprocessing.Process(target=run_server_instance, args=(port, server_id, global_leader))
         p.start()
         processes.append(p)
@@ -186,23 +181,10 @@ if __name__ == "__main__":
     #option for adding in additional servers during runtime - for extra credit and running on multiple machines, per our design 
     try:
         while True:
-            command = input("Enter 'add' to add a new server: \n").strip().lower()
-            if command == "add":
-                new_server_id = input("Enter new server ID: ").strip()
-                new_server_port = int(input("Enter new server port: ").strip())
-                new_server_address = f"10.250.84.166:{new_server_port}"
+            print("Server cluster is live.")
+            command = input("Enter 'exit' to shut down the cluster. \n").strip().lower()
 
-                #register the new server in ZooKeeper and notify all other servers
-                register_new_server(new_server_id, new_server_address)
-                notify_existing_servers(new_server_id, new_server_address)
-
-                #fire up new server
-                p = start_new_server(new_server_id, new_server_address, new_server_port, global_leader)
-                processes.append(p)
-
-                dynamically_added_servers.append(new_server_id)
-
-            elif command == "exit":
+            if command == "exit":
                 break
     
     finally:
@@ -220,6 +202,7 @@ if __name__ == "__main__":
 
     for p in processes:
         p.join()
+
 
 
 

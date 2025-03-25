@@ -89,7 +89,7 @@ def notify_existing_servers(new_server_id, new_server_address):
         existing_servers = zk_manager.list_children("/servers")
 
         for server_id in existing_servers:
-            if server_id != new_server_id:  # Don't notify the new server about itself
+            if server_id != new_server_id:  #don't notify the new server about itself
                 try:
                     server_address = zk_manager.get_znode(f"/servers/{server_id}")
                     with grpc.insecure_channel(server_address) as channel:

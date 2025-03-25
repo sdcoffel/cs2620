@@ -187,6 +187,7 @@ class RaftNode:
                 # Don't send a request to yourself
                 continue
             try:
+                #print(f"Sending heartbeat to {peer}...") #for sanity checking - uncomment this for debugging
                 with grpc.insecure_channel(peer) as channel:
                     stub = chatapp_pb2_grpc.RaftServiceStub(channel)
                     # Build the AppendEntriesRequest message (empty entries for a heartbeat)
@@ -198,11 +199,22 @@ class RaftNode:
                         entries=[],        # Empty heartbeat
                         leader_commit=0    # No commit index to maintain
                     )
-                    response = stub.AppendEntries(request, timeout=2)
+                    response = stub.AppendEntries(request, timeout=0.5)
                     if not response.success:
                         print(f"Heartbeat to {peer} failed: response={response}")
             except Exception as e:
-                print(f"Error sending heartbeat from {self.server_id} to {peer}: {e}")
+                #print(f"Error sending heartbeat from {self.server_id} to {peer}: {e}")
+                print(f"Retrying heartbeat to {peer}...")
+                time.sleep(1)  # Wait before retrying
+                try:
+                    with grpc.insecure_channel(peer) as channel:
+                        stub = chatapp_pb2_grpc.RaftServiceStub(channel)
+                        response = stub.AppendEntries(request, timeout=0.5)
+                        if response.success:
+                            print(f"Retry successful: Heartbeat to {peer} succeeded.")
+                except Exception as retry_exception:
+                    print(f"Retry failed: Could not send heartbeat to {peer}: {retry_exception}")
+
 
         # Sleep for 2 seconds before sending the next heartbeat
         time.sleep(2)
@@ -240,6 +252,8 @@ class RaftNode:
             if peer_address not in self.peers:
                 self.peers.append(peer_address)
                 print(f"Added new peer: {peer_address}")
+                #delay for the server to properly initialize before it recieves heartbeats
+                time.sleep(3)
 
 
 class RaftService(chatapp_pb2_grpc.RaftServiceServicer):
