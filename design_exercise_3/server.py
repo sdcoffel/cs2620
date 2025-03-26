@@ -6,8 +6,6 @@ from multiprocessing import Manager
 from server_management_functions import *
 
 
-#todo: graceful error management when the remote servers go down 
-
 #GLOBALS - DO NOT MOVE
 FILE_PATH = "all_accounts_ever.txt"
 PENDING_MESSAGES_FILE_PATH = "pending_messages.txt"
