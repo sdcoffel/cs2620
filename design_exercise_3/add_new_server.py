@@ -16,7 +16,7 @@ pending_messages = {}
 #main driver function vroom vroom 
 if __name__ == "__main__":
     """Call all globally scoped variables, and start up the server. This script interfaces with the main server scripts and allows 
-    for the addition of new servers to the cluster hosted at localhost (savanna's laptop). Just type 'add' and provide a reasonable server name and desired port.
+    for the addition of new servers to the cluster hosted at 10.253.131.213 (savanna's laptop). Just type 'add' and provide a reasonable server name and desired port.
 
     The loop will check to make sure that the new server isn't already in the cluster, and will notify all other servers of the new server's existence.
     """
@@ -42,7 +42,7 @@ if __name__ == "__main__":
             if command == "add":
                 new_server_id = input("Enter new server ID: ").strip()
                 new_server_port = int(input("Enter new server port: ").strip())
-                new_server_address = f"localhost:{new_server_port}"
+                new_server_address = f"10.253.131.213:{new_server_port}"
 
                 # Check if server name or port is already in use
                 if is_server_name_or_port_in_use(new_server_id, new_server_port):

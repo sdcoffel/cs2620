@@ -1,7 +1,7 @@
 #helper script that lets us check which servers are active on my laptop
 from kazoo.client import KazooClient
 
-ZOOKEEPER_HOSTS = "localhost:2181"
+ZOOKEEPER_HOSTS = "10.253.131.213:2181"
 
 zk = KazooClient(hosts=ZOOKEEPER_HOSTS)
 zk.start()
