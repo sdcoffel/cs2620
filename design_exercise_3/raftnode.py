@@ -200,7 +200,6 @@ class RaftNode:
         
         if peer_address in self.peers:
             self.peers.remove(peer_address)
-            print(f"Removed peer: {peer_address}")
 
             # Remove the peer's zNode from ZooKeeper
             zk_manager = ZooKeeperManager()
@@ -247,7 +246,6 @@ class RaftNode:
                     if not response.success:
                         print(f"Heartbeat to {peer} failed: response={response}")
             except Exception as e:
-                print(f"Retrying heartbeat to {peer}...")
                 time.sleep(1)  #wait a second before retrying to make sure the server can properly initialize
                 try:
                     with grpc.insecure_channel(peer) as channel:
