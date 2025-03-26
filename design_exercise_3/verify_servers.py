@@ -9,18 +9,17 @@ zk.start()
 # List the children of the /servers zNode
 if zk.exists("/servers"):
     children = zk.get_children("/servers")
-    print(f"All active servers: {children}")
-
-    # Prompt the user to remove a server
-    server_to_remove = input("Enter the server ID to remove (or press Enter to skip): ").strip()
-    if server_to_remove:
-        path = f"/servers/{server_to_remove}"
-        if zk.exists(path):
-            zk.delete(path)
-            print(f"Removed server '{server_to_remove}' from ZooKeeper.")
-        else:
-            print(f"Server '{server_to_remove}' does not exist in ZooKeeper.")
+    if children:
+        print("All active servers and their IP addresses:")
+        for child in children:
+            path = f"/servers/{child}"
+            if zk.exists(path):
+                # Retrieve the data stored in the zNode (e.g., IP:port)
+                data, _ = zk.get(path)
+                print(f"Server ID: {child}, Address: {data.decode('utf-8')}")
+    else:
+        print("No servers are currently registered in ZooKeeper.")
 else:
-    print("No servers active.")
+    print("No servers active. The /servers zNode does not exist.")
 
 zk.stop()
