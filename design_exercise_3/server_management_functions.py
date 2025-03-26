@@ -89,7 +89,6 @@ def notify_existing_servers(new_server_id, new_server_address):
                         response = stub.AddServer(request)
                         print(f"Notified {server_id} about new server {new_server_id}: {response.success}")
                 except Exception as e:
-                    #print(f"Failed to notify {server_id} about new server: {e}")
                     print(f"Retrying notification to {server_id}...")
                     time.sleep(2)  #delay before retrying
                     try:
@@ -123,7 +122,6 @@ def cleanup_dynamically_added_servers(dynamically_added_servers):
         path = f"/servers/{server_id}"
         if zk_manager.zk.exists(path):
             zk_manager.zk.delete(path)
-            print(f"Removed zNode for {server_id} from ZooKeeper.")
     zk_manager.close()
 
 
