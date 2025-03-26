@@ -89,7 +89,7 @@ def notify_existing_servers(new_server_id, new_server_address):
                         response = stub.AddServer(request)
                         print(f"Notified {server_id} about new server {new_server_id}: {response.success}")
                 except Exception as e:
-                    print(f"Failed to notify {server_id} about new server: {e}")
+                    #print(f"Failed to notify {server_id} about new server: {e}")
                     print(f"Retrying notification to {server_id}...")
                     time.sleep(2)  #delay before retrying
                     try:
@@ -99,7 +99,7 @@ def notify_existing_servers(new_server_id, new_server_address):
                             response = stub.AddServer(request)
                             print(f"Retry successful: Notified {server_id} about new server {new_server_id}: {response.success}")
                     except Exception as retry_exception:
-                        print(f"Retry failed: Could not notify {server_id} about new server: {retry_exception}")
+                        print(f"Attempting notification to {server_id} about new server.")
     finally:
         zk_manager.close()
 
