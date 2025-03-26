@@ -172,7 +172,7 @@ def start_server(port, server_id):
 
 def run_server_instance(port, server_id, global_leader):
     global raft_node
-    address = f"10.253.131.213:{port}"  # This lets anyone on another machine look for my laptop's IP address and request to connect
+    address = f"10.250.84.166:{port}"  # This lets anyone on another machine look for my laptop's IP address and request to connect
 
     # Each server instance gets its own RaftNode
     raft_node = RaftNode(server_id=server_id, peers=[], address=address, timeout=5, global_leader=global_leader)  # Default to starting with no peers which can be added in
