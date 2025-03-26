@@ -12,17 +12,22 @@ A fault-tolerant, distributed chat application built with gRPC, ZooKeeper, and P
 - [Components](#components)
 - [Testing](#testing)
 - [Fault Tolerance](#fault-tolerance)
+- [Design Decisions](#design-decisions)
+- [Performance Considerations](#performance-considerations)
+- [Troubleshooting](#troubleshooting)
+- [Future Enhancements](#future-enhancements)
 
 ## Project Overview
 
 This distributed chat application provides a reliable messaging platform with the following capabilities:
+
 - User account management (creation, login, deletion)
 - Real-time message delivery between online users
 - Offline message storage for users not currently connected
 - Server-side fault tolerance using the Raft consensus algorithm
 - Cluster management with ZooKeeper
 
-The application is designed to maintain message delivery even in the presence of server failures, ensuring high availability and data consistency.
+The application is designed to maintain message delivery even in the presence of server failures, ensuring high availability and data consistency. The system can tolerate up to n-1/2 server failures while still functioning properly, where n is the total number of servers in the cluster.
 
 ## System Architecture
 
@@ -38,22 +43,32 @@ Servers communicate with each other through gRPC to synchronize state and implem
 ## Features
 
 - **Account Management:**
+
   - Create new user accounts
   - Login with existing accounts
   - Delete accounts (with confirmation for unread messages)
   - List available accounts with optional regex filtering
 
 - **Messaging:**
+
   - Send messages to online or offline users
   - Retrieve pending messages on login
   - Stream real-time messages for online users
   - Request more pending messages in batches
+  - Message timestamping for chronological ordering
 
 - **Fault Tolerance:**
+
   - Server replication for high availability
   - Leader election using Raft consensus
   - Automatic recovery from server failures
   - Persistent storage of messages and account information
+  - Seamless client reconnection to available servers
+
+- **System Management:**
+  - Dynamic addition of new servers to the cluster
+  - Server status monitoring
+  - Configuration management through ZooKeeper
 
 ## Installation
 
@@ -66,11 +81,13 @@ Servers communicate with each other through gRPC to synchronize state and implem
 ### Setup
 
 1. Install Python dependencies:
+
 ```bash
-pip install grpcio grpcio-tools kazoo
+pip install grpcio grpcio-tools kazoo pytest pytest-cov
 ```
 
 2. Install and start ZooKeeper:
+
 ```bash
 # The application uses the default ZooKeeper port (2181)
 # Start ZooKeeper with the provided configuration
@@ -78,9 +95,17 @@ zkServer.sh start zoo.cfg
 ```
 
 3. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd design_exercise_3
+```
+
+4. Configure the system:
+
+```bash
+# Edit zoo.cfg if needed to adjust ZooKeeper settings
+# By default, the system uses localhost:2181 for ZooKeeper
 ```
 
 ## Usage
@@ -103,6 +128,20 @@ While the server is running, you can add additional server instances:
 2. Provide a server ID (e.g., "server4")
 3. Specify a port number (e.g., 50054)
 
+You can also use the dedicated script for adding servers:
+
+```bash
+python add_new_server.py <server_id> <port>
+```
+
+### Verifying Server Status
+
+To check the status of all servers in the cluster:
+
+```bash
+python verify_servers.py
+```
+
 ### Starting a Client
 
 Run the client with a GUI:
@@ -120,20 +159,25 @@ python client.py
 ### Client Operations
 
 1. **Login/Create Account:**
+
    - Enter username and password
    - Specify whether it's a new account or existing one
 
 2. **Send Messages:**
+
    - Set a recipient
    - Type a message and send
 
 3. **View Messages:**
+
    - Pending messages are shown automatically on login
    - Request more messages as needed
+   - Messages include timestamps for chronological ordering
 
 4. **Manage Account:**
    - List other users
    - Delete account (with confirmation for unread messages)
+   - Use regex patterns to filter user lists
 
 ## Components
 
@@ -147,15 +191,18 @@ python client.py
 
 ### Supporting Files
 
-- **accounts.py**: Account management functions
-- **messages.py**: Message handling and persistence
-- **operations.py**: Serialization utilities
+- **accounts.py**: Account management functions and persistence
+- **messages.py**: Message handling, queuing, and persistence
+- **operations.py**: Serialization utilities and common operations
 - **zookeeper_manager.py**: Interface to ZooKeeper for server discovery
 - **config_manager.py**: Configuration management for server settings
+- **server_management_functions.py**: Functions for managing server instances
+- **add_new_server.py**: Script for adding new servers to the cluster
+- **verify_servers.py**: Script for verifying server status
 
 ### Protocol Files
 
-- **chatapp.proto**: Protocol Buffer definitions
+- **chatapp.proto**: Protocol Buffer definitions for services and messages
 - **chatapp_pb2.py**: Generated Protocol Buffer code
 - **chatapp_pb2_grpc.py**: Generated gRPC service code
 
@@ -171,6 +218,8 @@ Run unit tests with pytest:
 pytest unit_tests.py -v
 ```
 
+These tests cover core functionality including account management, message handling, and basic server operations.
+
 ### Extended Tests
 
 Additional tests to increase code coverage:
@@ -178,6 +227,8 @@ Additional tests to increase code coverage:
 ```bash
 pytest extended_unit_tests.py -v
 ```
+
+These tests focus on edge cases and error handling.
 
 ### Server and Client Tests
 
@@ -187,6 +238,8 @@ Tests for server and client components:
 pytest server_client_tests.py -v
 ```
 
+These tests verify the interaction between servers and clients.
+
 ### Integration Tests
 
 Run integration tests to verify system-wide functionality:
@@ -194,6 +247,8 @@ Run integration tests to verify system-wide functionality:
 ```bash
 pytest integration_tests.py -v
 ```
+
+Integration tests validate the entire system working together, including fault tolerance and recovery.
 
 ### Coverage Reports
 
@@ -203,6 +258,8 @@ Generate coverage reports to analyze test coverage:
 pytest --cov=. --cov-report=term unit_tests.py extended_unit_tests.py server_client_tests.py
 ```
 
+The project aims for at least 80% test coverage across all components.
+
 ## Fault Tolerance
 
 The application implements several mechanisms for fault tolerance:
@@ -211,29 +268,118 @@ The application implements several mechanisms for fault tolerance:
 
 - Default configuration of 3 servers for 2-fault tolerance
 - Additional servers can be added during runtime
+- System can operate with a simple majority of servers (n/2 + 1)
 
 ### 2. Raft Consensus
 
 - Leader election for coordinating server actions
 - Heartbeat messages to detect server failures
 - Vote-based consensus for leader selection
+- Term-based leadership to prevent split-brain scenarios
 
 ### 3. Persistent Storage
 
 - Accounts stored in `all_accounts_ever.txt`
 - Pending messages stored in `pending_messages.txt`
 - Messages are immediately persisted to disk
+- Log-based persistence for operation history
 
 ### 4. ZooKeeper Integration
 
 - Server registration and discovery
 - Node monitoring for failure detection
 - Configuration management
+- Ephemeral znodes for live server tracking
 
 ### Recovery Process
 
 When a server fails:
+
 1. Heartbeat timeouts trigger leader election (if leader failed)
 2. Remaining servers establish a new leader
 3. Clients can reconnect to any available server
 4. Pending messages are preserved and delivered when possible
+5. Failed servers can rejoin the cluster when restarted
+
+## Design Decisions
+
+### Consistency Model
+
+The system implements a strong consistency model through the Raft consensus algorithm. All operations that modify system state must be processed through the leader server, which then replicates these changes to follower servers. This ensures that all servers have a consistent view of the system state.
+
+### Message Delivery Guarantees
+
+The system provides at-least-once message delivery guarantees. Messages are persisted to disk before being acknowledged to the sender, and are only removed from storage after being successfully delivered to the recipient. In case of server failures, message delivery may be delayed but is never lost.
+
+### Security Considerations
+
+- Passwords are stored with basic encryption (for demonstration purposes only)
+- Server-to-server communication is not encrypted in this version
+- Client-to-server communication is not encrypted in this version
+- For production use, TLS encryption should be implemented
+
+## Performance Considerations
+
+### Scalability
+
+- The system can scale by adding more server instances
+- ZooKeeper provides service discovery for dynamic scaling
+- The current implementation is optimized for small to medium deployments
+
+### Optimizations
+
+- Batch processing of messages for efficient network usage
+- Lazy loading of messages to reduce memory usage
+- Efficient leader election to minimize downtime during failures
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection Issues:**
+
+   - Ensure ZooKeeper is running (`zkServer.sh status`)
+   - Check that server ports are available and not blocked by firewall
+   - Verify network connectivity between clients and servers
+
+2. **Server Failures:**
+
+   - Check logs for error messages
+   - Verify ZooKeeper connection
+   - Restart failed server instances if necessary
+
+3. **Message Delivery Problems:**
+   - Verify recipient exists and is spelled correctly
+   - Check sender's connection status
+   - Ensure cluster has a leader elected
+
+### Logging
+
+- Server logs are output to console by default
+- Set verbose logging for more detailed information
+
+## Future Enhancements
+
+1. **Security Improvements:**
+
+   - Implement TLS encryption for all communications
+   - Add proper password hashing and security
+   - Implement authentication tokens
+
+2. **Feature Additions:**
+
+   - Group chat functionality
+   - Message read receipts
+   - File transfer capabilities
+   - Rich text messaging
+
+3. **Performance Enhancements:**
+
+   - Message compression
+   - Connection pooling
+   - Optimized data storage
+
+4. **UI Improvements:**
+   - Enhanced GUI with modern design
+   - Mobile client support
+   - Web interface
