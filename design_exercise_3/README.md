@@ -82,31 +82,31 @@ Servers communicate with each other through gRPC to synchronize state and implem
 
 1. Install Python dependencies:
 
-```bash
-pip install grpcio grpcio-tools kazoo pytest pytest-cov
-```
+   ```bash
+   pip install grpcio grpcio-tools kazoo pytest pytest-cov
+   ```
 
 2. Install and start ZooKeeper:
 
-```bash
-# The application uses the default ZooKeeper port (2181)
-# Start ZooKeeper with the provided configuration
-zkServer.sh start zoo.cfg
-```
+   ```bash
+   # The application uses the default ZooKeeper port (2181)
+   # Start ZooKeeper with the provided configuration
+   zkServer.sh start zoo.cfg
+   ```
 
 3. Clone the repository:
 
-```bash
-git clone <repository-url>
-cd design_exercise_3
-```
+   ```bash
+   git clone <repository-url>
+   cd design_exercise_3
+   ```
 
 4. Configure the system:
 
-```bash
-# Edit zoo.cfg if needed to adjust ZooKeeper settings
-# By default, the system uses localhost:2181 for ZooKeeper
-```
+   ```bash
+   # Edit zoo.cfg if needed to adjust ZooKeeper settings
+   # By default, the system uses localhost:2181 for ZooKeeper
+   ```
 
 ## Usage
 
@@ -209,6 +209,14 @@ python client.py
 ## Testing
 
 The application includes comprehensive testing:
+
+### Running All Tests
+
+To run all tests at once:
+
+```bash
+pytest unit_tests.py extended_unit_tests.py integration_tests.py server_client_tests.py -v
+```
 
 ### Unit Tests
 
@@ -317,6 +325,30 @@ The system provides at-least-once message delivery guarantees. Messages are pers
 - Server-to-server communication is not encrypted in this version
 - Client-to-server communication is not encrypted in this version
 - For production use, TLS encryption should be implemented
+
+### Additional Critical Insights from Development
+
+Below are key insights and design decisions drawn from our engineering discussions and implementation notes:
+
+1. **Fixed Initial Cluster + Extension**  
+   We start with a baseline cluster of three servers, using hardcoded configuration or a simple startup script. After verifying the minimal functionality, we extend the cluster by allowing new servers to join. This approach ensures a reliable foundation (3 replicas) before enabling further scaling.
+
+2. **Adding Servers with Unique IDs and Ports**  
+   We do not permit servers to be added with the same server ID or the same port. If a user attempts to add a new server with a conflicting identifier, the system logs an error message and prevents the server from starting. This design choice avoids confusion and conflicts in the Raft cluster, as each server must be uniquely identifiable.
+
+3. **Strict Leader Election**  
+   We rely solely on the Raft consensus protocol to designate a leader. We do not allow any server to forcibly take leadership outside of Raft’s election process. If the current leader fails (or is suspected to have failed due to missed heartbeats), a standard Raft election automatically begins, ensuring continuous availability without arbitrary “leader swapping.”
+
+4. **Heartbeat Mechanism**  
+   Each server receives regular heartbeats from the leader. If heartbeats are not received in a timely manner, servers trigger Raft’s leader election. This mechanism is crucial for quickly detecting failed or unresponsive leaders and minimizing disruption to the system.
+
+5. **ZooKeeper/Kazoo for Server Registration**  
+   We use ZooKeeper to dynamically track servers in the cluster. Each server creates an ephemeral znode upon startup, which is automatically removed if it fails or disconnects. The Kazoo library in Python simplifies our interaction with ZooKeeper, letting us maintain an up-to-date registry of active replicas.
+
+6. **Testing Approach**  
+   Our implementation features a robust suite of both unit tests and integration tests. We use mocks to test individual components in isolation (e.g., message handling, account management). Then, we run full integration tests to validate the entire system across multiple servers, testing leader elections, server crashes, user reconnections, and more. Manual testing further confirms that the chat application is resilient in real-world scenarios such as network outages and unexpected server failures.
+
+Overall, these additional design insights highlight how careful handling of leader election, unique server IDs/ports, heartbeat monitoring, and dynamic registration in ZooKeeper all contribute to a cohesive, fault-tolerant distributed chat system.
 
 ## Performance Considerations
 

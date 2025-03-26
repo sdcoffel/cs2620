@@ -20,16 +20,23 @@ class FakeUnaryUnaryMultiCallable:
 
 # Define a fake channel that implements the expected gRPC interface.
 class FakeChannel:
+    # Add a killed_nodes set to track which nodes should be considered "dead"
+    killed_nodes = set()
+    
     def unary_unary(self, method, request_serializer=None, response_deserializer=None, **kwargs):
         if "RequestVote" in method:
             # Simulate a RequestVote RPC always granting a vote.
             return FakeUnaryUnaryMultiCallable(
-                lambda request, timeout=None: type("FakeResponse", (), {"vote_granted": True})()
+                lambda request, timeout=None: 
+                    # Don't grant votes to killed nodes
+                    type("FakeResponse", (), {"vote_granted": request.candidate_id not in FakeChannel.killed_nodes})()
             )
         elif "AppendEntries" in method:
             # Simulate an AppendEntries (heartbeat) RPC always succeeding.
             return FakeUnaryUnaryMultiCallable(
-                lambda request, timeout=None: type("FakeResponse", (), {"success": True})()
+                lambda request, timeout=None: 
+                    # Don't accept heartbeats from killed nodes
+                    type("FakeResponse", (), {"success": request.leader_id not in FakeChannel.killed_nodes})()
             )
         elif "Ping" in method:
             # Simulate a Ping RPC.
@@ -98,7 +105,10 @@ def test_chaos_election(monkeypatch):
     # Simulate chaos: "kill" node1 by disabling its heartbeat and forcing a stale heartbeat.
     node1.send_heartbeats = lambda: None  # disable heartbeats for node1
     node1.last_heartbeat = time.time() - 2  # force stale heartbeat
-
+    
+    # Add server1 to the killed_nodes set so it can't get votes or have its heartbeats accepted
+    FakeChannel.killed_nodes.add("server1")
+    
     # Reset the global leader to simulate leader failure.
     global_leader.value = None
 
@@ -110,6 +120,9 @@ def test_chaos_election(monkeypatch):
         f"Expected leader to be server2 or server3, got {global_leader.value}"
     )
     print(f"New leader elected: {global_leader.value}")
+    
+    # Clean up the killed_nodes set for other tests
+    FakeChannel.killed_nodes.clear()
 
 
 
@@ -171,6 +184,10 @@ def test_repeated_chaos_elections(monkeypatch):
         # Simulate failure: disable heartbeat and force stale timestamp.
         failing_node.send_heartbeats = lambda: None
         failing_node.last_heartbeat = time.time() - 2
+        
+        # Add the failing node to the killed_nodes set
+        FakeChannel.killed_nodes.add(current_leader)
+        
         global_leader.value = None
 
         # Wait for an election to occur.
@@ -186,6 +203,9 @@ def test_repeated_chaos_elections(monkeypatch):
 
         # Restore the failing node's heartbeat method.
         failing_node.send_heartbeats = failing_node._original_send_heartbeats
+        
+        # Remove the node from the killed_nodes set
+        FakeChannel.killed_nodes.remove(current_leader)
 
     print("Repeated chaos elections test passed.")
 
