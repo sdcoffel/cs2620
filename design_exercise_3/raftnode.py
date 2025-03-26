@@ -256,10 +256,8 @@ class RaftNode:
                         if response.success:
                             print(f"Retry successful: Heartbeat to {peer} succeeded.")
                 except Exception as retry_exception:
-                    print(f"Retry failed: Could not send heartbeat to {peer}")
                     # Remove the unresponsive peer
                     self.remove_peer(peer)
-                    print(f"{peer} removed from cluster.")
 
 
         #sleep for 0.01 seconds (10ms) before sending the next heartbeat
