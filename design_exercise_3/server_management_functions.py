@@ -172,8 +172,25 @@ def start_server(port, server_id):
 
 def run_server_instance(port, server_id, global_leader):
     global raft_node
-    address = f"10.250.84.166:{port}" #this lets anyone on another machine look for my laptops ip address and request to connect
+    address = f"localhost:{port}"  # This lets anyone on another machine look for my laptop's IP address and request to connect
 
-    #each server instance gets its own raftnode
-    raft_node = RaftNode(server_id=server_id, peers=[], address = address, timeout=5, global_leader=global_leader) #default to starting with no peers which can be added in
+    # Each server instance gets its own RaftNode
+    raft_node = RaftNode(server_id=server_id, peers=[], address=address, timeout=5, global_leader=global_leader)  # Default to starting with no peers which can be added in
+
+    # Register the server in ZooKeeper
+    zk_manager = ZooKeeperManager()
+    try:
+        # Ensure the /servers zNode exists
+        if not zk_manager.zk.exists("/servers"):
+            zk_manager.zk.ensure_path("/servers")
+
+        # Register the server as an ephemeral zNode
+        zk_manager.create_znode(f"/servers/{server_id}", address)
+        print(f"Server {server_id} registered in ZooKeeper with address {address}.")
+    except Exception as e:
+        print(f"Error registering server {server_id} in ZooKeeper: {e}")
+    finally:
+        zk_manager.close()
+
+    # Start the gRPC server
     start_server(port, server_id)

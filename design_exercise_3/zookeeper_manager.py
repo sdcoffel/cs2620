@@ -1,6 +1,6 @@
 from kazoo.client import KazooClient
 
-ZOOKEEPER_HOSTS = "10.250.84.166"  
+ZOOKEEPER_HOSTS = "localhost:2181"  
 
 class ZooKeeperManager:
     def __init__(self):
