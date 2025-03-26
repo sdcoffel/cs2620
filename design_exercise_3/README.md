@@ -86,12 +86,12 @@ Servers communicate with each other through gRPC to synchronize state and implem
    pip install grpcio grpcio-tools kazoo pytest pytest-cov
    ```
 
-2. Install and start ZooKeeper:
+2. Install and start ZooKeeper (you can install via pip, homebrew, or whatever your preferred method is, by referring to the ZooKeeper documentation):
 
    ```bash
    # The application uses the default ZooKeeper port (2181)
-   # Start ZooKeeper with the provided configuration
-   zkServer.sh start zoo.cfg
+   # Start ZooKeeper
+   zkServer start
    ```
 
 3. Clone the repository:
@@ -99,13 +99,6 @@ Servers communicate with each other through gRPC to synchronize state and implem
    ```bash
    git clone <repository-url>
    cd design_exercise_3
-   ```
-
-4. Configure the system:
-
-   ```bash
-   # Edit zoo.cfg if needed to adjust ZooKeeper settings
-   # By default, the system uses localhost:2181 for ZooKeeper
    ```
 
 ## Usage
