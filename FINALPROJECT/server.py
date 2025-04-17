@@ -1,6 +1,7 @@
 import socket
 import threading
 import json
+from data_management import * 
 
 HOST = '127.0.0.1'
 PORT = 50005
@@ -9,6 +10,20 @@ BUFFER_SIZE = 1024
 # each username gets assigned its own → socket
 clients = {}
 clients_lock = threading.Lock() #every client runs in its own thread
+
+
+#state loading 
+# ————— File paths —————
+STOCK_FILE    = "stocks.txt"    # symbol → price/share
+CURRENCY_FILE = "currency.txt"  # e.g. "USD->EUR" → rate
+CLIENTS_FILE  = "clients.txt"   # client → { symbol: [shares, price/share, pct Δ, profit], … }
+
+# ————— In‑memory state —————
+stock_info    = {}   # loaded from STOCK_FILE
+currency_info = {}   # loaded from CURRENCY_FILE
+client_info   = {}   # loaded from CLIENTS_FILE
+
+
 
 def handle_client(conn, addr):
     print(f"[+] Connection from {addr}")
@@ -31,6 +46,7 @@ def handle_client(conn, addr):
                 except json.JSONDecodeError:
                     conn.sendall(b'{"status":"error","msg":"bad json"}\n')
                     continue
+                #process_request(req, conn, STOCK_FILE, CURRENCY_FILE, CLIENTS_FILE)
 
                 cmd = req.get("cmd")
                 if cmd == "register":
@@ -56,6 +72,12 @@ def handle_client(conn, addr):
                         conn.sendall(b'{"status":"error","msg":"to/msg required"}\n')
                         continue
 
+                # elif cmd == "get_users":
+                #     with state_lock:
+                #         users = list(client_info.keys())
+                #     conn.sendall((json.dumps({"status":"ok","users":users})+"\n").encode())
+
+
                     with clients_lock:
                         dest = clients.get(target)
                     if dest:
@@ -77,6 +99,7 @@ def handle_client(conn, addr):
         conn.close()
 
 def main():
+    load_state(STOCK_FILE, CURRENCY_FILE, CLIENTS_FILE)
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind((HOST, PORT))
     srv.listen()
