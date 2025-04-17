@@ -1,11 +1,14 @@
 import socket
 import threading
-import json #we're gonna use json for this bc its standardized 
+import json
 import sys
 
 HOST = '127.0.0.1'
 PORT = 50005
-BUFFER_SIZE = 1024 #tweakable, but 1024 is a good default and its what we've been doing so far
+BUFFER_SIZE = 1024
+
+#local cache of the client's portfolio: { symbol: [shares, price, pct Δ, profit], … }
+portfolio = {}
 
 def listen(sock):
     buffer = ""
@@ -13,7 +16,6 @@ def listen(sock):
         data = sock.recv(BUFFER_SIZE).decode()
         if not data:
             print("\n[-] Server closed connection.")
-            # if the server goes away, make sure the prompt loop will exit
             sock.close()
             sys.exit(0)
         buffer += data
@@ -24,59 +26,84 @@ def listen(sock):
             try:
                 msg = json.loads(line)
             except json.JSONDecodeError:
-                print(f"\n[!] Received malformed: {line}")
+                print(f"\n[!] Malformed from server: {line}")
             else:
-                #incoming data
-                if "from" in msg and "msg" in msg:
-                    print(f"\n[{msg['from']}] {msg['msg']}")
-                #server responses - makes sure that the server recieved the client's info
-                elif msg.get("status"):
+                #server acknowledgements & portfolio updates
+                if msg.get("status"):
                     print(f"\n[Server] {msg['status']}: {msg.get('msg','')}")
+                    if msg.get("portfolio") is not None:
+                        global portfolio
+                        portfolio = msg["portfolio"]
+                        print_portfolio()
                 else:
-                    print(f"\n[Server] {msg}")
-            # redraw prompt immediately after any incoming text
+                    print(f"\n[Server] Unknown response: {msg}")
+            # redraw prompt
             print("> ", end="", flush=True)
 
+def print_portfolio():
+    if not portfolio:
+        print("No holdings yet.")
+    else:
+        print("Your portfolio:")
+        for sym, info in portfolio.items():
+            shares, price, pct, profit = info
+            print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
+
 def main():
+    #connect to the server
     sock = socket.create_connection((HOST, PORT))
     username = input("Who are you?: ").strip()
-
-    #username registration with the server - this is the first thing that happens on startup 
     sock.sendall((json.dumps({"cmd":"register","user":username}) + "\n").encode())
-    #wait for ack synchronously (just once)
+
+    #wait until the server acknowledges the connection
     ack = sock.recv(BUFFER_SIZE).decode().split("\n",1)[0]
     resp = json.loads(ack)
     if resp.get("status") != "ok":
         print("Registration failed:", resp.get("msg"))
         return
 
-    print("You're in! Type `/username message` to message a specific user, or `quit` to exit.")
+    #grab the user's initial portfolio - for now, we all start with a blank, unpopulated portfolio
+    sock.sendall((json.dumps({"cmd":"get_portfolio","user":username}) + "\n").encode())
 
-    # start background listener - same idea as DE1
+    print(
+      "Commands:\n"
+      "  portfolio           show your holdings\n"
+      "  buy SYMBOL QTY      buy shares\n"
+      "  sell SYMBOL QTY     sell shares\n"
+      "  quit                exit\n"
+    )
+
+    #background listener thread
     threading.Thread(target=listen, args=(sock,), daemon=True).start()
 
-    #main loop for sending/recieving messages 
+    #input loop for commands
     while True:
-        #i don't want to block the reciever and have to type enter every time. you could change this if you wanted to, but i personally wouldn't 
         line = input("> ").strip()
+        if not line:
+            continue
         if line.lower() in ("quit", "exit"):
             break
 
-        if not line.startswith("/"):
-            print("Incorrect format: use /username message")
-            continue
+        parts = line.split()
+        cmd = parts[0].lower()
 
-        try:
-            to, msg = line[1:].split(" ", 1)
-        except ValueError:
-            print("Incorrect format: use /username message")
-            continue
+        if cmd == "portfolio":
+            print_portfolio()
 
-        req = {"cmd":"send", "to":to, "msg":msg}
-        sock.sendall((json.dumps(req) + "\n").encode())
+        elif cmd in ("buy", "sell"):
+            if len(parts) != 3 or not parts[2].isdigit():
+                print("Usage: buy SYMBOL QTY")
+                continue
+            sym, qty = parts[1].upper(), int(parts[2])
+            req = {"cmd": cmd, "user": username, "symbol": sym, "qty": qty}
+            sock.sendall((json.dumps(req) + "\n").encode())
+
+        else:
+            print("Unknown command. Try: portfolio, buy SYMBOL QTY, sell SYMBOL QTY, or quit")
 
     sock.close()
-    print("Disconnected.")
+    print("Ending trading session...")
+
 
 if __name__ == "__main__":
     main()
