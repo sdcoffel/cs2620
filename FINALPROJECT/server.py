@@ -60,6 +60,8 @@ def main():
             conn, addr = srv.accept()
             threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
     finally:
+        save_state(STOCK_FILE, CURRENCY_FILE, CLIENTS_FILE)
+        print(f"Saving state...")
         srv.close()
 
 if __name__ == "__main__":

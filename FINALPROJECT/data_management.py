@@ -23,6 +23,12 @@ def load_state(stockfile, currencyfile, clientfile):
     currency_info = load_json(currencyfile, {})
     client_info   = load_json(clientfile, {})
 
+def save_state(stockfile, currencyfile, clientfile):
+    with state_lock:
+        save_json(stockfile, stock_info)
+        save_json(currencyfile, currency_info)
+        save_json(clientfile, client_info)
+
 
 #handle all possible incoming requests from the client
 def process_request(req, conn, stockfile, currencyfile, clientfile):
@@ -35,10 +41,13 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
             return
 
         with state_lock: 
+            # if user in client_info:
+            #     conn.sendall(b'{"status":"error","msg":"username taken"}\n')
+            #     return
             if user in client_info:
-                conn.sendall(b'{"status":"error","msg":"username taken"}\n')
+                conn.sendall(b'{"status":"ok","msg":"welcome","portfolio":' + json.dumps(client_info[user]).encode() + b'}\n')
                 return
-        
+            
             # create an empty portfolio for them
             client_info[user] = {}
             save_json(clientfile, client_info)
@@ -90,23 +99,23 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
             port = client_info.setdefault(user, {})
 
             # compute new holdings
-            entry = port.get(sym, [0, stock_info.get(sym,0), 0.0, 0.0])
+            entry = port.get(sym, [0, stock_info.get(sym, 0), 0.0, 0.0])
             shares, price_per_share, pct, profit = entry
 
-            delta = qty if cmd=="buy" else -qty
+            delta = qty if cmd == "buy" else -qty
             new_shares = shares + delta
             if new_shares < 0:
                 conn.sendall(b'{"status":"error","msg":"not enough shares"}\n')
                 return
-            
+
             if new_shares == 0:
-                # remove the stock entirely when holdings drop to zero
+                # remove stock from portfolio if holdings drop to 0
                 port.pop(sym, None)
             else:
                 # update the remaining holding
                 entry[0] = new_shares
                 entry[1] = stock_info.get(sym, price_per_share)
-                # we'll need to eventually update percentage increase/decrease and profit here, but havent' gotten there yet
+                # we'll need to eventually update percentage increase/decrease and profit here, but haven't gotten there yet
                 port[sym] = entry
 
             save_json(clientfile, client_info)
