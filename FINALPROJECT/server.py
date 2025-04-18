@@ -1,7 +1,11 @@
 import socket
+import sched
+import time
 import threading
 import json
 from data_management import * 
+
+scheduler = sched.scheduler(time.time, time.sleep)
 
 HOST = '127.0.0.1'
 PORT = 50005
@@ -46,6 +50,16 @@ def handle_client(conn, addr):
     finally:
         conn.close()
 
+def reload_prices():
+    UPDATE_INTERVAL = 5
+    fresh = load_json(STOCK_FILE, {})
+    with state_lock:
+        global stock_info
+        stock_info = fresh
+    # schedule next run
+    scheduler.enter(UPDATE_INTERVAL, 1, reload_prices)
+
+
 
 def main():
     #boot up the server - run each client in its own thread - could be useful bc all clients need access to the server's stock price info - but changes must be done atomically
@@ -54,6 +68,10 @@ def main():
     srv.bind((HOST, PORT))
     srv.listen()
     print(f"Server listening on {HOST}:{PORT}")
+
+    #keep updating the stock prices in the background so we're sending updated info to the client
+    scheduler.enter(0, 1, reload_prices)
+    threading.Thread(target=scheduler.run, daemon=True).start()  # :contentReference[oaicite:14]{index=14}
 
     try:
         while True:

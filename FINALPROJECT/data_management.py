@@ -1,4 +1,6 @@
 import threading 
+from sched import scheduler
+import time
 import os 
 import json 
 
@@ -30,6 +32,18 @@ def save_state(stockfile, currencyfile, clientfile):
         save_json(clientfile, client_info)
 
 
+def reload_prices(stockfile, interval):
+    """Reload stock prices from disk into the global stock_info."""
+    global stock_info
+    # Load fresh JSON from file
+    new_info = load_json(stockfile, {})  # uses json.load internally :contentReference[oaicite:3]{index=3}
+    with state_lock:
+        stock_info = new_info
+    #updates every 1 second - probably tweak this but there's a latency tradeoff here
+    scheduler.enter(interval, 1, reload_prices, (stockfile, interval))
+
+
+
 #handle all possible incoming requests from the client
 def process_request(req, conn, stockfile, currencyfile, clientfile):
     cmd = req.get("cmd")
@@ -57,11 +71,34 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
     if cmd == "get_portfolio":
         user = req.get("user")
         if not user:
-            conn.sendall(b'{"status":"error","msg":"user required"}\n'); return
+            conn.sendall(b'{"status":"error","msg":"user required"}\n')
+            return
 
-        with state_lock:
-            portfolio = client_info.get(user, {})
-        resp = {"status":"ok", "portfolio": portfolio}
+        # (Re)load latest prices if desired:
+        fresh_prices = load_json(stockfile, {})
+        with state_lock:  # ensure thread safety :contentReference[oaicite:3]{index=3}
+            global stock_info
+            stock_info = fresh_prices
+
+            port = client_info.get(user, {})
+            for sym, entry in port.items():
+                shares, purchase_price, _, _ = entry
+                current_price = stock_info.get(sym, purchase_price)
+                entry[1] = current_price #updates the client with the current stock price
+                pct    = (current_price - purchase_price) / purchase_price * 100
+                profit = shares * (current_price - purchase_price)
+                entry[2], entry[3] = round(pct,2), round(profit,2)
+
+            # Persist the updated client_info to clients.txt
+            save_json(clientfile, client_info)
+
+            updated_portfolio = client_info[user]
+
+        # Send back the fresh, on‐disk‐synced portfolio
+        resp = {
+            "status":    "ok",
+            "portfolio": updated_portfolio
+        }
         conn.sendall((json.dumps(resp) + "\n").encode())
         return
 
@@ -87,43 +124,56 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
 
     #update client portfolio (e.g. after a buy/sell)
     elif cmd in ("buy","sell"):
-        user, sym, qty = req.get("user"), req.get("symbol"), req.get("qty")
+        user, sym, qty = req["user"], req["symbol"], req["qty"]
         if None in (user, sym, qty):
             conn.sendall(b'{"status":"error","msg":"user,symbol,qty required"}\n')
             return
 
         with state_lock:
-            # ensure user exists
             port = client_info.setdefault(user, {})
+            # Default entry: [0 shares, cost_basis=0, realized=0, unrealized=0]
+            entry = port.get(sym, [0, 0.0, 0.0, 0.0])
+            shares, basis, realized, _ = entry
+            current_price = stock_info.get(sym, basis)
 
-            # compute new holdings
-            entry = port.get(sym, [0, stock_info.get(sym, 0), 0.0, 0.0])
-            shares, price_per_share, pct, profit = entry
+            if cmd == "buy":
+                new_shares = shares + qty
+                #recalculate average cost basis :contentReference[oaicite:3]{index=3}
+                new_basis = ((shares * basis) + (qty * current_price)) / new_shares
+                entry[0] = new_shares
+                entry[1] = current_price #update client stock price
 
-            delta = qty if cmd == "buy" else -qty
-            new_shares = shares + delta
-            if new_shares < 0:
-                conn.sendall(b'{"status":"error","msg":"not enough shares"}\n')
-                return
+            else:  # sell
+                new_shares = shares - qty
+                if new_shares < 0:
+                    conn.sendall(b'{"status":"error","msg":"not enough shares"}\n')
+                    return
+                # 3) Compute realized gain on these shares :contentReference[oaicite:4]{index=4}
+                gain = qty * (current_price - basis)
+                entry[2] = round(realized + gain, 2)
+                entry[1] = current_price #update client stock price
+                entry[0] = new_shares
+                # Cost basis remains unchanged for remaining shares
 
+            # 4) Remove stock if nothing left
             if new_shares == 0:
-                # remove stock from portfolio if holdings drop to 0
                 port.pop(sym, None)
             else:
-                # update the remaining holding
-                entry[0] = new_shares
-                entry[1] = stock_info.get(sym, price_per_share)
-                # we'll need to eventually update percentage increase/decrease and profit here, but haven't gotten there yet
+                # 5) Recompute unrealized P&L and %Δ :contentReference[oaicite:5]{index=5}
+                unreal = new_shares * (current_price - entry[1])
+                pct    = ((current_price - entry[1]) / entry[1]) * 100
+                entry[3] = round(unreal, 2)
+                entry[1] = current_price #update client stock price
+                # Optionally store pct in a separate field if you wish
+
                 port[sym] = entry
 
+            # 6) Persist to disk :contentReference[oaicite:6]{index=6}
             save_json(clientfile, client_info)
-            updated_portfolio = client_info[user]
+            updated = port  # this user’s refreshed portfolio
 
-        resp = {
-            "status":      "ok",
-            "msg":         "portfolio updated",
-            "portfolio":   updated_portfolio
-        }
+        # 7) Reply with the full, updated portfolio
+        resp = {"status":"ok", "msg":"portfolio updated", "portfolio": updated}
         conn.sendall((json.dumps(resp) + "\n").encode())
 
     else:

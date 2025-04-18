@@ -11,6 +11,7 @@ BUFFER_SIZE = 1024
 portfolio = {}
 
 def listen(sock):
+    global portfolio
     buffer = ""
     while True:
         data = sock.recv(BUFFER_SIZE).decode()
@@ -32,7 +33,7 @@ def listen(sock):
                 if msg.get("status"):
                     print(f"\n[Server] {msg['status']}: {msg.get('msg','')}")
                     if msg.get("portfolio") is not None:
-                        global portfolio
+                        #global portfolio
                         portfolio = msg["portfolio"]
                         print_portfolio()
                 else:
@@ -88,7 +89,7 @@ def main():
         cmd = parts[0].lower()
 
         if cmd == "portfolio":
-            print_portfolio()
+            sock.sendall((json.dumps({"cmd":"get_portfolio","user":username}) + "\n").encode())
 
         elif cmd in ("buy", "sell"):
             if len(parts) != 3 or not parts[2].isdigit():
