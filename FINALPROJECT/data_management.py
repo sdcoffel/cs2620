@@ -4,6 +4,11 @@ import time
 import os 
 import json 
 
+#todo: fix the bug where i have to type portfolio every time to see the most updated profits
+#todo: fix the bug where total profit for a share and percentage isn't updating in clients.txt
+#should my net profit be something that updates with the prices? or should it not change with stock prices
+#when do i cash out? at the maximum. maybe wait until we implement ml to add a 'cash out' aspect
+
 state_lock = threading.Lock()
 
 #json functions 
@@ -76,20 +81,28 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
 
         # (Re)load latest prices if desired:
         fresh_prices = load_json(stockfile, {})
-        with state_lock:  # ensure thread safety :contentReference[oaicite:3]{index=3}
+        with state_lock:
             global stock_info
             stock_info = fresh_prices
 
             port = client_info.get(user, {})
-            for sym, entry in port.items():
-                shares, purchase_price, _, _ = entry
-                current_price = stock_info.get(sym, purchase_price)
-                entry[1] = current_price #updates the client with the current stock price
-                pct    = (current_price - purchase_price) / purchase_price * 100
-                profit = shares * (current_price - purchase_price)
-                entry[2], entry[3] = round(pct,2), round(profit,2)
+            for sym, raw in list(port.items()):
+                entry = raw[:]  
+                if len(entry) == 4: #padding
+                    entry.append(0.0)    
+                shares, basis, realized, _, total = entry
 
-            # Persist the updated client_info to clients.txt
+                #update the live price slot
+                current_price = stock_info.get(sym, basis)
+                entry[1] = current_price
+
+                #recompute only the unrealized P&L & %Δ - don't touch the total profit
+                unreal   = shares * (current_price - basis)
+                pct      = ((current_price - basis) / basis) * 100 if basis else 0.0
+                entry[3] = round(unreal,  2)
+
+                port[sym] = entry
+            #persist the updated client_info to clients.txt
             save_json(clientfile, client_info)
 
             updated_portfolio = client_info[user]
@@ -132,8 +145,17 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
         with state_lock:
             port = client_info.setdefault(user, {})
             # Default entry: [0 shares, cost_basis=0, realized=0, unrealized=0]
-            entry = port.get(sym, [0, 0.0, 0.0, 0.0])
-            shares, basis, realized, _ = entry
+            raw = port.get(sym)
+            if raw is None:
+                # brand‑new position
+                entry = [0, 0.0, 0.0, 0.0, 0.0]
+            else:
+                # existing position: pad if missing total_profit
+                entry = raw[:]  # copy to avoid mutating original until ready
+                if len(entry) == 4:
+                    entry.append(0.0)
+
+            shares, basis, realized, unrealized, total = entry
             current_price = stock_info.get(sym, basis)
 
             if cmd == "buy":
@@ -152,27 +174,29 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
                 gain = qty * (current_price - basis)
                 entry[2] = round(realized + gain, 2)
                 entry[1] = current_price #update client stock price
+                entry[4] = round(total + gain,2)  # update total_profit
                 entry[0] = new_shares
                 # Cost basis remains unchanged for remaining shares
 
             # 4) Remove stock if nothing left
             if new_shares == 0:
                 port.pop(sym, None)
+            
             else:
-                # 5) Recompute unrealized P&L and %Δ :contentReference[oaicite:5]{index=5}
+                #recompute unrealized P&L and %Δ :contentReference[oaicite:5]{index=5}
                 unreal = new_shares * (current_price - entry[1])
                 pct    = ((current_price - entry[1]) / entry[1]) * 100
                 entry[3] = round(unreal, 2)
                 entry[1] = current_price #update client stock price
-                # Optionally store pct in a separate field if you wish
+               
 
                 port[sym] = entry
 
-            # 6) Persist to disk :contentReference[oaicite:6]{index=6}
+            #persist to disk :contentReference[oaicite:6]{index=6}
             save_json(clientfile, client_info)
             updated = port  # this user’s refreshed portfolio
 
-        # 7) Reply with the full, updated portfolio
+        #reply with the full, updated portfolio
         resp = {"status":"ok", "msg":"portfolio updated", "portfolio": updated}
         conn.sendall((json.dumps(resp) + "\n").encode())
 

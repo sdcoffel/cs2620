@@ -41,14 +41,44 @@ def listen(sock):
             # redraw prompt
             print("> ", end="", flush=True)
 
+
+def compute_net_profit(portfolio):
+    """
+    Given a portfolio dict of the form:
+      { symbol: [shares, cost_basis, realized_profit, unrealized_profit, total_profit], … }
+    returns a tuple (net_realized, net_unrealized, net_total)
+    """
+    net_realized   = 0.0
+    net_unrealized = 0.0
+
+    for entry in portfolio.values():
+        # unpack: [shares, cost_basis, realized, unrealized, total_profit]
+        _, _, realized, unrealized, total = entry
+        net_realized   += total        # or realized, if you want just this session’s gains
+        net_unrealized += unrealized
+
+    net_total = net_realized + net_unrealized
+    return net_realized, net_unrealized, net_total
+
+
+
 def print_portfolio():
     if not portfolio:
         print("No holdings yet.")
     else:
         print("Your portfolio:")
         for sym, info in portfolio.items():
-            shares, price, pct, profit = info
-            print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
+            shares, price, pct, profit, total = info
+            print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}   Total Profit: ${total:.2f}")
+
+
+    net_real, net_unreal, net_all = compute_net_profit(portfolio)
+    # print("\nNet realized profit:   $", round(net_real,  2))
+    # print("Net unrealized profit: $", round(net_unreal,2))
+    print("Overall net profit:    $", round(net_all,   2))
+
+
+
 
 def main():
     #connect to the server
