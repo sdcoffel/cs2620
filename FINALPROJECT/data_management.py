@@ -41,9 +41,7 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
             return
 
         with state_lock: 
-            # if user in client_info:
-            #     conn.sendall(b'{"status":"error","msg":"username taken"}\n')
-            #     return
+
             if user in client_info:
                 conn.sendall(b'{"status":"ok","msg":"welcome","portfolio":' + json.dumps(client_info[user]).encode() + b'}\n')
                 return

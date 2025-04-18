@@ -14,7 +14,7 @@ clients_lock = threading.Lock() #every client runs in its own thread
 
 #state loading 
 # ————— File paths —————
-STOCK_FILE    = "stocks.txt"    # symbol → price/share
+STOCK_FILE = "stocks.txt"    # symbol → price/share
 CURRENCY_FILE = "currency.txt"  # e.g. "USD->EUR" → rate
 CLIENTS_FILE  = "clients.txt"   # client → { symbol: [shares, price/share, pct Δ, profit], … }
 
