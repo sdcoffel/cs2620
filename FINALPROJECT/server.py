@@ -7,7 +7,7 @@ from data_management import *
 
 scheduler = sched.scheduler(time.time, time.sleep)
 
-HOST = '0.0.0.0'
+HOST = '10.253.137.44'
 PORT = 50004
 BUFFER_SIZE = 1024
 
