@@ -4,7 +4,7 @@ import json
 import sys
 
 HOST = '127.0.0.1'
-PORT = 50005
+PORT = 50004
 BUFFER_SIZE = 1024
 
 #local cache of the client's portfolio: { symbol: [shares, price, pct Δ, profit], … }
@@ -53,12 +53,12 @@ def compute_net_profit(portfolio):
 
     for entry in portfolio.values():
         # unpack: [shares, cost_basis, realized, unrealized, total_profit]
-        _, _, realized, unrealized, total = entry
-        net_realized   += total        # or realized, if you want just this session’s gains
+        _, _, realized, unrealized = entry
+        net_realized   = realized        # or realized, if you want just this session’s gains
         net_unrealized += unrealized
 
     net_total = net_realized + net_unrealized
-    return net_realized, net_unrealized, net_total
+    return net_total
 
 
 
@@ -68,13 +68,11 @@ def print_portfolio():
     else:
         print("Your portfolio:")
         for sym, info in portfolio.items():
-            shares, price, pct, profit, total = info
-            print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}   Total Profit: ${total:.2f}")
+            shares, price, pct, profit = info
+            print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
 
 
-    net_real, net_unreal, net_all = compute_net_profit(portfolio)
-    # print("\nNet realized profit:   $", round(net_real,  2))
-    # print("Net unrealized profit: $", round(net_unreal,2))
+    net_all = compute_net_profit(portfolio)
     print("Overall net profit:    $", round(net_all,   2))
 
 

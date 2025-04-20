@@ -8,7 +8,7 @@ from data_management import *
 scheduler = sched.scheduler(time.time, time.sleep)
 
 HOST = '127.0.0.1'
-PORT = 50005
+PORT = 50004
 BUFFER_SIZE = 1024
 
 # each username gets assigned its own → socket

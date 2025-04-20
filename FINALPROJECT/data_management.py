@@ -6,6 +6,8 @@ import json
 
 #todo: fix the bug where i have to type portfolio every time to see the most updated profits
 #todo: fix the bug where total profit for a share and percentage isn't updating in clients.txt
+#this means that clients.txt needs to be updated in real time instead of when portfolio is inputted
+
 #should my net profit be something that updates with the prices? or should it not change with stock prices
 #when do i cash out? at the maximum. maybe wait until we implement ml to add a 'cash out' aspect
 
@@ -30,6 +32,7 @@ def load_state(stockfile, currencyfile, clientfile):
     currency_info = load_json(currencyfile, {})
     client_info   = load_json(clientfile, {})
 
+
 def save_state(stockfile, currencyfile, clientfile):
     with state_lock:
         save_json(stockfile, stock_info)
@@ -44,9 +47,9 @@ def reload_prices(stockfile, interval):
     new_info = load_json(stockfile, {})  # uses json.load internally :contentReference[oaicite:3]{index=3}
     with state_lock:
         stock_info = new_info
+
     #updates every 1 second - probably tweak this but there's a latency tradeoff here
     scheduler.enter(interval, 1, reload_prices, (stockfile, interval))
-
 
 
 #handle all possible incoming requests from the client
@@ -60,7 +63,6 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
             return
 
         with state_lock: 
-
             if user in client_info:
                 conn.sendall(b'{"status":"ok","msg":"welcome","portfolio":' + json.dumps(client_info[user]).encode() + b'}\n')
                 return
@@ -79,7 +81,7 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
             conn.sendall(b'{"status":"error","msg":"user required"}\n')
             return
 
-        # (Re)load latest prices if desired:
+        #reload latest prices if desired:
         fresh_prices = load_json(stockfile, {})
         with state_lock:
             global stock_info
@@ -88,9 +90,7 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
             port = client_info.get(user, {})
             for sym, raw in list(port.items()):
                 entry = raw[:]  
-                if len(entry) == 4: #padding
-                    entry.append(0.0)    
-                shares, basis, realized, _, total = entry
+                shares, basis, realized, _ = entry
 
                 #update the live price slot
                 current_price = stock_info.get(sym, basis)
@@ -99,12 +99,13 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
                 #recompute only the unrealized P&L & %Δ - don't touch the total profit
                 unreal   = shares * (current_price - basis)
                 pct      = ((current_price - basis) / basis) * 100 if basis else 0.0
+                entry[2] = round(pct, 2)
                 entry[3] = round(unreal,  2)
 
                 port[sym] = entry
+
             #persist the updated client_info to clients.txt
             save_json(clientfile, client_info)
-
             updated_portfolio = client_info[user]
 
         # Send back the fresh, on‐disk‐synced portfolio
@@ -116,25 +117,6 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
         return
 
 
-    #grab currency rates
-    elif cmd == "get_rates":
-        with state_lock:
-            resp = {"status":"ok", "rates": currency_info}
-        conn.sendall((json.dumps(resp)+"\n").encode())
-
-    #keep track of currency rates
-    elif cmd == "update_rate":
-        pair = req.get("pair")   # e.g. "USD->EUR"
-        rate = req.get("rate")
-        if not pair or rate is None:
-            conn.sendall(b'{"status":"error","msg":"pair & rate required"}\n')
-            return
-        with state_lock:
-            currency_info[pair] = rate
-            save_json(currencyfile, currency_info)
-        conn.sendall(b'{"status":"ok","msg":"rate updated"}\n')
-
-
     #update client portfolio (e.g. after a buy/sell)
     elif cmd in ("buy","sell"):
         user, sym, qty = req["user"], req["symbol"], req["qty"]
@@ -144,18 +126,10 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
 
         with state_lock:
             port = client_info.setdefault(user, {})
-            # Default entry: [0 shares, cost_basis=0, realized=0, unrealized=0]
-            raw = port.get(sym)
-            if raw is None:
-                # brand‑new position
-                entry = [0, 0.0, 0.0, 0.0, 0.0]
-            else:
-                # existing position: pad if missing total_profit
-                entry = raw[:]  # copy to avoid mutating original until ready
-                if len(entry) == 4:
-                    entry.append(0.0)
-
-            shares, basis, realized, unrealized, total = entry
+            #default entry: [0 shares, cost_basis=0, realized=0, unrealized=0]
+            raw = port.get(sym, [0, 0, 0, 0])  # Default entry: [shares, basis, realized, unrealized]
+            entry = raw[:]  # copy to avoid mutating original until ready
+            shares, basis, realized, unrealized = entry
             current_price = stock_info.get(sym, basis)
 
             if cmd == "buy":
@@ -170,15 +144,15 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
                 if new_shares < 0:
                     conn.sendall(b'{"status":"error","msg":"not enough shares"}\n')
                     return
-                # 3) Compute realized gain on these shares :contentReference[oaicite:4]{index=4}
+                
+                #compute realized gain on these shares :contentReference[oaicite:4]{index=4}
                 gain = qty * (current_price - basis)
                 entry[2] = round(realized + gain, 2)
                 entry[1] = current_price #update client stock price
-                entry[4] = round(total + gain,2)  # update total_profit
                 entry[0] = new_shares
-                # Cost basis remains unchanged for remaining shares
+                
 
-            # 4) Remove stock if nothing left
+            #remove stock if nothing left - optional, might remove this 
             if new_shares == 0:
                 port.pop(sym, None)
             
@@ -190,8 +164,7 @@ def process_request(req, conn, stockfile, currencyfile, clientfile):
                 entry[1] = current_price #update client stock price
                
 
-                port[sym] = entry
-
+            port[sym] = entry
             #persist to disk :contentReference[oaicite:6]{index=6}
             save_json(clientfile, client_info)
             updated = port  # this user’s refreshed portfolio
