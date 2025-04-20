@@ -1,15 +1,9 @@
 import threading 
 from sched import scheduler
-import time
 import os 
 import json 
 
-#todo: fix the bug where i have to type portfolio every time to see the most updated profits
-#todo: fix the bug where total profit for a share and percentage isn't updating in clients.txt
-#this means that clients.txt needs to be updated in real time instead of when portfolio is inputted
-
-#should my net profit be something that updates with the prices? or should it not change with stock prices
-#when do i cash out? at the maximum. maybe wait until we implement ml to add a 'cash out' aspect
+#goal: maximize the 'net profit' field
 
 state_lock = threading.Lock()
 

@@ -2,6 +2,7 @@ import socket
 import threading
 import json
 import sys
+import argparse
 
 HOST = '127.0.0.1'
 PORT = 50004
@@ -52,7 +53,7 @@ def compute_net_profit(portfolio):
     net_unrealized = 0.0
 
     for entry in portfolio.values():
-        # unpack: [shares, cost_basis, realized, unrealized, total_profit]
+        # unpack: [shares, cost_basis, realized, unrealized]
         _, _, realized, unrealized = entry
         net_realized   = realized        # or realized, if you want just this session’s gains
         net_unrealized += unrealized
@@ -67,10 +68,10 @@ def print_portfolio():
         print("No holdings yet.")
     else:
         print("Your portfolio:")
+
         for sym, info in portfolio.items():
             shares, price, pct, profit = info
             print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
-
 
     net_all = compute_net_profit(portfolio)
     print("Overall net profit:    $", round(net_all,   2))
@@ -135,4 +136,13 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Client for trading system.")
+    parser.add_argument("--host", type=str, default=HOST, help="Server host to connect to (default: 127.0.0.1)")
+    parser.add_argument("--port", type=int, default=PORT, help="Server port to connect to (default: 50004)")
+    args = parser.parse_args()
+    HOST = input("Enter the server host (default: 127.0.0.1): ").strip() or HOST
+    PORT = int(input("Enter the server port (default: 50004): ").strip() or PORT)
+    HOST = args.host
+    PORT = args.port
+
     main()
