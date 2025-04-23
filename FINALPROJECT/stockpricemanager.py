@@ -12,7 +12,7 @@ from pathlib import Path
 BASE_DIR   = Path(__file__).resolve().parent
 STOCK_FILE = "stocks.txt"
 
-UPDATE_INTERVAL = 5        # seconds between updates
+UPDATE_INTERVAL = 1        # seconds between updates
 MU              = 0.0005   # expected daily drift
 SIGMA           = 0.02     # daily volatility
 DT              = 1/252    # fraction of year per “day”

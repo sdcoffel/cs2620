@@ -4,7 +4,7 @@ import json
 import sys
 import argparse
 
-HOST = '10.253.137.44'
+HOST = '10.253.137.44' #don't hardcode this please for the love of god
 PORT = 50004
 BUFFER_SIZE = 1024
 
