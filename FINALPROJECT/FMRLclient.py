@@ -2,8 +2,8 @@
 import requests
 import torch
 import numpy as np
-from model import PolicyNet       # Your network definition
-from RLenvironment import TradingEnv      # The Gym-style wrapper
+from model import PolicyNet       
+from RLenvironment import TradingEnv     
 from torch.optim import SGD
 from torch.distributions import Categorical
 
@@ -174,7 +174,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Federated RL client")
     parser.add_argument('--host', default='127.0.0.1', help='Trading server host')
-    parser.add_argument('--port', default=50004, type=int, help='Trading server port')
+    parser.add_argument('--port', default=50005, type=int, help='Trading server port')
     parser.add_argument('--user', required=True, help='Username for this client')
     args = parser.parse_args()
 
