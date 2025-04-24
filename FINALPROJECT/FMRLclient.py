@@ -8,7 +8,7 @@ from torch.optim import SGD
 from torch.distributions import Categorical
 
 #address of the federated server
-SERVER_URL = 'http://localhost:50004'
+SERVER_URL = 'http://localhost:50005'
 
 #hyperparams
 INNER_LR = 0.1     # α: learning rate for inner (MAML) step
@@ -148,7 +148,7 @@ def local_adapt(global_state_dict, env: TradingEnv):
     Returns the parameter difference Δθ = θ' - θ.
     """
     #initialize policy with global weights
-    policy = PolicyNet()
+    policy = PolicyNet(obs_dim=3, n_symbols=71, n_qtys=4) #need to suply obs_dim, n_symbols, n_qtys here from local_adapt, but how?
     policy.load_state_dict(global_state_dict)
 
     #sample a batch D_theta under θ

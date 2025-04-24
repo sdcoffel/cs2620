@@ -6,7 +6,7 @@ from client import TradingClient
 
 class TradingEnv:
     def __init__(self, host: str, port: int, user: str, max_steps: int = 100, qty_options: list = None):
-        self.client = TradingClient(host, port)
+        self.client = TradingClient()
         self.user = user
         self.max_steps = max_steps
         self.current_step = 0
