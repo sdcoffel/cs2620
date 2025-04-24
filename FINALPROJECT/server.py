@@ -194,7 +194,7 @@ class TradingServer:
         #boot up the server - run each client in its own thread - could be useful bc all clients need access to the server's stock price info - but changes must be done atomically
         self.load_state()
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        srv.bind((self.host, self.port))
+        srv.bind(('', self.port))
         srv.listen()
         print(f"Server listening on {self.host}:{self.port}")
 
