@@ -5,16 +5,19 @@ import threading
 from client import TradingClient
 
 class TradingEnv:
-    def __init__(self, host: str, port: int, user: str, max_steps: int = 100):
+    def __init__(self, host: str, port: int, user: str, max_steps: int = 100, qty_options: list = None):
         self.client = TradingClient(host, port)
         self.user = user
         self.max_steps = max_steps
         self.current_step = 0
         self.last_net = 0.0
 
-    def reset(self):
+    def reset(self, qty_options: list = None):
         # Register or reconnect as the user
         self.client.connect()
+        self.symbols = self.client.list_symbols()    # e.g. ["AAPL","TSLA","GOOG",…]
+        self.qty_options = qty_options or [1,5,10]   # you can parameterize this too
+        self.action_dim = len(self.symbols) * 2 * len(self.qty_options)
         self.client.register(self.user)
         obs = self.client.get_portfolio(self.user)
         self.last_net = obs.get("total_profit", 0.0)

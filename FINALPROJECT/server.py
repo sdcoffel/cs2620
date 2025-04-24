@@ -97,6 +97,14 @@ class TradingServer:
             return
 
 
+        # in TradingServer.process_request(...)
+        if cmd == "list_symbols":
+            with self.state_lock:
+                syms = list(self.stock_info.keys())
+            conn.sendall((json.dumps({"status":"ok","symbols":syms})+"\n").encode())
+            return
+
+
         #update client portfolio (e.g. after a buy/sell)
         elif cmd in ("buy","sell"):
             user, sym, qty = req["user"], req["symbol"], req["qty"]
@@ -213,7 +221,7 @@ class TradingServer:
 
 if __name__ == "__main__":
     server = TradingServer(
-        host='10.253.137.44', port=50004,
+        host='localhost', port=50004,
         stock_file='stocks.txt', currency_file='currency.txt', clients_file='clients.txt'
     )
     server.serve_forever()

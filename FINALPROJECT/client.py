@@ -5,22 +5,45 @@ import sys
 import argparse
 
 
-class TradingCLient: 
+class TradingClient: 
 
-    def init(self, host: str, port: int):
+    def __init__(self):
+        self.host = None
+        self.port = None
+        self.BUFFER_SIZE = 1024
+        self.portfolio = {}
+        self.sock = None
+
+    def init(self, host: str, port: int, buffer_size: int = 1024):
+        """
+        Initialize the client connection parameters.
+        """
         self.host = host
         self.port = port
-        self.buffer_size = 1024
-        self.sock = None
-        self.username = None
-        self.portfolio = {}
+        self.BUFFER_SIZE = buffer_size
+
+
+    def connect(self):
+        """
+        Establish a new TCP connection to the trading server.
+        """
+        if self.sock:
+            self.sock.close()
+        self.sock = socket.create_connection((self.host, self.port))
+
+
+    def list_symbols(self) -> list[str]:
+        self.sock.sendall((json.dumps({"cmd":"list_symbols"}) + "\n").encode())
+        resp = self.sock.recv(self.BUFFER_SIZE).decode()
+        return resp
+
 
 
     def listen(self):
-        global portfolio
+        #global portfolio
         buffer = ""
         while True:
-            data = self.sock.recv(self.buffer_size).decode()
+            data = self.sock.recv(self.BUFFER_SIZE).decode()
             if not data:
                 print("\n[-] Server closed connection.")
                 self.sock.close()
@@ -40,7 +63,7 @@ class TradingCLient:
                         print(f"\n[Server] {msg['status']}: {msg.get('msg','')}")
                         if msg.get("portfolio") is not None:
                             #global portfolio
-                            portfolio = msg["portfolio"]
+                            self.portfolio = msg["portfolio"]
                             self.print_portfolio()
                     else:
                         print(f"\n[Server] Unknown response: {msg}")
@@ -57,7 +80,7 @@ class TradingCLient:
         net_realized   = 0.0
         net_unrealized = 0.0
 
-        for entry in portfolio.values():
+        for entry in self.portfolio.values():
             # unpack: [shares, cost_basis, realized, unrealized]
             _, _, realized, unrealized = entry
             net_realized   = realized        # or realized, if you want just this session’s gains
@@ -68,29 +91,31 @@ class TradingCLient:
 
 
     def print_portfolio(self):
-        if not portfolio:
+        if not self.portfolio:
             print("No holdings yet.")
         else:
             print("Your portfolio:")
 
-            for sym, info in portfolio.items():
+            for sym, info in self.portfolio.items():
                 shares, price, pct, profit = info
                 print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
 
-        net_all = self.compute_net_profit(portfolio)
+        net_all = self.compute_net_profit(self.portfolio)
         print("Overall net profit:    $", round(net_all,   2))
 
 
 
     def main(self):
-        print(f"Establishing connection...")
+        """
+        Main interaction loop: connect, register, and process user commands.
+        """
         #connect to the server
-        self.sock = socket.create_connection((self.host, self.port))
+        print(f"Establishing connection...")
+        self.connect()
         username = input("Who are you?: ").strip()
-        self.sock.sendall((json.dumps({"cmd":"register","user":username}) + "\n").encode())
-
-        #wait until the server acknowledges the connection
-        ack = self.sock.recv(self.buffer_size).decode().split("\n",1)[0]
+        # Register
+        self.sock.sendall((json.dumps({"cmd": "register", "user": username}) + "\n").encode())
+        ack = self.sock.recv(self.BUFFER_SIZE).decode().split("\n", 1)[0]
         resp = json.loads(ack)
         if resp.get("status") != "ok":
             print("Registration failed:", resp.get("msg"))
@@ -142,9 +167,9 @@ class TradingCLient:
 if __name__ == "__main__":
 
     #change these from being hardcoded please
-    HOST = '10.253.137.44' #don't hardcode this please for the love of god
+    HOST = 'localhost' #don't hardcode this please for the love of god
     PORT = 50004
-    client = TradingCLient()
+    client = TradingClient()
     client.init(HOST, PORT)
     client.main()
 
