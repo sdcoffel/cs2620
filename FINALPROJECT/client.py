@@ -12,6 +12,7 @@ class TradingClient:
         self.BUFFER_SIZE = 2048
         self.portfolio = {}
         self.sock = None
+        self.fl_sock = None
 
         #federated learning state
         self.weights = np.zeros(3)   # [w0, w1, w2]
@@ -27,6 +28,10 @@ class TradingClient:
         if self.sock:
             self.sock.close()
         self.sock = socket.create_connection((self.host, self.port))
+
+        if self.fl_sock: self.fl_sock.close()
+        self.fl_sock = socket.create_connection((self.host, self.port))
+
 
     def list_symbols(self) -> list[str]:
         self.sock.sendall((json.dumps({"cmd":"list_symbols"})+"\n").encode())
@@ -66,17 +71,17 @@ class TradingClient:
 
     def send_model_update(self, user: str):
         req = {"cmd":"update_model","user":user,"weights":self.weights.tolist()}
-        self.sock.sendall((json.dumps(req)+"\n").encode())
-        self.sock.recv(self.BUFFER_SIZE)
+        self.fl_sock.sendall((json.dumps(req)+"\n").encode())
+        self.fl_sock.recv(self.BUFFER_SIZE)
 
 
     def pull_global_model(self):
         # send request
         req = {"cmd": "get_global_model"}
-        self.sock.sendall((json.dumps(req)+"\n").encode())
+        self.fl_sock.sendall((json.dumps(req)+"\n").encode())
 
         while True:
-            raw = self.sock.recv(self.BUFFER_SIZE).decode().strip()
+            raw = self.fl_sock.recv(self.BUFFER_SIZE).decode().strip()
             print("[DEBUG] pull_global_model raw:", raw)
             try:
                 resp = json.loads(raw)
@@ -88,6 +93,7 @@ class TradingClient:
                 self.weights = np.array(resp["weights"])
                 print("[DEBUG] updated local weights to", self.weights)
                 break
+
 
     def listen(self):
         buffer = ""
@@ -135,6 +141,7 @@ class TradingClient:
         threading.Thread(target=self.listen, daemon=True).start()
         BATCH_SIZE = 5
 
+        #a buy followed by a sell causes a freeze and idk why
         while True:
             line = input("> ").strip()
             if not line: continue
@@ -151,6 +158,7 @@ class TradingClient:
                     self.train_local_model()
                     self.send_model_update(user)
                     self.pull_global_model()
+                    print(f"Fetching global model...")
             else:
                 print("Unknown command. Try: portfolio, buy SYMBOL QTY, sell SYMBOL QTY, or quit")
         self.sock.close()
