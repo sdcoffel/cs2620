@@ -4,6 +4,7 @@ import threading
 import json
 import sys
 import numpy as np
+import time
 
 class TradingClient:
     def __init__(self):
@@ -82,7 +83,6 @@ class TradingClient:
 
         while True:
             raw = self.fl_sock.recv(self.BUFFER_SIZE).decode().strip()
-            print("[DEBUG] pull_global_model raw:", raw)
             try:
                 resp = json.loads(raw)
             except json.JSONDecodeError:
@@ -91,7 +91,7 @@ class TradingClient:
             # if no weights, break and use it
             if "weights" in resp:
                 self.weights = np.array(resp["weights"])
-                print("[DEBUG] updated local weights to", self.weights)
+                print("[TRAINING] updated local weights to", self.weights)
                 break
 
 
@@ -120,6 +120,50 @@ class TradingClient:
                     self.print_portfolio()
                 print("\n> ", end="", flush=True)
 
+
+    def autotrade_loop(self, user: str):
+        # prepare symbols and last_prices
+        symbols = list(self.portfolio.keys())
+        last_prices = {sym: info[1] for sym, info in self.portfolio.items()}
+        while True:
+            # fetch fresh portfolio
+            self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
+            time.sleep(1)  # give listen thread chance to process
+            # decide for each symbol
+            for sym in symbols:
+                if sym not in self.portfolio:
+                    continue
+                curr_price = self.portfolio[sym][1]
+                delta = curr_price - last_prices[sym]
+                x_buy = np.array([1.0, delta, +1.0])
+                x_sell = np.array([1.0, delta, -1.0])
+                sb = self.weights.dot(x_buy)
+                ss = self.weights.dot(x_sell)
+                if sb > ss and sb > 0:
+                    action, qty = "buy", 1
+                elif ss > 0:
+                    action, qty = "sell", 1
+                else:
+                    action = None
+                if action:
+                    req = {"cmd":action, "user":user, "symbol":sym, "qty":qty}
+                    self.sock.sendall((json.dumps(req)+"\n").encode())
+                last_prices[sym] = curr_price
+            # train federated model if enough samples
+            if len(self.local_data) >= 5:
+                for _ in range(5):
+                    x, y = self.local_data.pop(0)
+                    pred = self.weights.dot(x)
+                    self.weights -= 0.01 * (pred - y) * x
+                # send update & pull global
+                self.fl_sock.sendall((json.dumps({
+                    "cmd":"update_model","user":user,"weights":self.weights.tolist()
+                })+"\n").encode())
+                self.fl_sock.recv(self.BUFFER_SIZE)
+                self.pull_global_model()
+            time.sleep(2)
+
+
     def main(self):
         self.connect()
         user = input("Who are you?: ").strip()
@@ -127,8 +171,6 @@ class TradingClient:
         self.sock.sendall((json.dumps({"cmd":"register","user":user})+"\n").encode())
         _ = self.sock.recv(self.BUFFER_SIZE)
         # get initial portfolio
-        self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
-        self.pull_global_model()
 
         print(
           "Commands:\n"
@@ -139,30 +181,12 @@ class TradingClient:
         )
 
         threading.Thread(target=self.listen, daemon=True).start()
-        BATCH_SIZE = 5
-
-        #a buy followed by a sell causes a freeze and idk why
-        while True:
-            line = input("> ").strip()
-            if not line: continue
-            if line.lower() in ("quit","exit"): break
-            parts = line.split()
-            cmd = parts[0].lower()
-            if cmd == "portfolio":
-                self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
-            elif cmd in ("buy","sell") and len(parts)==3 and parts[2].isdigit():
-                sym, qty = parts[1].upper(), int(parts[2])
-                self.sock.sendall((json.dumps({"cmd":cmd,"user":user,"symbol":sym,"qty":qty})+"\n").encode())
-                # after server ack and listen updates portfolio & records samples
-                if len(self.local_data) >= BATCH_SIZE:
-                    self.train_local_model()
-                    self.send_model_update(user)
-                    self.pull_global_model()
-                    print(f"Fetching global model...")
-            else:
-                print("Unknown command. Try: portfolio, buy SYMBOL QTY, sell SYMBOL QTY, or quit")
-        self.sock.close()
-        print("Ending trading session...")
+        self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
+        time.sleep(0.2)
+        # pull initial model
+        self.pull_global_model()
+        # start autotrade
+        self.autotrade_loop(user)
 
 if __name__ == "__main__":
     HOST, PORT = 'localhost', 50004
