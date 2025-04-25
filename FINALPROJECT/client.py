@@ -12,8 +12,8 @@ class TradingClient:
         self.port = None
         self.BUFFER_SIZE = 2048
         self.portfolio = {}
-        self.sock = None
-        self.fl_sock = None
+        self.sock = None #normal socket for trading
+        self.fl_sock = None #socket for federated learning
 
         #federated learning state
         self.weights = np.zeros(3)   # [w0, w1, w2]
@@ -121,7 +121,7 @@ class TradingClient:
                 print("\n> ", end="", flush=True)
 
 
-    def autotrade_loop(self, user: str):
+    def autotrade(self, user: str):
         # prepare symbols and last_prices
         symbols = list(self.portfolio.keys())
         last_prices = {sym: info[1] for sym, info in self.portfolio.items()}
@@ -186,7 +186,7 @@ class TradingClient:
         # pull initial model
         self.pull_global_model()
         # start autotrade
-        self.autotrade_loop(user)
+        self.autotrade(user)
 
 if __name__ == "__main__":
     HOST, PORT = 'localhost', 50004

@@ -3,7 +3,7 @@ import sched
 import time
 import threading
 import json
-from data_management import *
+import os
 
 state_lock = threading.Lock()
 
@@ -175,6 +175,7 @@ class TradingServer:
         finally:
             conn.close()
 
+
     def reload_prices(self):
         UPDATE_INTERVAL = 5
         fresh = load_json(self.stock_file, {})
@@ -182,6 +183,7 @@ class TradingServer:
             global stock_info
             stock_info = fresh
         self.scheduler.enter(UPDATE_INTERVAL, 1, self.reload_prices)
+
 
     def serve_forever(self):
         self.load_state()
@@ -198,6 +200,22 @@ class TradingServer:
         finally:
             self.save_state()
             srv.close()
+
+
+#json functions 
+def load_json(path, default):
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return default
+
+def save_json(path, data):
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp, path)
+
+
 
 if __name__ == "__main__":
     server = TradingServer(
