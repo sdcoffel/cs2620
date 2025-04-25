@@ -133,20 +133,21 @@ class TradingServer:
         if cmd == "update_model":
             user = req.get("user")
             weights = req.get("weights")
+            print(f"weights recieved from the client: ", weights)
             if user is None or weights is None:
                 conn.sendall(b'{"status":"error","msg":"user,weights required"}\n')
                 return
             self.updates[user] = weights
             conn.sendall(b'{"status":"ok","msg":"model received"}\n')
             # aggregate when all clients have sent updates
-            if set(self.updates.keys()) >= set(self.client_info.keys()):
-                K = len(self.updates)
-                self.global_weights = [
-                    sum(w[i] for w in self.updates.values())/K
-                    for i in range(len(self.global_weights))
-                ]
-                self.updates.clear()
-                print("→ aggregated global_weights:", self.global_weights)
+            #if set(self.updates.keys()) >= set(self.client_info.keys()): #this was never being triggered so i got rid of it
+            K = len(self.updates)
+            self.global_weights = [
+                sum(w[i] for w in self.updates.values())/K
+                for i in range(len(self.global_weights))
+            ]
+            self.updates.clear()
+            print("→ aggregated global_weights:", self.global_weights)
             return
 
         else:

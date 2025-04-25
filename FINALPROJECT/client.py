@@ -155,10 +155,12 @@ class TradingClient:
                     x, y = self.local_data.pop(0)
                     pred = self.weights.dot(x)
                     self.weights -= 0.01 * (pred - y) * x
+                    
                 # send update & pull global
                 self.fl_sock.sendall((json.dumps({
                     "cmd":"update_model","user":user,"weights":self.weights.tolist()
                 })+"\n").encode())
+                print(f"sent to server: ", self.weights.tolist())
                 self.fl_sock.recv(self.BUFFER_SIZE)
                 self.pull_global_model()
             time.sleep(2)
