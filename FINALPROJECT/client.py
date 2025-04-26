@@ -5,6 +5,7 @@ import json
 import sys
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 class TradingClient:
     def __init__(self):
@@ -19,6 +20,7 @@ class TradingClient:
         self.weights = np.zeros(3)   # [w0, w1, w2]
         self.local_data = []         # list of (x vector, reward y)
         self.last_prices = {}        # symbol -> last seen price
+        self.analytics = [] #data gathered for later analysis 
 
     def init(self, host: str, port: int, buffer_size: int = 1024):
         self.host = host
@@ -56,6 +58,7 @@ class TradingClient:
                 print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
         net = self.compute_net_profit()
         print(f"Overall net profit:    ${net:.2f}")
+        self.analytics.append(net)
 
     def record_sample(self, action: int, sym: str, last_price: float, current_price: float, realized: float):
         Δp = current_price - last_price
@@ -130,21 +133,28 @@ class TradingClient:
             self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
             time.sleep(1)  # give listen thread chance to process
             # decide for each symbol
+            # Iterate through symbols to decide buy/sell actions
             for sym in symbols:
                 if sym not in self.portfolio:
                     continue
                 curr_price = self.portfolio[sym][1]
-                delta = curr_price - last_prices[sym]
-                x_buy = np.array([1.0, delta, +1.0])
-                x_sell = np.array([1.0, delta, -1.0])
-                sb = self.weights.dot(x_buy)
-                ss = self.weights.dot(x_sell)
-                if sb > ss and sb > 0:
-                    action, qty = "buy", 1
-                elif ss > 0:
-                    action, qty = "sell", 1
+                pct_change = self.portfolio[sym][2]  # Percentage change
+                
+                # Decide action based on percentage change
+                if pct_change > 0.2:  # Price increased, sell
+                    action, qty = "sell", 5 #sell 5 shares
+                elif pct_change < 0 and pct_change > -0.1:  # Price decreased in a reasonable range, buy (conservatinve buying)
+                    action, qty = "buy", 5 #buy 5 shares 
                 else:
-                    action = None
+                    action = None  # No action - just hold
+                
+                # Execute the action if decided
+                if action:
+                    req = {"cmd": action, "user": user, "symbol": sym, "qty": qty}
+                    self.sock.sendall((json.dumps(req) + "\n").encode())
+                
+                # Update last seen price for the symbol
+                last_prices[sym] = curr_price
                 if action:
                     req = {"cmd":action, "user":user, "symbol":sym, "qty":qty}
                     self.sock.sendall((json.dumps(req)+"\n").encode())
@@ -190,9 +200,25 @@ class TradingClient:
         # start autotrade
         self.autotrade(user)
 
+    #work in progress
+    # def graph(): 
+    #     data = client.analytics
+
+    #     time = np.arange(len(data))  # Create a time array based on the length of the data - 1 instance per data point
+    #     print(data)
+    #     plt.figure(figsize=(10, 6))
+    #     plt.plot(time, data, marker='o', linestyle='-', color='b', label='Net Profit')
+    #     plt.title('Net Profit Over Time')
+    #     plt.xlabel('Time')
+    #     plt.ylabel('Net Profit ($)')
+    #     plt.legend()
+    #     plt.grid(True)
+    #     plt.show()
+
 if __name__ == "__main__":
     HOST, PORT = 'localhost', 50004
     client = TradingClient()
     client.init(HOST, PORT)
     client.main()
+
 
