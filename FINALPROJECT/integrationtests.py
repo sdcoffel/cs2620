@@ -4,15 +4,13 @@ import socket
 import threading
 import json
 import time
-import os
-from pathlib import Path
-
 import math
 import stockpricemanager
-from server import TradingServer, load_json, save_json
-from client import TradingClient
+from server import TradingServer
 
-
+"""This integration test suite is designed to test the TradingServer class and its methods.
+It includes tests for normal trading flows, federated learning flows, and the stock price manager's functionality.
+"""
 class TestTradingServer(TradingServer):
     def serve_forever(self, max_connections=1):
         self.load_state()

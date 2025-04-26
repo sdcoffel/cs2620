@@ -9,10 +9,16 @@ import numpy as np
 import client
 import server
 import socket
-# Assume client.py and server.py are in the same directory:
 from server import TradingServer, load_json, save_json
 from client import TradingClient
 import stockpricemanager
+
+
+"""These unittests are designed to test the TradingServer and TradingClient classes and all of their associated methods.
+They include tests for their functions, client/server communication, and training flows.
+These cover server.py, client.py, stockpricemanager.py, and graphs.py (TO BE ADDED).
+"""
+
 
 clients_file='clients.txt'
 stock_file='stocks.txt'
