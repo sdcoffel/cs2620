@@ -3,11 +3,8 @@ import pytest
 import json
 import os
 import math
-import tempfile
 import time
 import numpy as np
-import client
-import server
 import socket
 from server import TradingServer, load_json, save_json
 from client import TradingClient
@@ -429,7 +426,7 @@ def test_connect_closes_and_recreates(monkeypatch):
 
 
 def test_autotrade_branching(monkeypatch):
-    # 1) Setup client with three symbols: HIGH→sell branch, LOW→buy branch, NONE→hold branch
+    #setup client with three symbols: HIGH→sell branch, LOW→buy branch, NONE→hold branch
     cli = TradingClient()
     cli.portfolio = {
         "HIGH": [1, 100.0, 0.3,   0.0],   # pct_change > 0.2 ⇒ sell
@@ -442,7 +439,7 @@ def test_autotrade_branching(monkeypatch):
     cli.fl_sock = BreakAfterNSend(n=999)
     monkeypatch.setattr(time, "sleep", lambda _: None)
 
-    #1 get_portfolio + 2 sells + 2 buys = 5 total
+    #get_portfolio + 2 sells + 2 buys = 5 total
     cli.sock = BreakAfterNSend(n=5)
 
     # stop after one iteration
@@ -495,11 +492,10 @@ def test_listen_records_and_prints(capsys):
 
     cli.sock = DummySock([msg.encode(), b""])  # first call yields msg, then empty → exit
 
-    # Run listen() and catch the SystemExit
+    #run listen() and catch the SystemExit and update teh portfolio
     with pytest.raises(SystemExit):
         cli.listen()
 
-    # After listen, state should have been updated:
     assert cli.portfolio == portfolio
     # record_sample should have been called once for "AAPL"
     assert len(cli.local_data) == 1
