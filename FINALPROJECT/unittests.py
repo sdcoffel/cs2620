@@ -17,7 +17,7 @@ import stockpricemanager
 clients_file='clients.txt'
 stock_file='stocks.txt'
 currency_file='currencies.txt'
-# --- Helpers ---
+
 
 def make_temp_files(tmp_path):
     stock_file = tmp_path / "stocks.json"
@@ -28,7 +28,6 @@ def make_temp_files(tmp_path):
     save_json(str(currency_file), {})
     save_json(str(clients_file), {})
     return str(stock_file), str(currency_file), str(clients_file)
-
 
 
 class DummyConn:
