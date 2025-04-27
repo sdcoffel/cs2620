@@ -1,4 +1,3 @@
-# client.py
 import socket
 import threading
 import json
@@ -11,6 +10,23 @@ import matplotlib.pyplot as plt
 
 class TradingClient:
     def __init__(self):
+        """Initializes the client object with configurable parameters and state variables.
+        Args:
+            None
+        Attributes:
+            host (str): The hostname or IP address of the server. Defaults to None.
+            port (int): The port number for the server connection. Defaults to None.
+            BUFFER_SIZE (int): The buffer size for socket communication. Defaults to 2048.
+            portfolio (dict): A dictionary to track the portfolio, where each key is a stock symbol and the value is a list containing [shares, cost_basis, realized P&L, unrealized P&L].
+            sock (socket.socket): A socket object for trading-related communication. Defaults to None.
+            fl_sock (socket.socket): A socket object for federated learning communication. Defaults to None.
+            weights (numpy.ndarray): A NumPy array representing the weights for federated learning, initialized to [0, 0, 0].
+            local_data (list): A list of tuples, where each tuple contains an input vector (x) and a reward (y).
+            last_prices (dict): A dictionary mapping stock symbols to their last seen prices.
+            analytics (list): A list to store data for live graphing and analytics.
+        Returns:
+            None
+        """
         self.host = None
         self.port = None
         self.BUFFER_SIZE = 2048
@@ -24,38 +40,66 @@ class TradingClient:
         self.last_prices = {}        # symbol -> last seen price
         self.analytics = [] #data gathered for live graphing
 
+
     def init(self, host: str, port: int, buffer_size: int = 1024):
+        """Initializes the client with the specified host, port, and buffer size.
+
+        Args:
+            host (str): The hostname or IP address of the server to connect to.
+            port (int): The port number on which the server is listening.
+            buffer_size (int, optional): The size of the buffer for receiving data. Defaults to 1024.
+        """
         self.host = host
         self.port = port
         self.BUFFER_SIZE = buffer_size
 
+
     def connect(self):
+        """Establishes connections for both trading and federated learning sockets."""
         if self.sock:
             self.sock.close()
         self.sock = socket.create_connection((self.host, self.port))
 
-        if self.fl_sock: self.fl_sock.close()
+        if self.fl_sock:
+            self.fl_sock.close()
         self.fl_sock = socket.create_connection((self.host, self.port))
 
 
-    def list_symbols(self) -> list[str]:
-        self.sock.sendall((json.dumps({"cmd":"list_symbols"})+"\n").encode())
+    def list_symbols(self) -> list[str]: 
+        """
+        Sends a request to the server to retrieve a list of available stock symbols.
+
+        Returns:
+            list[str]: A list of stock symbols available for trading.
+        """
+        self.sock.sendall((json.dumps({"cmd": "list_symbols"}) + "\n").encode())
         resp = self.sock.recv(self.BUFFER_SIZE).decode().strip()
         return json.loads(resp).get("symbols", [])
 
+
     def compute_net_profit(self):
-        net_realized   = 0.0
+        """
+        Computes the overall net profit by summing up realized and unrealized profits.
+
+        Args: None
+        Returns:
+            float: The total net profit (realized + unrealized).
+        """
+        net_realized = 0.0
         net_unrealized = 0.0
         for shares, price, pct, profit in self.portfolio.values():
             net_unrealized += profit
         return net_realized + net_unrealized
 
+
     def print_portfolio(self):
-        # if not self.portfolio:
-        #     symbols = self.list_symbols()
-        #     self.portfolio = {sym: (0, 0.0, 0.0, 0.0) for sym in symbols}
-        #     print("Initialized portfolio with all symbols at 0 shares.")
-        # else:
+        """
+        Prints the current portfolio, including shares, price, percentage change, and profit for each stock.
+        Also computes and displays the overall net profit, appending it to the analytics data.
+        
+        Args: None
+        Returns: None
+        """
         print("Your portfolio:")
         for sym, info in self.portfolio.items():
             shares, price, pct, profit = info
@@ -64,12 +108,35 @@ class TradingClient:
         print(f"Overall net profit:    ${net:.2f}")
         self.analytics.append(net)
 
+
     def record_sample(self, action: int, sym: str, last_price: float, current_price: float, realized: float):
+        """
+        Records a sample for training the local model.
+
+        Args:
+            action (int): The action taken (e.g., 0 for no action, 1 for buy, -1 for sell).
+            sym (str): The stock symbol.
+            last_price (float): The last observed price of the stock.
+            current_price (float): The current price of the stock.
+            realized (float): The realized profit or loss.
+
+        Returns: None
+        """
         Δp = current_price - last_price
         x = np.array([1.0, Δp, action])
         self.local_data.append((x, realized))
 
+
     def train_local_model(self, lr=0.01, epochs=5):
+        """
+        Trains the local model using the recorded samples.
+
+        Args:
+            lr (float, optional): The learning rate for gradient descent. Defaults to 0.01.
+            epochs (int, optional): The number of training epochs. Defaults to 5.
+
+        Returns: None
+        """
         for _ in range(epochs):
             for x, y in self.local_data:
                 pred = self.weights.dot(x)
@@ -77,16 +144,30 @@ class TradingClient:
                 self.weights -= lr * grad
         self.local_data.clear()
 
+
     def send_model_update(self, user: str):
-        req = {"cmd":"update_model","user":user,"weights":self.weights.tolist()}
-        self.fl_sock.sendall((json.dumps(req)+"\n").encode())
+        """
+        Sends the updated local model weights to the server for federated learning.
+
+        Args:
+            user (str): The username of the client.
+
+        Returns: None
+        """
+        req = {"cmd": "update_model", "user": user, "weights": self.weights.tolist()}
+        self.fl_sock.sendall((json.dumps(req) + "\n").encode())
         self.fl_sock.recv(self.BUFFER_SIZE)
 
 
     def pull_global_model(self):
-        # send request
+        """
+        Requests and retrieves the global model weights from the server, updating the local model.
+        Args: None
+        Returns: None
+        """
+        #send request to get the global model
         req = {"cmd": "get_global_model"}
-        self.fl_sock.sendall((json.dumps(req)+"\n").encode())
+        self.fl_sock.sendall((json.dumps(req) + "\n").encode())
 
         while True:
             raw = self.fl_sock.recv(self.BUFFER_SIZE).decode().strip()
@@ -95,14 +176,17 @@ class TradingClient:
             except json.JSONDecodeError:
                 continue
 
-            # if no weights, break and use it
-            #if "weights" in resp:
+            #update local weights with the received global weights
             self.weights = np.array(resp["weights"])
-            print("[TRAINING] updated local weights to", self.weights)
+            print("[TRAINING] Updated local weights to", self.weights)
             break
 
 
     def listen(self):
+        """Listen for incoming messages from the server and process them. Runs in a separate thread.
+        Args: None
+        Returns: None
+        """
         buffer = ""
         while True:
             data = self.sock.recv(self.BUFFER_SIZE).decode()
@@ -129,9 +213,20 @@ class TradingClient:
 
 
     def fetch_portfolio(self, user: str):
-        """
-        Blocking: send get_portfolio, recv the response,
-        decode JSON, store self.portfolio, return it.
+        """Fetches the portfolio for a given user by sending a request to the server.
+
+        This is a blocking operation that sends a "get_portfolio" command with the
+        specified user, waits for the server's response, decodes the JSON response,
+        and stores the portfolio in the `self.portfolio` attribute.
+
+        Args:
+            user (str): The username for which to fetch the portfolio.
+
+        Returns:
+            dict: The portfolio data for the specified user.
+
+        Raises:
+            RuntimeError: If the server response indicates a failure, with the error message provided in the response.
         """
         req = {"cmd":"get_portfolio","user":user}
         self.sock.sendall((json.dumps(req)+"\n").encode())
@@ -145,6 +240,22 @@ class TradingClient:
 
 
     def autotrade(self, user: str):
+        """
+        Automatically trades stocks for a given user based on a reinforcement learning model.
+        This runs in an infinite loop, periodically fetching portfolio data and making trading decisions. 
+        It uses federated learning to update the global model with locally trained weights.
+        Continuously fetches the user's portfolio and evaluates trading decisions for each stock symbol.
+        Calculates the predicted profit for each stock based on the current price change and RL model weights.
+        Executes buy or sell actions if the predicted profit is positive or negative, respectively.
+        Updates the last seen price for each stock symbol after making a decision.
+        Trains the local reinforcement learning model using collected data samples when enough samples are available.
+        Sends updated model weights to the server and pulls the global model weights for synchronization.
+        
+        Args:
+            user (str): The username of the trader.
+        Returns: None
+
+        """
         # prepare symbols and last_prices
         self.pull_global_model()
         symbols = list(self.portfolio.keys())
@@ -197,14 +308,17 @@ class TradingClient:
                 })+"\n").encode())
                 print(f"sent to server: ", self.weights.tolist())
                 self.fl_sock.recv(self.BUFFER_SIZE)
-                # self.pull_global_model()
             time.sleep(1) #ensures that we can have the same shape for plots
 
 
     def plot_analytics(self, user):
         """
-        Show a static plot of net profit vs. time after trading ends,
+        Uses matplotlib to plot the net profit over time for a given user.
+        At the end of the trading session, we show a static plot of net profit over time after trading ends,
         with an additional line connecting the peaks to encapsulate the general shape.
+
+        Args: the username 
+        Retuns: None
         """
         if not self.analytics:
             print("No data to plot.")
@@ -233,12 +347,12 @@ class TradingClient:
 
 
     def main(self):
+        """Main driver function to run the trading client."""
         self.connect()
         user = input("Who are you?: ").strip()
+
         #register
         self.sock.sendall((json.dumps({"cmd":"register","user":user})+"\n").encode())
-        
-        
         raw = self.sock.recv(self.BUFFER_SIZE)
         resp = json.loads(raw)
         if resp.get("status")!="ok":
@@ -251,10 +365,9 @@ class TradingClient:
         else:
             # fallback: explicitly fetch it
             self.fetch_portfolio(user)
-        # get initial portfolio
 
+        # get initial portfolio
         print(f"Starting trading session for {user}...")
-        #print initial portfolio
         threading.Thread(target=self.listen, daemon=True).start()
 
         # pull initial model
@@ -271,6 +384,7 @@ class TradingClient:
 
 
 if __name__ == "__main__":
+    """Main entry point for the trading client."""
     HOST, PORT = 'localhost', 50004
     client = TradingClient()
     client.init(HOST, PORT)

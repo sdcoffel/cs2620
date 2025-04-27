@@ -246,7 +246,6 @@ def save_json(path, data):
 if __name__ == "__main__":
     server = TradingServer(
         host='localhost', port=50004,
-        stock_file='stocks.txt', currency_file='currency.txt', clients_file='clients.txt'
-    )
+        stock_file='stocks.txt', currency_file='currency.txt', clients_file='clients.txt')
     server.serve_forever()
 
