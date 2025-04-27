@@ -1,4 +1,5 @@
 # unittests.py
+#to run: pytest --cov=. --cov-report=term-missing unittests.py
 import pytest
 import json
 import os

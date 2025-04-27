@@ -20,7 +20,7 @@ class TradingClient:
         self.weights = np.zeros(3)   # [w0, w1, w2]
         self.local_data = []         # list of (x vector, reward y)
         self.last_prices = {}        # symbol -> last seen price
-        self.analytics = [] #data gathered for later analysis 
+        self.analytics = [] #data gathered for live graphing
 
     def init(self, host: str, port: int, buffer_size: int = 1024):
         self.host = host
@@ -133,27 +133,32 @@ class TradingClient:
             self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
             time.sleep(1)  # give listen thread chance to process
             # decide for each symbol
-            # Iterate through symbols to decide buy/sell actions
             for sym in symbols:
                 if sym not in self.portfolio:
                     continue
                 curr_price = self.portfolio[sym][1]
-                pct_change = self.portfolio[sym][2]  # Percentage change
+                pct_change = self.portfolio[sym][2] 
                 
-                # Decide action based on percentage change
-                if pct_change > 0.2:  # Price increased, sell
-                    action, qty = "sell", 5 #sell 5 shares
-                elif pct_change < 0 and pct_change > -0.1:  # Price decreased in a reasonable range, buy (conservatinve buying)
-                    action, qty = "buy", 5 #buy 5 shares 
+                #this could be the fault with RL. all i'm doing is checking the price change and deciding to buy/sell based on that. there 
+                #is no predictive power here, and since i am using a random noise model, the weights won't actually learn anything useful. so i either change the model or 
+                #implement a capping out metric where we end once we make x amount of profit. 
+
+
+                #my running theory is that we see so much net profit drift because as time goes on, more shares get concentrated in one stock, and any price fluctuations means that there will be massive changes
+                #decide action based on percentage change - i chose these based on my own tendencies when i trade stocks, but these are totally tweakable.
+                if pct_change > 0:  #if the price increased, sell five shares (aggressive selling)
+                    action, qty = "sell", 10 #sell 5 shares
+                elif pct_change < 0:  #if the price decreased by up to 10%, buy 5 shares (conservatinve buying)
+                    action, qty = "buy", 10 
                 else:
-                    action = None  # No action - just hold
+                    action = None  #no action - just hold
                 
-                # Execute the action if decided
+                #execute the action if decided
                 if action:
                     req = {"cmd": action, "user": user, "symbol": sym, "qty": qty}
                     self.sock.sendall((json.dumps(req) + "\n").encode())
                 
-                # Update last seen price for the symbol
+                #update last seen price for the symbol
                 last_prices[sym] = curr_price
                 if action:
                     req = {"cmd":action, "user":user, "symbol":sym, "qty":qty}
@@ -173,13 +178,32 @@ class TradingClient:
                 print(f"sent to server: ", self.weights.tolist())
                 self.fl_sock.recv(self.BUFFER_SIZE)
                 self.pull_global_model()
-            time.sleep(2)
+            time.sleep(1) #ensures that we can have the same shape for plots
+
+
+    def plot_analytics(self):
+        """
+        Show a static plot of net profit vs. time after trading ends.
+        """
+        if not self.analytics:
+            print("No data to plot.")
+            return
+
+        plt.figure(figsize=(10, 6))
+        x = list(range(len(self.analytics)))
+        y = self.analytics
+        plt.plot(x, y, marker='o', color = 'green') # no explicit color
+        plt.title('Net Profit Over Time')
+        plt.xlabel('Round')
+        plt.ylabel('Net Profit ($)')
+        plt.grid(True)
+        plt.show() # blocks until window closed
 
 
     def main(self):
         self.connect()
         user = input("Who are you?: ").strip()
-        # Register
+        #register
         self.sock.sendall((json.dumps({"cmd":"register","user":user})+"\n").encode())
         _ = self.sock.recv(self.BUFFER_SIZE)
         # get initial portfolio
@@ -194,26 +218,19 @@ class TradingClient:
 
         threading.Thread(target=self.listen, daemon=True).start()
         self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
-        time.sleep(0.2)
+        time.sleep(0.2) #slight delay to let all the threads get set up
         # pull initial model
         self.pull_global_model()
+
         # start autotrade
-        self.autotrade(user)
+        try:
+            self.autotrade(user)
+        except KeyboardInterrupt:
+            print("\n[INFO] Trading interrupted by user.")
 
-    #work in progress
-    # def graph(): 
-    #     data = client.analytics
+        #after you stop the trades by hitting ctrl+c, this will display the analytics plot
+        self.plot_analytics()
 
-    #     time = np.arange(len(data))  # Create a time array based on the length of the data - 1 instance per data point
-    #     print(data)
-    #     plt.figure(figsize=(10, 6))
-    #     plt.plot(time, data, marker='o', linestyle='-', color='b', label='Net Profit')
-    #     plt.title('Net Profit Over Time')
-    #     plt.xlabel('Time')
-    #     plt.ylabel('Net Profit ($)')
-    #     plt.legend()
-    #     plt.grid(True)
-    #     plt.show()
 
 if __name__ == "__main__":
     HOST, PORT = 'localhost', 50004
@@ -222,3 +239,10 @@ if __name__ == "__main__":
     client.main()
 
 
+
+
+#if i buy when the price is low, and sell when the price is high, exactly, my running theory is that 
+#the net profit field over time will look exactly like the GBM distribution. i have a feeling that the RL algorithm is going to follow it exactly. 
+#could be very cool behavior, and at least somewhat predictable on my end. all i would need to do is tell it to cash out at one of the peaks. 
+#update: i was right. the whole thing becomes very easy to predict if i give it favorable hyperparamters
+#BIIIG ASSUMPTION HERE: if i use the current hyperparameters in GBM, i am assuming that the market tends to get better over time. this is a big assumption. 
