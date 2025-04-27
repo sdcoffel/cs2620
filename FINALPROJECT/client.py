@@ -126,12 +126,13 @@ class TradingClient:
 
     def autotrade(self, user: str):
         # prepare symbols and last_prices
+        self.pull_global_model()
         symbols = list(self.portfolio.keys())
         last_prices = {sym: info[1] for sym, info in self.portfolio.items()}
         while True:
             # fetch fresh portfolio
             self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
-            time.sleep(1)  # give listen thread chance to process
+            time.sleep(5)  # give listen thread chance to process
             # decide for each symbol
             for sym in symbols:
                 if sym not in self.portfolio:
@@ -144,14 +145,17 @@ class TradingClient:
                 #implement a capping out metric where we end once we make x amount of profit. 
 
 
-                #my running theory is that we see so much net profit drift because as time goes on, more shares get concentrated in one stock, and any price fluctuations means that there will be massive changes
-                #decide action based on percentage change - i chose these based on my own tendencies when i trade stocks, but these are totally tweakable.
-                if pct_change > 0:  #if the price increased, sell five shares (aggressive selling)
-                    action, qty = "sell", 10 #sell 5 shares
-                elif pct_change < 0:  #if the price decreased by up to 10%, buy 5 shares (conservatinve buying)
-                    action, qty = "buy", 10 
+                #decide action based on RL weights and current price change
+                Δp = curr_price - last_prices[sym]
+                x = np.array([1.0, Δp, 0])  # action is 0 for now (no action)
+                pred_profit = self.weights.dot(x)
+
+                if pred_profit > 0:  # if predicted profit is positive, buy
+                    action, qty = "buy", 10
+                elif pred_profit < 0:  # if predicted profit is negative, sell
+                    action, qty = "sell", 10
                 else:
-                    action = None  #no action - just hold
+                    action = None  # no action
                 
                 #execute the action if decided
                 if action:
@@ -177,7 +181,7 @@ class TradingClient:
                 })+"\n").encode())
                 print(f"sent to server: ", self.weights.tolist())
                 self.fl_sock.recv(self.BUFFER_SIZE)
-                self.pull_global_model()
+                # self.pull_global_model()
             time.sleep(1) #ensures that we can have the same shape for plots
 
 
@@ -240,9 +244,9 @@ if __name__ == "__main__":
 
 
 
-
 #if i buy when the price is low, and sell when the price is high, exactly, my running theory is that 
 #the net profit field over time will look exactly like the GBM distribution. i have a feeling that the RL algorithm is going to follow it exactly. 
 #could be very cool behavior, and at least somewhat predictable on my end. all i would need to do is tell it to cash out at one of the peaks. 
 #update: i was right. the whole thing becomes very easy to predict if i give it favorable hyperparamters
 #BIIIG ASSUMPTION HERE: if i use the current hyperparameters in GBM, i am assuming that the market tends to get better over time. this is a big assumption. 
+

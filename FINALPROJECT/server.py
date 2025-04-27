@@ -20,8 +20,8 @@ class TradingServer:
         self.client_info = {}
         self.BUFFER_SIZE = 2048
 
-        #federated learning state
-        self.global_weights = [0.0, 0.0, 0.0]  # [w0, w1, w2]
+        #federated learning state - weights hold buy, sell, hold weights
+        self.global_weights = [0.0, 0.0, 0.0]  # [w0, w1, w2] - always initialized to 0
         self.updates = {}                       # user -> weights list
 
     def load_state(self):
@@ -96,6 +96,9 @@ class TradingServer:
                 current_price = self.stock_info.get(sym, basis)
                 if cmd == "buy":
                     new_shares = shares + qty
+                    if new_shares > 200:
+                        conn.sendall(b'{"status":"error","msg":"share limit exceeded"}\n')
+                        return
                     entry[0] = new_shares
                     entry[1] = current_price
                 else:
