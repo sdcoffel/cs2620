@@ -1,6 +1,10 @@
 #model price changes via geometric brownian motion - although we could change this: 
 # after discretizing the stochastic diffeq, we have: S t+Δt = St​exp((μ− 1/2​ σ**2 )Δt+σ Δt**1/2 Z)
 
+#update: i was right. the RL becomes very easy to predict if i give it favorable hyperparamters
+#BIIIG ASSUMPTION HERE: if i use the current hyperparameters in GBM, i am assuming that the market tends to get better over time. this is a big assumption. 
+
+
 import sched 
 import time 
 import json 
@@ -11,6 +15,7 @@ from pathlib import Path
 
 BASE_DIR   = Path(__file__).resolve().parent
 STOCK_FILE = "stocks.txt"
+
 
 UPDATE_INTERVAL = 5        # seconds between updates
 MU              = 1   # expected daily drift

@@ -44,10 +44,20 @@ class TradingServer:
                 return
             with state_lock:
                 if user in self.client_info:
-                    conn.sendall(b'{"status":"ok","msg":"welcome","portfolio":' +
-                                 json.dumps(self.client_info[user]).encode() + b'}\n')
+                    conn.sendall(b'{"status":"ok","msg":"welcome","portfolio":' + json.dumps(self.client_info[user]).encode() + b'}\n')
                     return
+                
+                #new clients get a fresh portfolio - everyone starts with 10 shares 
                 self.client_info[user] = {}
+                fresh = load_json(self.stock_file, {})
+                new_portfolio = {
+                    sym: [ 10,           # 10 shares
+                       price,      # cost_basis = current price
+                       10,          # realized P&L
+                       10 ]         # unrealized P&L
+                    for sym, price in fresh.items()
+                }
+                self.client_info[user] = new_portfolio
                 save_json(clientfile, self.client_info)
             conn.sendall(b'{"status":"ok","msg":"registered"}\n')
             return
@@ -57,24 +67,36 @@ class TradingServer:
             if not user:
                 conn.sendall(b'{"status":"error","msg":"user required"}\n')
                 return
+
             fresh = load_json(stockfile, {})
             with state_lock:
                 global stock_info
                 stock_info = fresh
-                port = self.client_info.get(user, {})
+
+                port = self.client_info.setdefault(user, {})
+                for sym, price in stock_info.items():
+                    if sym not in port:
+                        port[sym] = [0, price, 0, 0]
+
+
                 for sym, raw in list(port.items()):
-                    entry = raw[:]
-                    shares, basis, _, _ = entry
+                    shares, basis, _, _ = raw
                     current_price = stock_info.get(sym, basis)
-                    entry[1] = current_price
                     unreal = shares * (current_price - basis)
-                    pct    = ((current_price - basis)/basis)*100 if basis else 0.0
-                    entry[2] = round(pct, 2)
-                    entry[3] = round(unreal, 2)
-                    port[sym] = entry
+                    pct    = ((current_price - basis) / basis) * 100 if basis else 0.0
+
+                    port[sym] = [
+                        shares,
+                        round(current_price, 2),
+                        round(pct, 2),
+                        round(unreal, 2)
+                    ]
+
                 save_json(clientfile, self.client_info)
-                updated = self.client_info[user]
-            conn.sendall((json.dumps({"status":"ok","portfolio":updated}) + "\n").encode())
+                updated = port
+
+            resp = {"status": "ok", "portfolio": updated}
+            conn.sendall((json.dumps(resp) + "\n").encode())
             return
 
         if cmd == "list_symbols":

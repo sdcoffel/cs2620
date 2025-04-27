@@ -5,6 +5,8 @@ import json
 import sys
 import numpy as np
 import time
+from scipy.signal import find_peaks
+from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 
 class TradingClient:
@@ -49,13 +51,15 @@ class TradingClient:
         return net_realized + net_unrealized
 
     def print_portfolio(self):
-        if not self.portfolio:
-            print("No holdings yet.")
-        else:
-            print("Your portfolio:")
-            for sym, info in self.portfolio.items():
-                shares, price, pct, profit = info
-                print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
+        # if not self.portfolio:
+        #     symbols = self.list_symbols()
+        #     self.portfolio = {sym: (0, 0.0, 0.0, 0.0) for sym in symbols}
+        #     print("Initialized portfolio with all symbols at 0 shares.")
+        # else:
+        print("Your portfolio:")
+        for sym, info in self.portfolio.items():
+            shares, price, pct, profit = info
+            print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
         net = self.compute_net_profit()
         print(f"Overall net profit:    ${net:.2f}")
         self.analytics.append(net)
@@ -92,10 +96,10 @@ class TradingClient:
                 continue
 
             # if no weights, break and use it
-            if "weights" in resp:
-                self.weights = np.array(resp["weights"])
-                print("[TRAINING] updated local weights to", self.weights)
-                break
+            #if "weights" in resp:
+            self.weights = np.array(resp["weights"])
+            print("[TRAINING] updated local weights to", self.weights)
+            break
 
 
     def listen(self):
@@ -124,6 +128,22 @@ class TradingClient:
                 print("\n> ", end="", flush=True)
 
 
+    def fetch_portfolio(self, user: str):
+        """
+        Blocking: send get_portfolio, recv the response,
+        decode JSON, store self.portfolio, return it.
+        """
+        req = {"cmd":"get_portfolio","user":user}
+        self.sock.sendall((json.dumps(req)+"\n").encode())
+        raw = self.sock.recv(self.BUFFER_SIZE).decode().strip()
+        resp = json.loads(raw)
+        if resp.get("status") != "ok":
+            raise RuntimeError("get_portfolio failed: " + resp.get("msg",""))
+        self.portfolio = resp["portfolio"]
+        return self.portfolio
+
+
+
     def autotrade(self, user: str):
         # prepare symbols and last_prices
         self.pull_global_model()
@@ -139,11 +159,6 @@ class TradingClient:
                     continue
                 curr_price = self.portfolio[sym][1]
                 pct_change = self.portfolio[sym][2] 
-                
-                #this could be the fault with RL. all i'm doing is checking the price change and deciding to buy/sell based on that. there 
-                #is no predictive power here, and since i am using a random noise model, the weights won't actually learn anything useful. so i either change the model or 
-                #implement a capping out metric where we end once we make x amount of profit. 
-
 
                 #decide action based on RL weights and current price change
                 Δp = curr_price - last_prices[sym]
@@ -168,6 +183,7 @@ class TradingClient:
                     req = {"cmd":action, "user":user, "symbol":sym, "qty":qty}
                     self.sock.sendall((json.dumps(req)+"\n").encode())
                 last_prices[sym] = curr_price
+
             # train federated model if enough samples
             if len(self.local_data) >= 5:
                 for _ in range(5):
@@ -185,9 +201,10 @@ class TradingClient:
             time.sleep(1) #ensures that we can have the same shape for plots
 
 
-    def plot_analytics(self):
+    def plot_analytics(self, user):
         """
-        Show a static plot of net profit vs. time after trading ends.
+        Show a static plot of net profit vs. time after trading ends,
+        with an additional line connecting the peaks to encapsulate the general shape.
         """
         if not self.analytics:
             print("No data to plot.")
@@ -196,12 +213,23 @@ class TradingClient:
         plt.figure(figsize=(10, 6))
         x = list(range(len(self.analytics)))
         y = self.analytics
-        plt.plot(x, y, marker='o', color = 'green') # no explicit color
-        plt.title('Net Profit Over Time')
+
+        #plot the original net profit data
+        plt.plot(x, y, marker='o', color='green', label='Net Profit')
+
+        #fit a smooth curve to the general shape of the graph
+        if len(x) > 3:  # Ensure enough points for interpolation
+            spline = make_interp_spline(x, y, k=3)  # Cubic spline
+            smooth_x = np.linspace(min(x), max(x), 500)
+            smooth_y = spline(smooth_x)
+            plt.plot(smooth_x, smooth_y, color='green', alpha=0.7, label='General Shape')
+
+        plt.title(f"Net Profit ($) for User {user}")
         plt.xlabel('Round')
         plt.ylabel('Net Profit ($)')
         plt.grid(True)
-        plt.show() # blocks until window closed
+        plt.legend()
+        plt.show()  #blocks until window closed
 
 
     def main(self):
@@ -209,20 +237,26 @@ class TradingClient:
         user = input("Who are you?: ").strip()
         #register
         self.sock.sendall((json.dumps({"cmd":"register","user":user})+"\n").encode())
-        _ = self.sock.recv(self.BUFFER_SIZE)
+        
+        
+        raw = self.sock.recv(self.BUFFER_SIZE)
+        resp = json.loads(raw)
+        if resp.get("status")!="ok":
+            print("Registration failed:", resp.get("msg"))
+            return
+
+        #if the server returned portfolio on register, pick it up:
+        if "portfolio" in resp:
+            self.portfolio = resp["portfolio"]
+        else:
+            # fallback: explicitly fetch it
+            self.fetch_portfolio(user)
         # get initial portfolio
 
-        print(
-          "Commands:\n"
-          "  portfolio           show your holdings\n"
-          "  buy SYMBOL QTY      buy shares\n"
-          "  sell SYMBOL QTY     sell shares\n"
-          "  quit                exit\n"
-        )
-
+        print(f"Starting trading session for {user}...")
+        #print initial portfolio
         threading.Thread(target=self.listen, daemon=True).start()
-        self.sock.sendall((json.dumps({"cmd":"get_portfolio","user":user})+"\n").encode())
-        time.sleep(0.2) #slight delay to let all the threads get set up
+
         # pull initial model
         self.pull_global_model()
 
@@ -233,7 +267,7 @@ class TradingClient:
             print("\n[INFO] Trading interrupted by user.")
 
         #after you stop the trades by hitting ctrl+c, this will display the analytics plot
-        self.plot_analytics()
+        self.plot_analytics(user)
 
 
 if __name__ == "__main__":
@@ -241,12 +275,4 @@ if __name__ == "__main__":
     client = TradingClient()
     client.init(HOST, PORT)
     client.main()
-
-
-
-#if i buy when the price is low, and sell when the price is high, exactly, my running theory is that 
-#the net profit field over time will look exactly like the GBM distribution. i have a feeling that the RL algorithm is going to follow it exactly. 
-#could be very cool behavior, and at least somewhat predictable on my end. all i would need to do is tell it to cash out at one of the peaks. 
-#update: i was right. the whole thing becomes very easy to predict if i give it favorable hyperparamters
-#BIIIG ASSUMPTION HERE: if i use the current hyperparameters in GBM, i am assuming that the market tends to get better over time. this is a big assumption. 
 
