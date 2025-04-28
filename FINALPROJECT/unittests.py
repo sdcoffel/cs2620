@@ -2,11 +2,10 @@
 #to run: pytest --cov=. --cov-report=term-missing unittests.py
 import pytest
 import json
-import os
 import math
-import time
 import numpy as np
 import socket
+import matplotlib.pyplot as plt
 from server import TradingServer, load_json, save_json
 from client import TradingClient
 import stockpricemanager
@@ -224,6 +223,59 @@ def test_handle_client_bad_json(tmp_path):
     assert conn.closed
 
 
+@pytest.fixture
+def setup_server(tmp_path):
+    # prepare stock & client files
+    stock_file    = tmp_path / "stocks.json"
+    clients_file  = tmp_path / "clients.json"
+    currency_file = tmp_path / "currency.json"
+    # one symbol at $100
+    stock_file.write_text(json.dumps({"AAPL": 100.0}))
+    # user 'bob' holds 5 shares @ $90 basis
+    clients_file.write_text(json.dumps({"bob": {"AAPL": [5, 90.0, 0.0, 0.0]}}))
+    currency_file.write_text(json.dumps({}))
+    srv = TradingServer(
+        host="h", port=0,
+        stock_file=str(stock_file),
+        currency_file=str(currency_file),
+        clients_file=str(clients_file)
+    )
+    srv.load_state()
+    return srv, str(stock_file), str(currency_file), str(clients_file)
+
+
+def test_sell_not_enough_shares(setup_server):
+    srv, sf, cf, cuf = setup_server
+    conn = DummyConn()
+    # attempt to sell more (10) than bob holds (5)
+    srv.process_request(
+        {"cmd":"sell","user":"bob","symbol":"AAPL","qty":10},
+        conn, sf, cf, cuf
+    )
+    # should return the 'not enough shares' error
+    assert b'not enough shares' in conn.data
+
+
+def test_sell_partial_updates_realized_and_shares(setup_server):
+    srv, sf, cf, cuf = setup_server
+    conn = DummyConn()
+    # sell 3 of the 5 shares
+    srv.process_request(
+        {"cmd":"sell","user":"bob","symbol":"AAPL","qty":3},
+        conn, sf, cf, cuf)
+    # parse response
+    resp = json.loads(conn.data.decode())
+    assert resp["status"] == "ok"
+    port = resp["portfolio"]
+    # new_shares = 5 - 3 = 2
+    assert port["AAPL"][0] == 2
+    # realized gain = 3 * (current_price - basis) = 3 * (100 - 90) = 30
+    # stored in index 2
+    assert math.isclose(port["AAPL"][2], round(30.0, 2))
+    # basis should be updated to current_price
+    assert port["AAPL"][1] == 100.0
+
+
 def test_federated_update_and_pull(server):
     srv, sf, cf, cf2 = server
     # simulate two clients existing
@@ -287,7 +339,6 @@ def test_server_list_symbols(tmp_server_files):
     assert set(resp["symbols"]) == {"AAPL","TSLA"}
 
 
-
 def test_server_model_rpc(tmp_server_files):
     stock_file, clients_file = tmp_server_files
     srv = TradingServer("h",0,stock_file,"",clients_file)
@@ -303,6 +354,7 @@ def test_server_model_rpc(tmp_server_files):
     srv.process_request({"cmd":"update_model","user":"u2","weights":[1,2,3]}, conn, None, None, None)
     # global_weights should now be the average
     assert srv.global_weights == [1.0,2.0,3.0]
+
 
 def test_server_unknown_command(tmp_server_files):
     stock_file, clients_file = tmp_server_files
@@ -374,10 +426,7 @@ def test_connect_closes_and_recreates(monkeypatch):
     assert calls == [("example.com", 12345), ("example.com", 12345)]
 
 
-
-
 def test_listen_records_and_prints(capsys):
-
     # Set up a client with empty state
     cli = TradingClient()
     cli.BUFFER_SIZE = 1024
@@ -441,10 +490,6 @@ def test_client_record_and_train_local_model():
     assert not np.allclose(cli.weights, orig_w)
 
 
-
-
-
-
 def test_pull_global_model_skips_bad_json_and_updates_weights():
     cli = TradingClient()
     cli.BUFFER_SIZE = 1024
@@ -468,6 +513,19 @@ def test_pull_global_model_skips_bad_json_and_updates_weights():
     req_obj = json.loads(cli.fl_sock.sent[0].decode().strip())
     assert req_obj == {"cmd": "get_global_model"}
 
+
+def test_plot_analytics_empty(capsys, monkeypatch):
+    cli = TradingClient()
+    cli.analytics = []  # no data
+
+    # Spy on plt.figure to ensure it never gets called
+    called = {"figure": False}
+    monkeypatch.setattr(plt, "figure", lambda *args, **kwargs: called.update(figure=True))
+
+    cli.plot_analytics("alice")
+    out = capsys.readouterr().out
+    assert "No data to plot." in out
+    assert not called["figure"]  # plot code never ran
 
 
 ######################STOCKPRICE MANAGER SCRIPT TESTS#########################

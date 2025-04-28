@@ -4,9 +4,10 @@ import json
 import sys
 import numpy as np
 import time
-from scipy.signal import find_peaks
 from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
+
+#warnings schmarnings. pytest skill issue. update ur pytest if it bothers you that much. 
 
 class TradingClient:
     def __init__(self):
@@ -389,7 +390,7 @@ class TradingClient:
 
 if __name__ == "__main__":
     """Main entry point for the trading client."""
-    
+
     HOST, PORT = 'localhost', 50004
     client = TradingClient()
     client.init(HOST, PORT)
