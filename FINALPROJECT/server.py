@@ -9,6 +9,34 @@ state_lock = threading.Lock()
 
 class TradingServer:
     def __init__(self, host: str, port: int, stock_file: str, currency_file: str, clients_file: str):
+        """
+        Initializes the server with the specified host, port, and file paths for stock, currency, and client data.
+        Also sets up the scheduler, initializes data structures for stock, currency, and client information,
+        and prepares the federated learning state vars.
+
+        Args: host (str): The hostname or IP address for the server.
+            port (int): The port number for the server.
+            stock_file (str): Path to the file containing stock information.
+            currency_file (str): Path to the file containing currency information.
+            clients_file (str): Path to the file containing client information.
+
+        Attributes:
+            host (str): The hostname or IP address for the server.
+            port (int): The port number for the server.
+            stock_file (str): Path to the file containing stock information.
+            currency_file (str): Path to the file containing currency information.
+            clients_file (str): Path to the file containing client information.
+            scheduler (sched.scheduler): Scheduler instance for managing timed events.
+            stock_info (dict): Dictionary to store stock information.
+            currency_info (dict): Dictionary to store currency information.
+            client_info (dict): Dictionary to store client information.
+            BUFFER_SIZE (int): Buffer size for network communication.
+            global_weights (list): List representing global weights for federated learning [buy, sell, hold].
+            updates (dict): Dictionary mapping users to their respective weight updates.
+
+        Returns: None
+        """
+        
         self.host = host
         self.port = port
         self.stock_file = stock_file
@@ -24,17 +52,61 @@ class TradingServer:
         self.global_weights = [0.0, 0.0, 0.0]  # [w0, w1, w2] - always initialized to 0
         self.updates = {}                       # user -> weights list
 
+
     def load_state(self):
+        """
+        Loads the state of the server from the stock, currency, and client files.
+        This method initializes the stock_info, currency_info, and client_info dictionaries
+        with the data stored in their respective files.
+        
+        Args: None
+        Returns: None
+        """
         self.stock_info = load_json(self.stock_file, {})
         self.currency_info = load_json(self.currency_file, {})
         self.client_info = load_json(self.clients_file, {})
 
+
     def save_state(self):
+        """
+        Saves the current state of the server to the stock, currency, and client files.
+        This method writes the stock_info, currency_info, and client_info dictionaries
+        to their respective files in JSON format.
+
+        Args: None
+        Returns: None
+        """
         save_json(self.stock_file,    self.stock_info)
         save_json(self.currency_file, self.currency_info)
         save_json(self.clients_file,  self.client_info)
 
+
     def process_request(self, req, conn, stockfile, currencyfile, clientfile):
+        """
+        Handles client requests and performs various operations based on the command provided in the request.
+        
+        Args:  req (dict): The request dictionary containing the command and other parameters.
+            conn (socket): The client connection socket for sending responses.
+            stockfile (str): Path to the file containing stock information.
+            currencyfile (str): Path to the file containing currency information.
+            clientfile (str): Path to the file containing client portfolio information.
+        Supported Commands:
+            - "register": Registers a new user or welcomes an existing user. Initializes a portfolio with default shares.
+            - "get_portfolio": Retrieves the user's portfolio, updating it with the latest stock prices.
+            - "list_symbols": Lists all available stock symbols.
+            - "buy": Buys a specified quantity of shares for a user, updating their portfolio.
+            - "sell": Sells a specified quantity of shares for a user, updating their portfolio.
+            - "get_global_model": Retrieves the global model weights for federated learning.
+            - "update_model": Updates the global model with weights provided by the client.
+        Notes:
+            - The function uses a state lock to ensure thread-safe operations on shared resources.
+            - Responses are sent back to the client in JSON format.
+            - For "buy" and "sell" commands, share limits and availability are validated.
+            - For federated learning commands, the global model weights are aggregated when updates are received from all clients, and then sent back out to the clients.
+        
+        Returns: None
+        """
+        
         cmd = req.get("cmd")
 
         if cmd == "register":
@@ -145,8 +217,8 @@ class TradingServer:
             conn.sendall((json.dumps({"status":"ok","msg":"portfolio updated","portfolio":updated}) + "\n").encode())
             return
 
-        ##federated learning commands ##
 
+        ##federated learning commands ##
         if cmd == "get_global_model":
             print(f"[SERVER] handing out global_weights = {self.global_weights}")
             conn.sendall((json.dumps({
@@ -180,6 +252,24 @@ class TradingServer:
 
 
     def handle_client(self, conn, addr):
+        """
+        Handles communication with a connected client.
+        This function continuously receives data from the client, processes it line by line,
+        and sends appropriate responses. It expects JSON-formatted requests from the client
+        and processes them using the `process_request` method. If invalid JSON is received,
+        an error message is sent back to the client.
+
+        Args: conn (socket.socket): The socket object representing the client connection.
+            addr (tuple): The address of the connected client (IP address and port).
+
+        Raises: None
+
+        NOTES:
+            - The function reads data in chunks of size `BUFFER_SIZE`.
+            - Each request from the client must end with a newline character (`\n`).
+            - The connection is closed when the client disconnects or an error occurs.
+        """
+
         buffer = ""
         try:
             while True:
@@ -203,6 +293,23 @@ class TradingServer:
 
 
     def reload_prices(self):
+        """
+        Periodically reloads stock prices from a JSON file and updates the global stock information.
+        Updates the global `stock_info` variable with the latest stock data and schedules itself to run again after `UPDATE_INTERVAL` seconds.
+
+        This function reads the stock data from the specified JSON file, updates the global `stock_info`
+        variable within a thread-safe context using a lock, and schedules itself to run again after
+        a defined interval.
+
+        Args: None 
+        Returns: None
+
+        Attributes: UPDATE_INTERVAL (int): The interval in seconds at which the stock prices are reloaded.
+
+        NOTES: This function assumes that `self.stock_file` contains the path to the JSON file with stock data,
+            and that `self.scheduler` is an instance of a scheduler capable of scheduling tasks.
+        """
+
         UPDATE_INTERVAL = 5
         fresh = load_json(self.stock_file, {})
         with state_lock:
@@ -212,6 +319,35 @@ class TradingServer:
 
 
     def serve_forever(self):
+        """
+        Starts the server and handles incoming client connections indefinitely.
+
+        This method initializes the server socket, binds it to the specified host and port,
+        and listens for incoming connections. It also starts a background thread to run
+        scheduled tasks using a scheduler. For each client connection, a new thread is
+        spawned to handle the client.
+
+        The server state is loaded before starting and saved when the server shuts down.
+
+        Steps:
+        1. Load the server state.
+        2. Create and configure a socket for the server.
+        3. Bind the socket to the specified host and port.
+        4. Start listening for incoming connections.
+        5. Schedule periodic tasks using the scheduler.
+        6. Accept and handle client connections in separate threads.
+        7. Save the server state and close the socket when shutting down.
+
+        Args: None 
+        Returns: None
+        
+        NOTES: This method runs indefinitely until interrupted or terminated.
+
+        Raises: Any exceptions raised during socket operations or client handling
+            will propagate unless explicitly handled elsewhere.
+
+        """
+
         self.load_state()
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         srv.bind((self.host, self.port))
@@ -230,12 +366,35 @@ class TradingServer:
 
 #json functions 
 def load_json(path, default):
+    """
+    Loads a JSON object from a file if it exists, otherwise returns a default value.
+
+    Args: path (str): The file path to the JSON file.
+        default (Any): The default value to return if the file does not exist.
+
+    Returns: Any: The loaded JSON object if the file exists, otherwise the default value.
+    """
+
     if os.path.exists(path):
         with open(path, "r") as f:
             return json.load(f)
     return default
 
+
 def save_json(path, data):
+    """
+    This function writes the JSON data to a temporary file first and then
+    replaces the original file with the temporary file. This ensures that
+    the file is not corrupted if the program crashes during the write process.
+
+    Args: path (str): The file path where the JSON data should be saved.
+        data (dict): The dictionary data to be serialized and saved as JSON.
+
+    Returns: None
+    Raises: OSError: If there is an issue writing to the file or replacing it.
+        TypeError: If the data provided is not serializable to JSON.
+    """
+
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(data, f, indent=2)
@@ -244,6 +403,8 @@ def save_json(path, data):
 
 
 if __name__ == "__main__":
+    """Main entry point for TradingServer."""
+
     server = TradingServer(
         host='localhost', port=50004,
         stock_file='stocks.txt', currency_file='currency.txt', clients_file='clients.txt')

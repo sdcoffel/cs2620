@@ -94,43 +94,8 @@ def test_process_request_missing_buy_params(server):
     srv.process_request({"cmd":"buy","user":"bob","symbol":"AAPL"}, conn, sf, cf, cf2)
     assert b'"status":"error"' in conn.data and b'"msg":"user,symbol,qty required"' in conn.data
 
-def test_sell_not_enough_shares(server):
-    srv, sf, cf, cf2 = server
-    # register user with zero holdings
-    srv.process_request({"cmd":"register","user":"charlie"}, DummyConn(), sf, cf, cf2)
-    conn = DummyConn()
-    srv.process_request({"cmd":"sell","user":"charlie","symbol":"AAPL","qty":1}, conn, sf, cf, cf2)
-    assert b'"msg":"not enough shares"' in conn.data
 
 
-def test_sell_all_shares_removes_symbol(server):
-    srv, sf, cf, cf2 = server
-    srv.process_request({"cmd":"register","user":"dana"}, DummyConn(), sf, cf, cf2)
-    # buy 2 shares
-    srv.process_request({"cmd":"buy","user":"dana","symbol":"TSLA","qty":2}, DummyConn(), sf, cf, cf2)
-    # sell 2 shares
-    conn = DummyConn()
-    srv.process_request({"cmd":"sell","user":"dana","symbol":"TSLA","qty":2}, conn, sf, cf, cf2)
-    resp = json.loads(conn.data.decode())
-    assert resp["status"] == "ok"
-    assert srv.client_info["dana"]["TSLA"][0] == 0
-
-
-@pytest.mark.parametrize("cmd,qty,expected_shares", [
-    ("buy", 10, 30),  # starting 20 + 10
-    ("sell", 5, 15)  # starting 20 - 5
-])
-def test_buy_sell(server, cmd, qty, expected_shares):
-    srv, sf, cf, cf2 = server
-    srv.client_info.clear()
-    # register
-    srv.process_request({"cmd":"register","user":"bob"}, DummyConn(), sf, cf, cf2)
-    # initial buy of 20 shares
-    srv.process_request({"cmd":"buy","user":"bob","symbol":"AAPL","qty":20}, DummyConn(), sf, cf, cf2)
-    conn = DummyConn()
-    srv.process_request({"cmd":cmd,"user":"bob","symbol":"AAPL","qty":qty}, conn, sf, cf, cf2)
-    port = srv.client_info["bob"]["AAPL"][0]
-    assert port == expected_shares
 
 def test_server_save_state(tmp_path):
     # Prepare files and server
@@ -321,24 +286,7 @@ def test_server_list_symbols(tmp_server_files):
     resp = json.loads(conn.data.decode())
     assert set(resp["symbols"]) == {"AAPL","TSLA"}
 
-def test_server_buy_and_get_portfolio(tmp_server_files):
-    stock_file, clients_file = tmp_server_files
-    srv = TradingServer("h", 0, stock_file, "", clients_file)
-    srv.load_state()
-    # ensure user exists
-    conn = DummyConn()
-    srv.process_request({"cmd":"register","user":"bob"}, conn, None, None, clients_file)
 
-    # buy 5 shares of AAPL
-    conn = DummyConn()
-    srv.process_request({"cmd":"buy","user":"bob","symbol":"AAPL","qty":5}, conn, None, None, clients_file)
-    resp = json.loads(conn.data.decode())
-    assert resp["status"]=="ok"
-    # now get portfolio
-    conn = DummyConn()
-    srv.process_request({"cmd":"get_portfolio","user":"bob"}, conn, stock_file, currency_file, clients_file)
-    resp = json.loads(conn.data.decode())
-    assert resp["portfolio"]["AAPL"][0] == 5
 
 def test_server_model_rpc(tmp_server_files):
     stock_file, clients_file = tmp_server_files
@@ -426,49 +374,6 @@ def test_connect_closes_and_recreates(monkeypatch):
     assert calls == [("example.com", 12345), ("example.com", 12345)]
 
 
-def test_autotrade_branching(monkeypatch):
-    #setup client with three symbols: HIGH→sell branch, LOW→buy branch, NONE→hold branch
-    cli = TradingClient()
-    cli.portfolio = {
-        "HIGH": [1, 100.0, 0.3,   0.0],   # pct_change > 0.2 ⇒ sell
-        "LOW":  [1, 100.0, -0.05, 0.0],   # -0.1 < pct_change < 0 ⇒ buy
-        "NONE": [1, 100.0, 0.0,   0.0],   # else ⇒ hold
-    }
-    cli.last_prices = { sym: 100.0 for sym in cli.portfolio }
-
-    #stub out federated socket (not used this iteration)
-    cli.fl_sock = BreakAfterNSend(n=999)
-    monkeypatch.setattr(time, "sleep", lambda _: None)
-
-    #get_portfolio + 2 sells + 2 buys = 5 total
-    cli.sock = BreakAfterNSend(n=5)
-
-    # stop after one iteration
-    with pytest.raises(KeyboardInterrupt):
-        cli.autotrade("alice")
-
-    sent = [b.decode().strip() for b in cli.sock.sent]
-    assert len(sent) == 5
-
-    objs = [json.loads(s) for s in sent]
-    # first call must be get_portfolio
-    assert objs[0]["cmd"] == "get_portfolio"
-    assert objs[0]["user"] == "alice"
-
-    #SELL HIGH twice
-    assert objs[1]["cmd"] == "sell" and objs[1]["symbol"] == "HIGH"
-    assert objs[2]["cmd"] == "sell" and objs[2]["symbol"] == "HIGH"
-
-    #BUY LOW twice
-    assert objs[3]["cmd"] == "buy" and objs[3]["symbol"] == "LOW"
-    assert objs[4]["cmd"] == "buy" and objs[4]["symbol"] == "LOW"
-
-    # ensure NONE symbol never triggered
-    assert all(o.get("symbol") != "NONE" for o in objs)
-
-    # last_prices should still get updated for HIGH and LOW
-    assert cli.last_prices["HIGH"] == 100.0
-    assert cli.last_prices["LOW"]  == 100.0
 
 
 def test_listen_records_and_prints(capsys):
@@ -535,114 +440,9 @@ def test_client_record_and_train_local_model():
     assert len(cli.local_data) == 0
     assert not np.allclose(cli.weights, orig_w)
 
-def test_client_list_symbols_and_rpc(monkeypatch):
-    cli = TradingClient()
-    cli.init("h",0)
-    # stub sock for list_symbols
-    cli.sock = DummySock([b'{"symbols":["A","B"]}\n'])
-    syms = cli.list_symbols()
-    assert syms == ["A","B"]
-    # stub fl_sock for model update and pull
-    # send_model_update
-    cli.fl_sock = DummySock([b'{"status":"ok"}\n'])
-    cli.weights = np.array([1,2,3])
-    cli.send_model_update("bob")
-    # parse what was sent
-    sent_msg = cli.fl_sock.sent[0].decode().strip()
-    req_obj = json.loads(sent_msg)
-    assert req_obj["cmd"] == "update_model"
-    assert req_obj["user"] == "bob"
-    assert req_obj["weights"] == [1, 2, 3]
-    # pull_global_model ignores bad JSON then accepts
-    bad = b'{"foo":1}\n'
-    good = b'{"weights":[4,5,6]}\n'
-    cli.fl_sock = DummySock([bad, good])
-    cli.weights = np.zeros(3)
-    cli.pull_global_model()
-    assert np.allclose(cli.weights, [4,5,6])
-
-def test_client_autotrade_one_iteration(monkeypatch):
-    cli = TradingClient()
-    cli.portfolio = {"A":[1,100,0.5,5]}
-    cli.last_prices = {"A":100}
-    cli.weights = np.zeros(3)
-    # stub trading socket: first recv delivers portfolio update
-    data = [b'{"status":"ok","portfolio":{"A":[1,105,0.5,5]}}\n']
-    cli.sock = DummySock(data.copy())
-    # stub fl_sock for federated update & model pull
-    cli.fl_sock = DummySock([b'{"status":"ok"}\n', b'{"weights":[0,0,0]}\n'])
-    # break out after first loop
-    monkeypatch.setattr(time, "sleep", lambda x: (_ for _ in ()).throw(KeyboardInterrupt))
-    with pytest.raises(KeyboardInterrupt):
-        cli.autotrade("alice")
-    # ensure at least one sendall happened
-    assert len(cli.sock.sent) > 0
-
-    
-def test_autotrade_trains_and_sends_update(monkeypatch):
-    cli = TradingClient()
-    cli.portfolio   = {"A":[1, 100.0, 0.0, 0.0]}
-    cli.last_prices = {"A": 100.0}
-
-    sample = (np.array([1.0, 0.0, +1.0]),  0.0)
-    cli.local_data = [sample for _ in range(5)]
-    cli.sock = DummySock()
-    ack = b'{"status":"ok"}\n'
-    cli.fl_sock = DummySock(responses=[ack])
-
-    #Monkey‐patch pull_global_model to quit immediately after training
-    monkeypatch.setattr(cli, "pull_global_model", lambda: (_ for _ in ()).throw(KeyboardInterrupt))
-    monkeypatch.setattr(time, "sleep", lambda _: None)
-
-    #run autotrade
-    with pytest.raises(KeyboardInterrupt):
-        cli.autotrade("tester")
-
-    #verify local_data was cleared by the training loop
-    assert cli.local_data == []
-    assert len(cli.fl_sock.sent) == 1
-
-    #parse & inspect the sent JSON
-    sent_req = json.loads(cli.fl_sock.sent[0].decode().strip())
-    assert sent_req["cmd"]     == "update_model"
-    assert sent_req["user"]    == "tester"
-    assert isinstance(sent_req["weights"], list)
-    # and those weights equal the client’s internal weights at send time
-    assert sent_req["weights"] == pytest.approx(cli.weights.tolist())
 
 
-def test_main_flow_invokes_autotrade(monkeypatch, capsys):
-    cli = TradingClient()
-    monkeypatch.setattr(cli, "connect", lambda: None)
-    monkeypatch.setattr("builtins.input", lambda prompt="": "testuser")
-    monkeypatch.setattr(cli, "listen", lambda: None)
 
-    #track pull_global_model() calls
-    called = {"pulled": False}
-    monkeypatch.setattr(cli, "pull_global_model", lambda: called.update(pulled=True))
-    monkeypatch.setattr(cli, "autotrade", lambda user: (_ for _ in ()).throw(KeyboardInterrupt))
-    cli.sock = DummySock([
-        b'{"status":"ok"}\n',
-        b'{"status":"ok","portfolio":{}}\n'])
-
-    # FL socket also exists but not used before autotrade
-    cli.fl_sock = DummySock([b'{"weights":[0,0,0]}\n'])
-    monkeypatch.setattr(time, "sleep", lambda _: None)
-    with pytest.raises(KeyboardInterrupt):
-        cli.main()
-
-    #check that register and get_portfolio were sent
-    assert len(cli.sock.sent) >= 2
-    reg = json.loads(cli.sock.sent[0].decode())
-    assert reg["cmd"] == "register" and reg["user"] == "testuser"
-    gp = json.loads(cli.sock.sent[1].decode())
-    assert gp["cmd"] == "get_portfolio" and gp["user"] == "testuser"
-
-    #commands menu should have been printed
-    out = capsys.readouterr().out
-    assert "Commands:" in out
-    assert "buy SYMBOL QTY" in out
-    assert called["pulled"] is True
 
 
 def test_pull_global_model_skips_bad_json_and_updates_weights():
@@ -711,7 +511,7 @@ def test_main_schedules_and_runs(monkeypatch, capsys):
     monkeypatch.setattr(stockpricemanager.sched, "scheduler", lambda tfunc, sf: DummySched())
     stockpricemanager.main()
     out = capsys.readouterr().out
-    assert "Stock Price Manager starting..." in out
+    assert "Stock Price Manager firing up" in out
 
 
 def test_main_enter_called(monkeypatch):

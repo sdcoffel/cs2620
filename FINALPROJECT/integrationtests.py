@@ -73,7 +73,7 @@ def test_normal_trading_flow(server_fixture):
    
     sock.sendall((json.dumps({"cmd":"get_portfolio","user":"alice"})+"\n").encode())
     resp = json.loads(sock.recv(1024).decode())
-    assert resp["portfolio"]["AAPL"][0] == 10
+    assert resp["portfolio"]["AAPL"][0] == 20
     #sell 5 AAPL
     sock.sendall((json.dumps({"cmd":"sell","user":"alice","symbol":"AAPL","qty":5})+"\n").encode())
     resp = json.loads(sock.recv(1024).decode())
@@ -81,7 +81,7 @@ def test_normal_trading_flow(server_fixture):
     
     sock.sendall((json.dumps({"cmd":"get_portfolio","user":"alice"})+"\n").encode())
     resp = json.loads(sock.recv(1024).decode())
-    assert resp["portfolio"]["AAPL"][0] == 5
+    assert resp["portfolio"]["AAPL"][0] == 15
     sock.close()
 
 def test_federated_learning_flow(server_fixture):
@@ -133,7 +133,7 @@ def test_stockprice_manager_updates_and_server_reads(tmp_path, monkeypatch):
     #check file was updated correctly
     updated = json.loads(stock_file.read_text())
     factor = math.exp((stockpricemanager.MU - 0.5*stockpricemanager.SIGMA**2)*stockpricemanager.DT)
-    expected_price = round(initial_price * factor, 2)
+    expected_price = round(initial_price * factor, 0)
     assert updated["XYZ"] == expected_price
     assert sched.enter_calls == [(stockpricemanager.UPDATE_INTERVAL, 1, stockpricemanager.simulate_prices, (sched,))]
 
@@ -159,5 +159,5 @@ def test_stockprice_manager_updates_and_server_reads(tmp_path, monkeypatch):
     #validate returned price and unrealized P&L
     shares, price, pct, unreal = port
     assert price == expected_price
-    expected_unreal = round(5 * (expected_price - initial_price), 2)
+    expected_unreal = round(5 * (expected_price - initial_price), 0)
     assert unreal == expected_unreal

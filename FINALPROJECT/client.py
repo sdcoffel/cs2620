@@ -11,8 +11,7 @@ import matplotlib.pyplot as plt
 class TradingClient:
     def __init__(self):
         """Initializes the client object with configurable parameters and state variables.
-        Args:
-            None
+        Args: None
         Attributes:
             host (str): The hostname or IP address of the server. Defaults to None.
             port (int): The port number for the server connection. Defaults to None.
@@ -24,9 +23,10 @@ class TradingClient:
             local_data (list): A list of tuples, where each tuple contains an input vector (x) and a reward (y).
             last_prices (dict): A dictionary mapping stock symbols to their last seen prices.
             analytics (list): A list to store data for live graphing and analytics.
-        Returns:
-            None
+        
+        Returns: None
         """
+
         self.host = None
         self.port = None
         self.BUFFER_SIZE = 2048
@@ -44,18 +44,24 @@ class TradingClient:
     def init(self, host: str, port: int, buffer_size: int = 1024):
         """Initializes the client with the specified host, port, and buffer size.
 
-        Args:
-            host (str): The hostname or IP address of the server to connect to.
+        Args:host (str): The hostname or IP address of the server to connect to.
             port (int): The port number on which the server is listening.
             buffer_size (int, optional): The size of the buffer for receiving data. Defaults to 1024.
+
+        Return: None
         """
+
         self.host = host
         self.port = port
         self.BUFFER_SIZE = buffer_size
 
 
     def connect(self):
-        """Establishes connections for both trading and federated learning sockets."""
+        """Establishes connections for both trading and federated learning sockets.
+        Args: None
+        Returns: None
+        """
+
         if self.sock:
             self.sock.close()
         self.sock = socket.create_connection((self.host, self.port))
@@ -68,10 +74,10 @@ class TradingClient:
     def list_symbols(self) -> list[str]: 
         """
         Sends a request to the server to retrieve a list of available stock symbols.
-
-        Returns:
-            list[str]: A list of stock symbols available for trading.
+        Args: None
+        Returns: list[str]: A list of stock symbols available for trading.
         """
+
         self.sock.sendall((json.dumps({"cmd": "list_symbols"}) + "\n").encode())
         resp = self.sock.recv(self.BUFFER_SIZE).decode().strip()
         return json.loads(resp).get("symbols", [])
@@ -82,9 +88,9 @@ class TradingClient:
         Computes the overall net profit by summing up realized and unrealized profits.
 
         Args: None
-        Returns:
-            float: The total net profit (realized + unrealized).
+        Returns: float: The total net profit (realized + unrealized).
         """
+
         net_realized = 0.0
         net_unrealized = 0.0
         for shares, price, pct, profit in self.portfolio.values():
@@ -100,6 +106,7 @@ class TradingClient:
         Args: None
         Returns: None
         """
+
         print("Your portfolio:")
         for sym, info in self.portfolio.items():
             shares, price, pct, profit = info
@@ -122,6 +129,7 @@ class TradingClient:
 
         Returns: None
         """
+
         Δp = current_price - last_price
         x = np.array([1.0, Δp, action])
         self.local_data.append((x, realized))
@@ -131,12 +139,12 @@ class TradingClient:
         """
         Trains the local model using the recorded samples.
 
-        Args:
-            lr (float, optional): The learning rate for gradient descent. Defaults to 0.01.
+        Args:lr (float, optional): The learning rate for gradient descent. Defaults to 0.01.
             epochs (int, optional): The number of training epochs. Defaults to 5.
 
         Returns: None
         """
+
         for _ in range(epochs):
             for x, y in self.local_data:
                 pred = self.weights.dot(x)
@@ -148,12 +156,10 @@ class TradingClient:
     def send_model_update(self, user: str):
         """
         Sends the updated local model weights to the server for federated learning.
-
-        Args:
-            user (str): The username of the client.
-
+        Args: user (str): The username of the client.
         Returns: None
         """
+
         req = {"cmd": "update_model", "user": user, "weights": self.weights.tolist()}
         self.fl_sock.sendall((json.dumps(req) + "\n").encode())
         self.fl_sock.recv(self.BUFFER_SIZE)
@@ -165,6 +171,7 @@ class TradingClient:
         Args: None
         Returns: None
         """
+
         #send request to get the global model
         req = {"cmd": "get_global_model"}
         self.fl_sock.sendall((json.dumps(req) + "\n").encode())
@@ -187,6 +194,7 @@ class TradingClient:
         Args: None
         Returns: None
         """
+
         buffer = ""
         while True:
             data = self.sock.recv(self.BUFFER_SIZE).decode()
@@ -219,15 +227,11 @@ class TradingClient:
         specified user, waits for the server's response, decodes the JSON response,
         and stores the portfolio in the `self.portfolio` attribute.
 
-        Args:
-            user (str): The username for which to fetch the portfolio.
-
-        Returns:
-            dict: The portfolio data for the specified user.
-
-        Raises:
-            RuntimeError: If the server response indicates a failure, with the error message provided in the response.
+        Args: user (str): The username for which to fetch the portfolio.
+        Returns: dict: The portfolio data for the specified user.
+        Raises: RuntimeError: If the server response indicates a failure, with the error message provided in the response.
         """
+
         req = {"cmd":"get_portfolio","user":user}
         self.sock.sendall((json.dumps(req)+"\n").encode())
         raw = self.sock.recv(self.BUFFER_SIZE).decode().strip()
@@ -236,7 +240,6 @@ class TradingClient:
             raise RuntimeError("get_portfolio failed: " + resp.get("msg",""))
         self.portfolio = resp["portfolio"]
         return self.portfolio
-
 
 
     def autotrade(self, user: str):
@@ -251,11 +254,10 @@ class TradingClient:
         Trains the local reinforcement learning model using collected data samples when enough samples are available.
         Sends updated model weights to the server and pulls the global model weights for synchronization.
         
-        Args:
-            user (str): The username of the trader.
+        Args: user (str): The username of the trader.
         Returns: None
-
         """
+
         # prepare symbols and last_prices
         self.pull_global_model()
         symbols = list(self.portfolio.keys())
@@ -317,9 +319,10 @@ class TradingClient:
         At the end of the trading session, we show a static plot of net profit over time after trading ends,
         with an additional line connecting the peaks to encapsulate the general shape.
 
-        Args: the username 
+        Args: username 
         Retuns: None
         """
+
         if not self.analytics:
             print("No data to plot.")
             return
@@ -348,6 +351,7 @@ class TradingClient:
 
     def main(self):
         """Main driver function to run the trading client."""
+
         self.connect()
         user = input("Who are you?: ").strip()
 
@@ -379,12 +383,13 @@ class TradingClient:
         except KeyboardInterrupt:
             print("\n[INFO] Trading interrupted by user.")
 
-        #after you stop the trades by hitting ctrl+c, this will display the analytics plot
+        #after hitting ctrl+c, this will display the analytics plot
         self.plot_analytics(user)
 
 
 if __name__ == "__main__":
     """Main entry point for the trading client."""
+    
     HOST, PORT = 'localhost', 50004
     client = TradingClient()
     client.init(HOST, PORT)
