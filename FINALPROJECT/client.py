@@ -468,7 +468,7 @@ if __name__ == "__main__":
 
     #this only works for harvard public wifi (as usual) - so put that as the host
     HOST = input("Enter the server IP address: ").strip()
-    PORT = input("Enter the server port number: ").strip()
+    PORT = int(input("Enter the server port number: ").strip())
     client = TradingClient()
     client.init(HOST, PORT)
     client.main()

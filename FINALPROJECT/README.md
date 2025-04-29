@@ -182,7 +182,7 @@ python server.py
 To fire up the server. 
 
 ### Starting the Stock Price Manager 
-The stock price simulator runs in the background of client/server relations. Run this in a separate window via: 
+The stock price simulator runs in the background of client/server relations. You need this running in order to do any meaningful trading. Run this in a separate window via: 
 
 ```bash
 python stockpricemanager.py
