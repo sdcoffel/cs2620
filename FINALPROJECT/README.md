@@ -78,19 +78,60 @@ The system implements comprehensive portfolio tracking:
 - Updates portfolio values in real-time as stock prices change
 - Enforces share limits (maximum 200 shares per stock)
 
-### 5. Federated Learning for Automated Trading
+### 5. Federated Meta-Reinforcement Learning for Automated Trading
 
-The system implements a reinforcement learning approach with federated learning capabilities:
-- Clients maintain local models that learn from trading actions
-- The server aggregates model updates from all clients
-- Clients periodically pull the global model to improve local decision-making
-- The model predicts potential profits based on price changes and historical performance
+The system implements a federated meta-reinforcement learning approach for automated trading:
 
-Key federated learning components:
-- Local model training with gradient descent
-- Weight aggregation on the server
-- Accuracy and loss tracking for model evaluation
-- Performance visualization through matplotlib
+#### Local RL Models on Clients
+- Each client maintains a simple linear model with three weights: `weights = np.zeros(3)`
+- The model takes inputs: `[1.0, Δp, action]` where:
+  - 1.0 is a bias term
+  - Δp is the price change between observations
+  - action is the trading action (buy=1, sell=-1, hold=0)
+- Predictions are computed as: `pred = weights.dot(input_vector)`
+- The model predicts expected profit for potential trading actions
+
+#### Data Collection for Learning
+- Clients collect training data during trading sessions
+- When portfolio updates arrive, clients record:
+  - Price changes between observations
+  - Actions taken (buy/sell/hold)
+  - Realized profits from trades
+- Data is stored as (input, reward) tuples in `local_data`
+- System tracks loss and prediction accuracy for evaluation
+
+#### Training Process
+The training follows gradient descent on mean squared error loss:
+1. For each sample, calculate predicted profit: `pred = weights.dot(x)`
+2. Compare with actual realized profit
+3. Update weights: `weights -= learning_rate * (pred - actual) * x`
+4. Track metrics including loss and prediction accuracy
+
+#### Federated Learning Mechanism
+The federated aspect works through:
+1. **Local Training**: Each client trains on their own trading experiences
+2. **Server Aggregation**: The server averages weights from all clients:
+   ```python
+   global_weights = [sum(w[i] for w in updates.values())/num_clients 
+                     for i in range(len(weights))]
+   ```
+3. **Model Synchronization**: Clients periodically download the global model
+4. **Continuous Improvement**: This cycle repeats throughout trading sessions
+
+#### Trading Decision Making
+For automated trading decisions:
+1. Calculate price change since last observation
+2. Create input vector: `[1.0, price_change, 0]`
+3. Predict potential profit using model weights
+4. If prediction > 0: buy shares
+5. If prediction < 0: sell shares
+6. Otherwise: hold position
+
+#### Performance Evaluation
+After trading sessions, clients visualize:
+- Net profit over time
+- Loss history of the training process
+- Prediction accuracy of the model
 
 ### 6. Message-based Communication Protocol
 
