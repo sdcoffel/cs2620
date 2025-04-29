@@ -7,13 +7,12 @@ import time
 from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 
-
 #todo: 
-# - aesthetics 
 # - finish up test coverage
 # - finish writeup 
 # - fill in inline comments
 # - write a readme
+
 
 class TradingClient:
     def __init__(self):
@@ -168,7 +167,6 @@ class TradingClient:
                 losses.append(loss)
                 self.loss_history.append(np.mean(losses))
         print(f"[TRAIN] average MSE = {np.mean(losses):.4f}")
-        #self.local_data.clear()
 
 
     def send_model_update(self, user: str):
@@ -235,7 +233,6 @@ class TradingClient:
                         self.last_prices[sym] = info[1]
                     self.portfolio = msg["portfolio"]
                     #self.print_portfolio()
-                print("\n> ", end="", flush=True)
 
 
     def fetch_portfolio(self, user: str):

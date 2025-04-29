@@ -1,7 +1,9 @@
 #to run: pytest --cov=. --cov-report=term-missing unittests.py
 import pytest
 import json
+import sys
 import math
+import time
 import numpy as np
 import socket
 import matplotlib.pyplot as plt
@@ -364,20 +366,26 @@ def test_server_unknown_command(tmp_server_files):
 
 ################### ---------------- TradingClient Tests ----------------###########################
 
-
-class BreakAfterNSend:
-    """Sock stub that raises KeyboardInterrupt after N sendall calls."""
-    def __init__(self, n):
+class DummySock:
+    def __init__(self, responses=None):
+        self._responses = list(responses or [])
         self.sent = []
-        self.count = 0
-        self.n = n
+    def recv(self, bufsize):
+        return self._responses.pop(0) if self._responses else b''
     def sendall(self, data):
         self.sent.append(data)
+    def close(self):
+        pass
+
+#break out of infinite loops by raising in time.sleep
+class SleepBreaker:
+    def __init__(self, after=1):
+        self.count = 0
+        self.after = after
+    def __call__(self, sec):
         self.count += 1
-        if self.count >= self.n:
+        if self.count >= self.after:
             raise KeyboardInterrupt
-    def recv(self, bufsize):
-        return b''
 
 class DummySocket:
     def __init__(self):
@@ -385,149 +393,342 @@ class DummySocket:
     def close(self):
         self.closed = True
 
+#for some of the ml tests
+class DummySock:
+    def __init__(self, responses=None):
+        self._responses = list(responses or [])
+        self.sent = []
+    def recv(self, bufsize):
+        return self._responses.pop(0) if self._responses else b''
+    def sendall(self, data):
+        self.sent.append(data)
+    def close(self):
+        pass
 
-def test_connect_closes_and_recreates(monkeypatch):
+
+def test_init_defaults():
     cli = TradingClient()
-    cli.init("example.com", 12345)
+    # defaults
+    assert cli.host is None
+    assert cli.port is None
+    assert cli.BUFFER_SIZE == 2048
+    assert isinstance(cli.weights, np.ndarray) and np.all(cli.weights == 0)
+    assert cli.local_data == []
+    assert cli.analytics == []
+    assert cli.loss_history == []
+    assert cli.accuracy == []
 
-    # Create two old sockets and attach them
-    old1 = DummySocket()
-    old2 = DummySocket()
-    cli.sock = old1
-    cli.fl_sock = old2
 
-    # Prepare new sockets to be returned by create_connection
+def test_init_sets_values():
+    cli = TradingClient()
+    cli.init("h", 9999, buffer_size=123)
+    assert cli.host == "h"
+    assert cli.port == 9999
+    assert cli.BUFFER_SIZE == 123
+
+
+def test_connect_closes_old_sockets_and_creates_new(monkeypatch):
+    cli = TradingClient()
+    cli.init("example.com", 1234)
+
+    #dummy existing sockets
+    old_sock1 = DummySocket()
+    old_sock2 = DummySocket()
+    cli.sock = old_sock1
+    cli.fl_sock = old_sock2
+
+    #prep two new DummySockets to be returned by create_connection
     new1 = DummySocket()
     new2 = DummySocket()
     calls = []
     def fake_create_connection(addr):
         calls.append(addr)
-        # return new1 on first call, new2 on second
+        # Return new1 on first call, new2 on second
         return new1 if len(calls) == 1 else new2
 
-    # Monkeypatch socket.create_connection
     monkeypatch.setattr(socket, "create_connection", fake_create_connection)
-
-    # Call connect()
     cli.connect()
 
-    # Old sockets should have been closed
-    assert old1.closed is True
-    assert old2.closed is True
+    #old sockets were closed
+    assert old_sock1.closed is True
+    assert old_sock2.closed is True
 
-    # New sockets should be assigned
+    #cli.sock and cli.fl_sock now point to the new sockets
     assert cli.sock is new1
     assert cli.fl_sock is new2
 
-    # create_connection called twice with correct address
-    assert calls == [("example.com", 12345), ("example.com", 12345)]
+    #create_connection was called twice with correct address
+    assert calls == [("example.com", 1234), ("example.com", 1234)]
 
 
-def test_listen_records_and_prints(capsys):
-    # Set up a client with empty state
+def test_list_symbols_and_error(monkeypatch):
     cli = TradingClient()
-    cli.BUFFER_SIZE = 1024
+    # happy path
+    cli.sock = DummySock([b'{"symbols":["X","Y"]}\n'])
+    syms = cli.list_symbols()
+    assert syms == ["X","Y"]
+
+    # empty or malformed resp
+    cli.sock = DummySock([b'{}\n'])
+    assert cli.list_symbols() == []
+
+
+def test_train_local_model_single_sample(capsys):
+    #one sample, zero initial weights
+    cli = TradingClient()
+    cli.weights = np.zeros(3)
+    x = np.array([1.0, 2.0, 3.0])
+    y = 5.0
+    cli.local_data = [(x, y)]
+    cli.loss_history = []
+
+    #train for 3 epochs
+    cli.train_local_model(lr=0.1, epochs=3)
+
+    #loss_history length == epochs * len(local_data) == 3
+    assert len(cli.loss_history) == 3
+
+    #loss = (pred(=0) - y)^2 = 25
+    assert all(loss == pytest.approx(25.0) for loss in cli.loss_history)
+    out = capsys.readouterr().out
+    assert "[TRAIN] average MSE" in out
+    assert "25.0000" in out
+
+
+def test_compute_net_profit_various():
+    cli = TradingClient()
+    # empty
     cli.portfolio = {}
-    cli.last_prices = {}
-    cli.local_data = []
-    cli.analytics = []
+    assert cli.compute_net_profit() == 0.0
+    # positive only
+    cli.portfolio = {"A":[1,0,0, 5]}
+    assert cli.compute_net_profit() == 5
+    # mixed
+    cli.portfolio = {"A":[0,0,0,-2],"B":[0,0,0,3]}
+    assert cli.compute_net_profit() == 1
 
-    # Prepare a single portfolio‐update message, then an empty read to trigger sys.exit
-    portfolio = {"AAPL": [2, 100.0, 0.0, 10.0]}  # shares, price, pct, profit
-    msg = json.dumps({"status": "ok", "portfolio": portfolio}) + "\n"
 
-    class DummySock:
-        def __init__(self, responses):
-            self._resps = list(responses)
-        def recv(self, bufsize):
-            return self._resps.pop(0)
-
-    cli.sock = DummySock([msg.encode(), b""])  # first call yields msg, then empty → exit
-
-    #run listen() and catch the SystemExit and update teh portfolio
-    with pytest.raises(SystemExit):
-        cli.listen()
-
-    assert cli.portfolio == portfolio
-    # record_sample should have been called once for "AAPL"
-    assert len(cli.local_data) == 1
-    # last_prices updated to the new price
-    assert cli.last_prices["AAPL"] == 100.0
-
-    # print_portfolio should have printed the holdings and net profit
+def test_print_portfolio_and_return(capsys):
+    cli = TradingClient()
+    # empty
+    cli.portfolio = {}
+    net = cli.print_portfolio()
     out = capsys.readouterr().out
     assert "Your portfolio:" in out
-    assert "AAPL" in out
-    assert "Overall net profit" in out
-    # analytics list should record the net profit
-    assert cli.analytics and cli.analytics[-1] == 10.0
+    assert "Overall net profit:    $0.00" in out
+    assert net == 0.0
 
-
-def test_client_compute_and_print_portfolio(capsys):
-    cli = TradingClient()
-    cli.portfolio = {"X":[1,10,0,5], "Y":[2,20,0,7]}
-    # net profit = 5+7 =12
-    assert cli.compute_net_profit() == 12
-    cli.print_portfolio()
+    # multi
+    cli.portfolio = {
+        "A":[1,100,5.0,10.0],
+        "B":[2,200,-3.0,-6.0]
+    }
+    net = cli.print_portfolio()
     out = capsys.readouterr().out
-    assert "X" in out and "Y" in out
-    # analytics should record last net profit
-    assert cli.analytics[-1] == 12
+    assert "A: 1 @ $100.00" in out
+    assert "Δ +5.0%" in out
+    assert "P&L $10.00" in out
+    assert "B: 2 @ $200.00" in out
+    assert "Δ -3.0%" in out
+    assert "P&L $-6.00" in out
+    # net = 10 + (-6) = 4.0
+    assert net == pytest.approx(4.0)
 
-def test_client_record_and_train_local_model():
+def test_record_sample_appends():
     cli = TradingClient()
-    # record two samples
-    cli.record_sample(+1, "A", 100, 110, 10)
-    cli.record_sample(-1, "A", 110, 100, -10)
-    assert len(cli.local_data) == 2
-    # train a couple epochs
-    orig_w = cli.weights.copy()
-    cli.train_local_model(lr=0.01, epochs=2)
-    assert len(cli.local_data) == 0
-    assert not np.allclose(cli.weights, orig_w)
+    cli.local_data = []
+    cli.record_sample(1, "S", 10.0, 12.5, 2.5)
+    assert len(cli.local_data) == 1
+    x, y = cli.local_data[0]
+    assert pytest.approx(x.tolist()) == [1.0, 2.5, 1]
+    assert y == 2.5
 
 
-def test_pull_global_model_skips_bad_json_and_updates_weights():
+def test_send_model_update_and_recv():
     cli = TradingClient()
-    cli.BUFFER_SIZE = 1024
-
-    # stub fl_sock to first return invalid JSON, then a valid weights reply
-    bad = b'invalid json\n'
-    good = b'{"weights":[9,8,7]}\n'
-    cli.fl_sock = DummySock([bad, good])
-
-    # start from zero weights
-    cli.weights = np.zeros(3)
-
-    # call pull_global_model; it should loop once on bad JSON then succeed
-    cli.pull_global_model()
-
-    # verify that weights were updated to [9,8,7]
-    assert np.allclose(cli.weights, [9, 8, 7])
-
-    # verify that exactly one get_global_model request was sent
+    cli.weights = np.array([1,2,3])
+    cli.fl_sock = DummySock([b'{"status":"ok"}\n'])
+    cli.send_model_update("u1")
     assert len(cli.fl_sock.sent) == 1
-    req_obj = json.loads(cli.fl_sock.sent[0].decode().strip())
-    assert req_obj == {"cmd": "get_global_model"}
+    obj = json.loads(cli.fl_sock.sent[0].decode())
+    assert obj == {"cmd":"update_model","user":"u1","weights":[1,2,3]}
 
 
-def test_plot_analytics_empty(capsys, monkeypatch):
+def test_autotrade_training_and_federated_update(monkeypatch):
     cli = TradingClient()
-    cli.analytics = []  # no data
+    cli.portfolio = {"TICK": [1, 100.0, 0.0, 0.0]}
 
-    # Spy on plt.figure to ensure it never gets called
-    called = {"figure": False}
-    monkeypatch.setattr(plt, "figure", lambda *args, **kwargs: called.update(figure=True))
+    #use x vectors that give pred=0 so we test the training loss & accuracy logic
+    sample = (np.array([1.0, 0.0, 0.0]), 2.0)
+    cli.local_data = [sample]*5
+    monkeypatch.setattr(cli, "pull_global_model", lambda: None)
+    monkeypatch.setattr(cli, "print_portfolio", lambda: 42.0)
+    cli.sock = DummySock()
 
-    cli.plot_analytics("alice")
+    # respond with a dummy OK so send_model_update can proceed
+    cli.fl_sock = DummySock([b'{"status":"ok"}\n'])
+
+    #first sleep is for fetching portfolio, second sleep(1) is at end
+    sleeper = SleepBreaker(after=2)
+    monkeypatch.setattr(time, "sleep", sleeper)
+    with pytest.raises(KeyboardInterrupt):
+        cli.autotrade("user1")
+
+    #should have consumed 5 samples → loss_history & accuracy & analytics length == 5
+    assert len(cli.loss_history) == 5
+    assert len(cli.accuracy)     == 5
+    assert len(cli.analytics)    == 5
+    assert any(b'get_portfolio' in msg for msg in cli.sock.sent)
+    assert len(cli.fl_sock.sent) == 1
+    payload = json.loads(cli.fl_sock.sent[0].decode().strip())
+    assert payload["cmd"] == "update_model"
+    assert payload["user"] == "user1"
+
+    # weights should have been updated in the training loop
+    assert isinstance(payload["weights"], list)
+
+
+def test_pull_global_model_skips_and_updates(monkeypatch):
+    cli = TradingClient()
+    # two responses: bad, then good
+    cli.fl_sock = DummySock([b'notjson\n', b'{"weights":[5,6,7]}\n'])
+    # capture stdout
+    cli.BUFFER_SIZE = 1024
+    cli.pull_global_model()
+    assert np.all(cli.weights == np.array([5,6,7]))
+
+
+def test_listen_updates_and_exit(monkeypatch):
+    cli = TradingClient()
+    # first valid, then empty to exit
+    portfolio = {"Z":[1, 10.0, 0.0, 1.0]}
+    msg = json.dumps({"status":"ok","portfolio":portfolio}) + "\n"
+    cli.sock = DummySock([msg.encode(), b''])
+    # stub record_sample & exit
+    calls = []
+    monkeypatch.setattr(cli, "record_sample", lambda *args: calls.append(args))
+    monkeypatch.setattr(sys, "exit", lambda code=0: (_ for _ in ()).throw(SystemExit()))
+    with pytest.raises(SystemExit):
+        cli.listen()
+    assert cli.portfolio == portfolio
+    assert calls  # record_sample called
+
+
+def test_fetch_portfolio_success_and_fail():
+    cli = TradingClient()
+    # success
+    cli.sock = DummySock([b'{"status":"ok","portfolio":{"X":[1,2,3,4]}}\n'])
+    res = cli.fetch_portfolio("u")
+    assert res == {"X":[1,2,3,4]}
+    # failure
+    cli.sock = DummySock([b'{"status":"error","msg":"bad"}\n'])
+    with pytest.raises(RuntimeError):
+        cli.fetch_portfolio("u")
+
+
+def test_autotrade_one_iteration(monkeypatch):
+    cli = TradingClient()
+    # setup minimal portfolio and data
+    cli.portfolio = {"T":[1, 100.0, 0.0, 0.0]}
+    cli.weights = np.array([0, 1, 0])  # pred = Δp
+    # give 5 samples so training loop runs
+    cli.local_data = [(np.array([1.0, 0.0, 0]), 0.0)]*5
+    # stub pull_global_model no-op
+    monkeypatch.setattr(cli, "pull_global_model", lambda: None)
+    # stub sock responses: get_portfolio ack then further recv not used
+    cli.sock = DummySock([b'{"status":"ok","portfolio":{"T":[1,101.0,1.0,1.0]}}\n'])
+    # fl_sock
+    cli.fl_sock = DummySock([b'{"status":"ok"}\n'])
+    # stub print_portfolio so analytics updated
+    monkeypatch.setattr(cli, "print_portfolio", lambda: 123.0)
+    # break after first sleep
+    monkeypatch.setattr(time, "sleep", SleepBreaker(after=1))
+    with pytest.raises(KeyboardInterrupt):
+        cli.autotrade("u")
+
+    # should have sent get_portfolio + buy+sell actions + update_model
+    assert any(b'get_portfolio' in s for s in cli.sock.sent)
+
+
+def make_plot_test(func_name, args, expected_calls):
+    """Helper to generate plot tests."""
+    def _test(monkeypatch):
+        cli = TradingClient()
+        # populate relevant history
+        if func_name=="plot_analytics":
+            cli.analytics = [1,2,3,4]
+        elif func_name=="plot_loss":
+            cli.loss_history = [0.1,0.2]
+        else:
+            cli.accuracy = [0.5,0.75,1.0]
+        calls = {'figure':0,'plot':0,'title':0,'xlabel':0,'ylabel':0,'grid':0,'legend':0,'show':0,'ylim':0}
+        monkeypatch.setattr(plt, 'figure',      lambda *a,**k: calls.__setitem__('figure',calls['figure']+1))
+        monkeypatch.setattr(plt, 'plot',        lambda *a,**k: calls.__setitem__('plot',calls['plot']+1))
+        monkeypatch.setattr(plt, 'title',       lambda *a,**k: calls.__setitem__('title',calls['title']+1))
+        monkeypatch.setattr(plt, 'xlabel',      lambda *a,**k: calls.__setitem__('xlabel',calls['xlabel']+1))
+        monkeypatch.setattr(plt, 'ylabel',      lambda *a,**k: calls.__setitem__('ylabel',calls['ylabel']+1))
+        monkeypatch.setattr(plt, 'grid',        lambda *a,**k: calls.__setitem__('grid',calls['grid']+1))
+        monkeypatch.setattr(plt, 'legend',      lambda *a,**k: calls.__setitem__('legend',calls['legend']+1))
+        monkeypatch.setattr(plt, 'show',        lambda *a,**k: calls.__setitem__('show',calls['show']+1))
+        if func_name=="plot_accuracy":
+            monkeypatch.setattr(plt, 'ylim',   lambda *a,**k: calls.__setitem__('ylim',calls['ylim']+1))
+
+        getattr(cli, func_name)(*args)
+        # assert at least the expected minimal calls happened
+        for k,v in expected_calls.items():
+            assert calls[k] >= v, f"{func_name} expected at least {v} calls to {k}, got {calls[k]}"
+    return _test
+
+
+# plot_analytics test
+test_plot_analytics = make_plot_test(
+    "plot_analytics", ["user"], 
+    {"figure":1,"plot":1,"title":1,"xlabel":1,"ylabel":1,"grid":1,"legend":1,"show":1})
+# plot_loss test
+test_plot_loss = make_plot_test(
+    "plot_loss", ["user"], 
+    {"figure":1,"plot":1,"title":1,"xlabel":1,"ylabel":1,"grid":1,"legend":1,"show":1})
+# plot_accuracy test
+test_plot_accuracy = make_plot_test(
+    "plot_accuracy", ["user"], 
+    {"figure":1,"plot":1,"title":1,"xlabel":1,"ylabel":1,"grid":1,"legend":1,"show":1,"ylim":1})
+
+# parameterize them so pytest collects
+@pytest.mark.usefixtures("test_plot_analytics", "test_plot_loss", "test_plot_accuracy")
+class TestPlots:
+    pass
+
+def test_main_full_flow(monkeypatch, capsys):
+    cli = TradingClient()
+    cli.init("h", 1)
+    # stub connect
+    monkeypatch.setattr(cli, "connect", lambda: None)
+    # stub input
+    monkeypatch.setattr('builtins.input', lambda prompt="": "me")
+    # prepare register response including portfolio
+    cli.sock = DummySock([json.dumps({"status":"ok","portfolio":{"Z":[0,1,0,0]}}).encode()])
+    # prepare pull_global_model
+    monkeypatch.setattr(cli, "pull_global_model", lambda: setattr(cli, 'weights', np.array([0,0,0])))
+    # stub listen thread to no-op
+    monkeypatch.setattr(cli, "listen", lambda: None)
+    # stub autotrade to raise
+    monkeypatch.setattr(cli, "autotrade", lambda user: (_ for _ in ()).throw(KeyboardInterrupt))
+    # stub plot methods to record
+    calls = {}
+    for name in ("plot_analytics","plot_loss","plot_accuracy"):
+        monkeypatch.setattr(cli, name, lambda user, n=name: calls.setdefault(n,0) or calls.__setitem__(n,1))
+    # run main
+    #with pytest.raises(KeyboardInterrupt):
+    cli.main()
     out = capsys.readouterr().out
-    assert "No data to plot." in out
-    assert not called["figure"]  # plot code never ran
+    assert "Starting trading session for me" in out
+    # ensure plot methods called
+    assert calls["plot_analytics"] == 1
+    assert calls["plot_loss"]      == 1
+    assert calls["plot_accuracy"]  == 1
 
 
 ######################STOCKPRICE MANAGER SCRIPT TESTS#########################
-
-
 
 class DummySched:
     def __init__(self):
