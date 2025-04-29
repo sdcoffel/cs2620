@@ -243,17 +243,3 @@ The project includes comprehensive test suites:
 3. For extending federated learning:
    - Modify the `train_local_model` method in the client
    - Update the aggregation logic in the server's `update_model` command handler
-
-### Known Limitations
-- No user authentication beyond username
-- Limited error handling for network disruptions
-- Simplistic reinforcement learning model
-- No database backend for truly persistent storage
-
-### Future Enhancements
-- Enhanced security with proper authentication
-- More sophisticated reinforcement learning models
-- Additional order types (limit orders, stop-loss)
-- Implementation of real-world market constraints
-- Expanded visualization capabilities
-- Support for additional asset classes beyond stocks

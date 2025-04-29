@@ -8,7 +8,6 @@ from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 
 #todo: 
-# - finish up test coverage
 # - finish writeup 
 # - fill in inline comments
 # - write a readme
