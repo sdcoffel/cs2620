@@ -7,11 +7,17 @@ import time
 from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 
-#warnings schmarnings. pytest skill issue. update ur pytest if it bothers you that much. 
+
+#todo: 
+# - aesthetics 
+# - finish up test coverage
+# - finish writeup 
+# - fill in inline comments
+# - write a readme
 
 class TradingClient:
     def __init__(self):
-        """Initializes the client object with configurable parameters and state variables.
+        """Initializes the client object state variables.
         Args: None
         Attributes:
             host (str): The hostname or IP address of the server. Defaults to None.
@@ -24,6 +30,8 @@ class TradingClient:
             local_data (list): A list of tuples, where each tuple contains an input vector (x) and a reward (y).
             last_prices (dict): A dictionary mapping stock symbols to their last seen prices.
             analytics (list): A list to store data for live graphing and analytics.
+            loss_history (list): A list to store the loss history for training.
+            accuracy (list): A list to store the accuracy for each round of training.
         
         Returns: None
         """
@@ -40,6 +48,8 @@ class TradingClient:
         self.local_data = []         # list of (x vector, reward y)
         self.last_prices = {}        # symbol -> last seen price
         self.analytics = [] #data gathered for live graphing
+        self.loss_history = []   #losses for each round of training
+        self.accuracy = [] #accuracy for each round of training
 
 
     def init(self, host: str, port: int, buffer_size: int = 1024):
@@ -114,7 +124,8 @@ class TradingClient:
             print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
         net = self.compute_net_profit()
         print(f"Overall net profit:    ${net:.2f}")
-        self.analytics.append(net)
+        return net
+
 
 
     def record_sample(self, action: int, sym: str, last_price: float, current_price: float, realized: float):
@@ -145,13 +156,19 @@ class TradingClient:
 
         Returns: None
         """
-
+        losses = []
         for _ in range(epochs):
             for x, y in self.local_data:
                 pred = self.weights.dot(x)
-                grad = (pred - y) * x
-                self.weights -= lr * grad
-        self.local_data.clear()
+                #grad = (pred - y) * x
+                #self.weights -= lr * grad
+
+                #compute losses 
+                loss = (pred - y) ** 2
+                losses.append(loss)
+                self.loss_history.append(np.mean(losses))
+        print(f"[TRAIN] average MSE = {np.mean(losses):.4f}")
+        #self.local_data.clear()
 
 
     def send_model_update(self, user: str):
@@ -217,7 +234,7 @@ class TradingClient:
                         self.record_sample(action, sym, last_p, info[1], realized)
                         self.last_prices[sym] = info[1]
                     self.portfolio = msg["portfolio"]
-                    self.print_portfolio()
+                    #self.print_portfolio()
                 print("\n> ", end="", flush=True)
 
 
@@ -299,18 +316,42 @@ class TradingClient:
                 last_prices[sym] = curr_price
 
             # train federated model if enough samples
-            if len(self.local_data) >= 5:
-                for _ in range(5):
-                    x, y = self.local_data.pop(0)
-                    pred = self.weights.dot(x)
-                    self.weights -= 0.01 * (pred - y) * x
-                    
-                # send update & pull global
-                self.fl_sock.sendall((json.dumps({
-                    "cmd":"update_model","user":user,"weights":self.weights.tolist()
-                })+"\n").encode())
-                print(f"sent to server: ", self.weights.tolist())
-                self.fl_sock.recv(self.BUFFER_SIZE)
+            #if len(self.local_data) >= 5:
+            losses = []
+            correct = 0
+            total = 0 
+
+            for _ in range(5):
+                x, y = self.local_data.pop(0)
+                pred = self.weights.dot(x)
+                self.weights -= 0.01 * (pred - y) * x
+
+                #did we predict the right action? postitive y means we made a profit, negative y means we lost 
+                actual = 1 if y > 0 else (0 if y == 0 else -1)
+                guess  = 1 if pred > 0 else (0 if pred == 0 else -1)
+                if guess == actual:
+                    correct += 1
+                total += 1
+
+                #compute losses 
+                loss = (pred - y) ** 2
+                losses.append(loss)
+                self.loss_history.append(np.mean(losses))
+
+                #compute accuracy
+                accuracy = correct / total if total > 0 else 0
+                self.accuracy.append(accuracy)
+                print(f"[TRAIN] accuracy = {accuracy:.4f} ({correct}/{total})")
+
+                #compute net 
+                net = self.print_portfolio()
+                self.analytics.append(net)
+                print(f"[TRAIN] average MSE = {np.mean(losses):.4f}")
+                
+            #send update & pull global
+            self.fl_sock.sendall((json.dumps({"cmd":"update_model","user":user,"weights":self.weights.tolist()})+"\n").encode())
+            print(f"sent to server: ", self.weights.tolist())
+            self.fl_sock.recv(self.BUFFER_SIZE)
             time.sleep(1) #ensures that we can have the same shape for plots
 
 
@@ -350,6 +391,51 @@ class TradingClient:
         plt.show()  #blocks until window closed
 
 
+    def plot_loss(self, user): 
+        """
+        Creates a line plot of the MSE for each round of training.
+        Args: username
+        Returns: None
+        """
+
+        if not self.loss_history:
+            print("No loss data to plot.")
+            return
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.loss_history, marker='o', color='red', label='Loss History')
+        plt.title(f"Loss History Over Training Rounds for user {user}")
+        plt.xlabel('Round')
+        plt.ylabel('Average Loss')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+
+
+    def plot_accuracy(self, user):
+        """
+         After trading, show how often each local‐model's step predicted the right trade to make.
+
+         Args: username 
+         Returns: None
+        """
+
+        if not self.accuracy:
+            print("No accuracy data to plot.")
+            return
+
+        rounds = list(range(len(self.accuracy)))
+        plt.figure(figsize=(10,6))
+        plt.plot(rounds, self.accuracy, marker='o', label='Accuracy', color='blue')
+        plt.ylim(0,1)
+        plt.title(f"Local‐Training Accuracy per Round for user: {user}")
+        plt.xlabel('Training Round')
+        plt.ylabel('Accuracy')
+        plt.grid(True)
+        plt.legend()
+        plt.show()       
+
+
     def main(self):
         """Main driver function to run the trading client."""
 
@@ -386,6 +472,12 @@ class TradingClient:
 
         #after hitting ctrl+c, this will display the analytics plot
         self.plot_analytics(user)
+
+        #show the loss plot 
+        self.plot_loss(user)
+
+        #show the accuracy plot 
+        self.plot_accuracy(user)
 
 
 if __name__ == "__main__":

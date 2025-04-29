@@ -1,4 +1,3 @@
-# unittests.py
 #to run: pytest --cov=. --cov-report=term-missing unittests.py
 import pytest
 import json
@@ -10,13 +9,12 @@ from server import TradingServer, load_json, save_json
 from client import TradingClient
 import stockpricemanager
 
-
 """These unittests are designed to test the TradingServer and TradingClient classes and all of their associated methods.
 They include tests for their functions, client/server communication, and training flows.
 These cover server.py, client.py, stockpricemanager.py, and graphs.py (TO BE ADDED).
 """
 
-
+#warnings schmarnings. pytest skill issue. update ur pytest if it bothers you that much. 
 clients_file='clients.txt'
 stock_file='stocks.txt'
 currency_file='currencies.txt'
@@ -78,6 +76,7 @@ def test_register_and_list(server):
     resp = json.loads(conn.data.decode())
     assert set(resp["symbols"]) == {"AAPL","TSLA"}
 
+
 def test_process_request_missing_buy_params(server):
     srv, sf, cf, cf2 = server
     conn = DummyConn()
@@ -92,8 +91,6 @@ def test_process_request_missing_buy_params(server):
     # missing qty
     srv.process_request({"cmd":"buy","user":"bob","symbol":"AAPL"}, conn, sf, cf, cf2)
     assert b'"status":"error"' in conn.data and b'"msg":"user,symbol,qty required"' in conn.data
-
-
 
 
 def test_server_save_state(tmp_path):

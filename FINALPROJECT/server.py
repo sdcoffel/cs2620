@@ -5,6 +5,8 @@ import threading
 import json
 import os
 
+#todo: need loss function and graphing capabilities
+
 state_lock = threading.Lock()
 
 class TradingServer:
