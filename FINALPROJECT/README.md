@@ -156,12 +156,20 @@ Each user's portfolio is stored as:
 }
 ```
 
-### Federated Learning Model
-The model uses a simple linear architecture:
-- Input features: price change, action taken
-- Weights: [w0, w1, w2]
-- Prediction: w0 + w1*Δp + w2*action
-- Training: Mean squared error loss with gradient descent
+### Federated Meta-RL Model Details
+The model uses a simple linear architecture for reinforcement learning:
+- Input features: `[1.0, Δp, action]` (bias term, price change, action taken)
+- Weights: `[w0, w1, w2]` (initialized to zero on clients)
+- Prediction formula: `w0 + w1*Δp + w2*action`
+- Loss function: Mean squared error (MSE) between predicted and actual profit
+- Training algorithm: Stochastic gradient descent
+- Federated aggregation: Simple averaging of client weights on server
+
+Client-server communication for federated learning:
+- Clients pull global model: `{"cmd": "get_global_model"}`
+- Server responds with: `{"status": "ok", "weights": [w0, w1, w2]}`
+- Clients submit updates: `{"cmd": "update_model", "user": "username", "weights": [w0, w1, w2]}`
+- Server aggregates by averaging and responds with: `{"status": "ok", "msg": "model received"}`
 
 ## Getting Started
 
