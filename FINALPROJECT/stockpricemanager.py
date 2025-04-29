@@ -2,9 +2,6 @@
 #model price changes via geometric brownian motion 
 # after discretizing the stochastic diffeq, we get a solution of the form: S t+Δt = St​exp((μ− 1/2​ σ**2 )Δt+σ Δt**1/2 Z)
 
-#update: i was right. the RL becomes very easy to predict if i give it favorable hyperparamters
-#BIIIG ASSUMPTION HERE: if i use the current hyperparameters in GBM, i am assuming that the market tends to get better over time. this is a big assumption. 
-
 import sched 
 import time 
 import json 
@@ -31,9 +28,9 @@ def load_json(path):
 
     Returns: Any: The loaded JSON object if the file exists, otherwise the default value.
     """
-        
+    
     with open(path, "r") as f:
-        return json.load(f)  # throws FileNotFoundError or JSONDecodeError
+        return json.load(f)  #throws FileNotFoundError or JSONDecodeError
 
 
 def save_json(path, data):
@@ -77,6 +74,7 @@ def simulate_prices(sc):
             - Z: Random sample from a standard normal distribution
     """
 
+    #load in prices
     prices = load_json(STOCK_FILE)
     new_prices = {}
     for sym, S in prices.items():
@@ -84,6 +82,7 @@ def simulate_prices(sc):
         Z = random.gauss(0,1)
         #GBM update: S * exp((μ - 0.5σ²)Δt + σ√Δt Z)
         S_new = S * math.exp((MU - 0.5*SIGMA**2)*DT + SIGMA*math.sqrt(DT)*Z)
+        #update with new prices
         new_prices[sym] = round(S_new, 2)
     save_json(STOCK_FILE, new_prices)
     print(f"[{time.ctime()}] Updated prices: {new_prices}")
@@ -91,22 +90,21 @@ def simulate_prices(sc):
     sc.enter(UPDATE_INTERVAL, 1, simulate_prices, (sc,))
 
 
-#let this run in the background while the server is running - maybe incorporate this into the server later after i test
 def main():
     """
-    Main function to fire up the stock price manager (simulates the stock market)."""
+    Main function to fire up the stock price manager (simulates the stock market). 
+    This runs in the background while the server/client are interacting.
+    """
 
     print("Stock Price Manager firing up...")
     scheduler = sched.scheduler(time.time, time.sleep)
-    # schedule first immediate call (delay=0)
+    #schedule first immediate call (delay=0)
     scheduler.enter(0, 1, simulate_prices, (scheduler,))
-    scheduler.run()  # blocks, running scheduled simulations in real time
-
+    scheduler.run()  #blocks
 
 
 if __name__ == "__main__":
     """Main driver."""
-
     main()
 
 

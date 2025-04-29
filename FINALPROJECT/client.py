@@ -7,11 +7,6 @@ import time
 from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
 
-#todo: 
-# - finish writeup 
-# - fill in inline comments
-# - write a readme
-
 
 class TradingClient:
     def __init__(self):
@@ -60,6 +55,7 @@ class TradingClient:
         Return: None
         """
 
+        #update host and port info 
         self.host = host
         self.port = port
         self.BUFFER_SIZE = buffer_size
@@ -71,10 +67,12 @@ class TradingClient:
         Returns: None
         """
 
+        #for trading: close any preexisting sockets and fire up a new one 
         if self.sock:
             self.sock.close()
         self.sock = socket.create_connection((self.host, self.port))
 
+        #ditto for federated learning 
         if self.fl_sock:
             self.fl_sock.close()
         self.fl_sock = socket.create_connection((self.host, self.port))
@@ -100,6 +98,7 @@ class TradingClient:
         Returns: float: The total net profit (realized + unrealized).
         """
 
+        #calculate net profit and return it 
         net_realized = 0.0
         net_unrealized = 0.0
         for shares, price, pct, profit in self.portfolio.values():
@@ -117,13 +116,15 @@ class TradingClient:
         """
 
         print("Your portfolio:")
+        #pretty printing
         for sym, info in self.portfolio.items():
             shares, price, pct, profit = info
             print(f"    • {sym}: {shares} @ ${price:.2f}   Δ {pct:+.1f}%   P&L ${profit:.2f}")
+
+        #grab the value of the net profit and return it
         net = self.compute_net_profit()
         print(f"Overall net profit:    ${net:.2f}")
         return net
-
 
 
     def record_sample(self, action: int, sym: str, last_price: float, current_price: float, realized: float):
@@ -140,32 +141,12 @@ class TradingClient:
         Returns: None
         """
 
+        #record the sample for training
+        #action = 0 for no action, 1 for buy, -1 for sell
+        #realized = profit or loss from the action taken
         Δp = current_price - last_price
         x = np.array([1.0, Δp, action])
         self.local_data.append((x, realized))
-
-
-    def train_local_model(self, lr=0.01, epochs=5):
-        """
-        Trains the local model using the recorded samples.
-
-        Args:lr (float, optional): The learning rate for gradient descent. Defaults to 0.01.
-            epochs (int, optional): The number of training epochs. Defaults to 5.
-
-        Returns: None
-        """
-        losses = []
-        for _ in range(epochs):
-            for x, y in self.local_data:
-                pred = self.weights.dot(x)
-                #grad = (pred - y) * x
-                #self.weights -= lr * grad
-
-                #compute losses 
-                loss = (pred - y) ** 2
-                losses.append(loss)
-                self.loss_history.append(np.mean(losses))
-        print(f"[TRAIN] average MSE = {np.mean(losses):.4f}")
 
 
     def send_model_update(self, user: str):
@@ -191,6 +172,7 @@ class TradingClient:
         req = {"cmd": "get_global_model"}
         self.fl_sock.sendall((json.dumps(req) + "\n").encode())
 
+        #wait for the server to respond with the global model
         while True:
             raw = self.fl_sock.recv(self.BUFFER_SIZE).decode().strip()
             try:
@@ -211,27 +193,29 @@ class TradingClient:
         """
 
         buffer = ""
+        #continuously listen for messages from the server
         while True:
             data = self.sock.recv(self.BUFFER_SIZE).decode()
             if not data:
                 print("\n[-] Server closed connection.")
                 sys.exit(0)
             buffer += data
+
+            #process each line of the buffer - if buffer contains newline, split into lines 
             while "\n" in buffer:
                 line, buffer = buffer.split("\n",1)
                 if not line.strip(): continue
                 msg = json.loads(line)
                 if msg.get("status") == "ok" and msg.get("portfolio") is not None:
-                    # before overwrite, record samples for each symbol
+                    #before overwrite, record samples for each symbol
                     for sym, info in msg["portfolio"].items():
+                        #if we have a last price for the symbol, record the sample
                         last_p = self.last_prices.get(sym, info[1])
-                        action = 0  # unknown
-                        # realized profit is info[2] but you may adjust based on your design
+                        action = 0  
                         realized = info[3]
                         self.record_sample(action, sym, last_p, info[1], realized)
                         self.last_prices[sym] = info[1]
                     self.portfolio = msg["portfolio"]
-                    #self.print_portfolio()
 
 
     def fetch_portfolio(self, user: str):
@@ -246,12 +230,15 @@ class TradingClient:
         Raises: RuntimeError: If the server response indicates a failure, with the error message provided in the response.
         """
 
+        #send request to get the portfolio
         req = {"cmd":"get_portfolio","user":user}
         self.sock.sendall((json.dumps(req)+"\n").encode())
         raw = self.sock.recv(self.BUFFER_SIZE).decode().strip()
+        #parse the response
         resp = json.loads(raw)
         if resp.get("status") != "ok":
             raise RuntimeError("get_portfolio failed: " + resp.get("msg",""))
+        #update the portfolio attribute with the response
         self.portfolio = resp["portfolio"]
         return self.portfolio
 
@@ -292,12 +279,12 @@ class TradingClient:
                 x = np.array([1.0, Δp, 0])  # action is 0 for now (no action)
                 pred_profit = self.weights.dot(x)
 
-                if pred_profit > 0:  # if predicted profit is positive, buy
+                if pred_profit > 0:  #if predicted profit is positive, buy
                     action, qty = "buy", 10
-                elif pred_profit < 0:  # if predicted profit is negative, sell
+                elif pred_profit < 0:  #if predicted profit is negative, sell
                     action, qty = "sell", 10
                 else:
-                    action = None  # no action
+                    action = None  #no action
                 
                 #execute the action if decided
                 if action:
@@ -311,8 +298,7 @@ class TradingClient:
                     self.sock.sendall((json.dumps(req)+"\n").encode())
                 last_prices[sym] = curr_price
 
-            # train federated model if enough samples
-            #if len(self.local_data) >= 5:
+            #train federated model locally and send weights to the server
             losses = []
             correct = 0
             total = 0 
@@ -320,6 +306,7 @@ class TradingClient:
             for _ in range(5):
                 x, y = self.local_data.pop(0)
                 pred = self.weights.dot(x)
+                #update weights using gradient descent
                 self.weights -= 0.01 * (pred - y) * x
 
                 #did we predict the right action? postitive y means we made a profit, negative y means we lost 
@@ -373,8 +360,8 @@ class TradingClient:
         plt.plot(x, y, marker='o', color='green', label='Net Profit')
 
         #fit a smooth curve to the general shape of the graph
-        if len(x) > 3:  # Ensure enough points for interpolation
-            spline = make_interp_spline(x, y, k=3)  # Cubic spline
+        if len(x) > 3:  #ensure enough points for interpolation
+            spline = make_interp_spline(x, y, k=3)  # cubic spline
             smooth_x = np.linspace(min(x), max(x), 500)
             smooth_y = spline(smooth_x)
             plt.plot(smooth_x, smooth_y, color='green', alpha=0.7, label='General Shape')
@@ -438,7 +425,7 @@ class TradingClient:
         self.connect()
         user = input("Who are you?: ").strip()
 
-        #register
+        #register the username
         self.sock.sendall((json.dumps({"cmd":"register","user":user})+"\n").encode())
         raw = self.sock.recv(self.BUFFER_SIZE)
         resp = json.loads(raw)
@@ -450,17 +437,17 @@ class TradingClient:
         if "portfolio" in resp:
             self.portfolio = resp["portfolio"]
         else:
-            # fallback: explicitly fetch it
+            #fallback: explicitly fetch it
             self.fetch_portfolio(user)
 
-        # get initial portfolio
+        #get initial portfolio
         print(f"Starting trading session for {user}...")
         threading.Thread(target=self.listen, daemon=True).start()
 
-        # pull initial model
+        #pull global model from server
         self.pull_global_model()
 
-        # start autotrade
+        #start autotrade loop
         try:
             self.autotrade(user)
         except KeyboardInterrupt:
@@ -479,7 +466,9 @@ class TradingClient:
 if __name__ == "__main__":
     """Main entry point for the trading client."""
 
-    HOST, PORT = 'localhost', 50004
+    #this only works for harvard public wifi (as usual) - so put that as the host
+    HOST = input("Enter the server IP address: ").strip()
+    PORT = input("Enter the server port number: ").strip()
     client = TradingClient()
     client.init(HOST, PORT)
     client.main()

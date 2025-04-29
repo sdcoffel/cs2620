@@ -78,9 +78,9 @@ The system implements comprehensive portfolio tracking:
 - Updates portfolio values in real-time as stock prices change
 - Enforces share limits (maximum 200 shares per stock)
 
-### 5. Federated Meta-Reinforcement Learning for Automated Trading
+### 5. Federated Reinforcement Learning for Automated Trading
 
-The system implements a federated meta-reinforcement learning approach for automated trading:
+The system implements a federated reinforcement learning approach for automated trading:
 
 #### Local RL Models on Clients
 - Each client maintains a simple linear model with three weights: `weights = np.zeros(3)`
@@ -156,7 +156,7 @@ Each user's portfolio is stored as:
 }
 ```
 
-### Federated Meta-RL Model Details
+### Federated RL Model Details
 The model uses a simple linear architecture for reinforcement learning:
 - Input features: `[1.0, Δp, action]` (bias term, price change, action taken)
 - Weights: `[w0, w1, w2]` (initialized to zero on clients)
@@ -174,22 +174,28 @@ Client-server communication for federated learning:
 ## Getting Started
 
 ### Starting the Server
+You need to be on Harvard University's public wifi for this to work, as the encryption protocols in both Eduroam and Harvard Secure don't allow for arbitrary multiple-computer communication on their networks. Once you're on public wifi, type: 
+
 ```bash
 python server.py
 ```
+To fire up the server. 
 
-### Starting the Stock Price Manager (if running separately)
+### Starting the Stock Price Manager 
+The stock price simulator runs in the background of client/server relations. Run this in a separate window via: 
+
 ```bash
 python stockpricemanager.py
 ```
 
 ### Connecting a Client
+Run:
 ```bash
 python client.py
 ```
+You'll be prompted for host and port info, and then for a username. Supply the ip address for Harvard's public wifi for the host, and 50054 for the port. Provide whichever username you deem fit. 
 
 ### Client Commands
-- Enter your username when prompted to register/login
 - The client will automatically start trading based on its reinforcement learning model
 - Press Ctrl+C to interrupt trading and view analytics graphs
 
@@ -225,6 +231,7 @@ The project includes comprehensive test suites:
 - Tests for stock price updates
 - Command: `pytest integrationtests.py`
 
+All tests are done locally, via localhost.
 ## Key Developer Information
 
 ### Code Organization
@@ -241,5 +248,5 @@ The project includes comprehensive test suites:
    - Adjust the GBM parameters in `stockpricemanager.py`
    
 3. For extending federated learning:
-   - Modify the `train_local_model` method in the client
+   - Modify the training method in the client
    - Update the aggregation logic in the server's `update_model` command handler
