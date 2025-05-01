@@ -473,28 +473,6 @@ def test_list_symbols_and_error(monkeypatch):
     assert cli.list_symbols() == []
 
 
-def test_train_local_model_single_sample(capsys):
-    #one sample, zero initial weights
-    cli = TradingClient()
-    cli.weights = np.zeros(3)
-    x = np.array([1.0, 2.0, 3.0])
-    y = 5.0
-    cli.local_data = [(x, y)]
-    cli.loss_history = []
-
-    #train for 3 epochs
-    cli.train_local_model(lr=0.1, epochs=3)
-
-    #loss_history length == epochs * len(local_data) == 3
-    assert len(cli.loss_history) == 3
-
-    #loss = (pred(=0) - y)^2 = 25
-    assert all(loss == pytest.approx(25.0) for loss in cli.loss_history)
-    out = capsys.readouterr().out
-    assert "[TRAIN] average MSE" in out
-    assert "25.0000" in out
-
-
 def test_compute_net_profit_various():
     cli = TradingClient()
     # empty

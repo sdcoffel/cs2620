@@ -451,7 +451,10 @@ class TradingClient:
         try:
             self.autotrade(user)
         except KeyboardInterrupt:
-            print("\n[INFO] Trading interrupted by user.")
+            print("\n[INFO] End of trading session.")
+
+
+        ################!!!!!!! COMMENT THIS CODE OUT IF YOU DON'T WANT TO SEE PLOTS!!!!!#########################
 
         #after hitting ctrl+c, this will display the analytics plot
         self.plot_analytics(user)

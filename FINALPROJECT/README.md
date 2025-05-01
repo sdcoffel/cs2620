@@ -193,7 +193,7 @@ Run:
 ```bash
 python client.py
 ```
-You'll be prompted for host and port info, and then for a username. Supply the ip address for Harvard's public wifi for the host, and 50054 for the port. Provide whichever username you deem fit. 
+You'll be prompted for host and port info, and then for a username. Supply the ip address for Harvard's public wifi for the host (10.253.128.85), and 50004 for the port. Provide whichever username you deem fit. 
 
 ### Client Commands
 - The client will automatically start trading based on its reinforcement learning model
